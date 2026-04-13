@@ -1039,6 +1039,15 @@ pub fn run() {
                 window.open_devtools();
             }
 
+            // In `tauri dev`, the webview already points at Next dev server via
+            // `devUrl` from tauri.conf.json. Redirecting again here overrides that
+            // URL and can land the window on an incomplete local backend server,
+            // resulting in a blank "Not found" page. Keep the dev URL untouched.
+            if cfg!(debug_assertions) {
+                println!("[desktop-server] Debug build detected; keeping Tauri devUrl without redirect");
+                return Ok(());
+            }
+
             // Configurable API mode:
             // - rust (default): start embedded Rust server (no Node.js needed).
             // - embedded: start packaged standalone Next server (legacy Node.js mode).

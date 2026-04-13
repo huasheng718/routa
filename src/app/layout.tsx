@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import "@xyflow/react/dist/style.css";
+import "react-complex-tree/lib/style-modern.css";
 import "./globals.css";
 import { I18nProvider } from "@/i18n";
 import { ThemeInitializer } from "@/client/components/theme-initializer";
