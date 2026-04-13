@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const workspaceRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const isStaticBuild = process.env.ROUTA_BUILD_STATIC === "1";
 const isDesktopServerBuild = process.env.ROUTA_DESKTOP_SERVER_BUILD === "1";
@@ -16,6 +20,9 @@ const additionalDevOrigins = process.env.ROUTA_ALLOWED_DEV_ORIGINS
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", ...additionalDevOrigins],
+  turbopack: {
+    root: workspaceRoot,
+  },
   typescript: {
     tsconfigPath: isDesktopServerBuild ? "tsconfig.desktop.json" : "tsconfig.json",
   },
