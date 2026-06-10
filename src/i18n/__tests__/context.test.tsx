@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { I18nProvider } from "../context";
-import en from "../locales/en";
 import zh from "../locales/zh";
 import { useTranslation } from "../use-translation";
 import { LOCALE_STORAGE_KEY } from "../types";
@@ -65,8 +64,8 @@ describe("I18nProvider", () => {
       </I18nProvider>,
     );
 
-    expect(html).toContain(">en<");
-    expect(html).toContain(en.home.subtitle);
+    expect(html).toContain(">zh<");
+    expect(html).toContain(zh.home.subtitle);
   });
 
   it("applies the preferred client locale after mount", async () => {

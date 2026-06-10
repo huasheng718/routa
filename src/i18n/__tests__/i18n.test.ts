@@ -19,8 +19,8 @@ function collectKeys(obj: Record<string, unknown>, prefix = ""): string[] {
 }
 
 describe("i18n translations", () => {
-  it("should have en as default locale", () => {
-    expect(DEFAULT_LOCALE).toBe("en");
+  it("should have zh as default locale", () => {
+    expect(DEFAULT_LOCALE).toBe("zh");
   });
 
   it("should support en and zh locales", () => {

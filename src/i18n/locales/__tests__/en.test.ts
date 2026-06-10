@@ -14,5 +14,11 @@ describe("en spec board copy", () => {
     expect(en.specBoard.linkedFrom).toBe("Linked From");
     expect(en.specBoard.noLinkedIssues).toBe("No linked issues recorded.");
     expect(en.specBoard.noBacklinks).toBe("No other issues point here yet.");
+    expect(en.specBoard.createIssuePrimarySection).toBe("Requirement content");
+    expect(en.specBoard.createIssueMetaSection).toBe("Classification");
+    expect(en.specBoard.createIssueAttachmentsTitle).toBe("Attachments");
+    expect(en.specBoard.mergeCreateKanbanTask).toBe("Merge into Kanban task");
+    expect(en.specBoard.mergeOpenWorkspace).toBe("Merge into workspace");
+    expect(en.specBoard.mergeSourcesTitle).toBe("Merged source demands");
   });
 });

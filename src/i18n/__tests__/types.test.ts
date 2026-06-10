@@ -21,5 +21,11 @@ describe("translation dictionary types", () => {
     expect(specBoard.noSurfaceHits).toBe("No matched product surfaces yet.");
     expect(specBoard.selectIssue).toBe("Select an issue");
     expect(specBoard.selectIssueBody).toContain("GitHub tracker");
+    expect(specBoard.createIssuePrimarySection).toBe("Requirement content");
+    expect(specBoard.createIssueMetaSection).toBe("Classification");
+    expect(specBoard.createIssueAttachmentsAction).toBe("Upload attachments");
+    expect(specBoard.mergeSelectedCount).toBe("{count} requirements selected");
+    expect(specBoard.mergeSelectionSeparator).toBe(", ");
+    expect(specBoard.mergeCreateKanbanTaskIntro).toContain("merged");
   });
 });

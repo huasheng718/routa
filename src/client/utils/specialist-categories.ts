@@ -4,15 +4,14 @@ export type SpecialistCategory = "all" | "kanban" | "team" | "harness" | "custom
 
 export interface SpecialistCategoryOption {
   id: SpecialistCategory;
-  label: string;
 }
 
 export const SPECIALIST_CATEGORY_OPTIONS: SpecialistCategoryOption[] = [
-  { id: "kanban", label: "Kanban" },
-  { id: "team", label: "Team" },
-  { id: "harness", label: "Harness" },
-  { id: "custom", label: "Custom" },
-  { id: "all", label: "All" },
+  { id: "kanban" },
+  { id: "team" },
+  { id: "harness" },
+  { id: "custom" },
+  { id: "all" },
 ];
 
 const HARNESS_SPECIALIST_IDS = new Set([

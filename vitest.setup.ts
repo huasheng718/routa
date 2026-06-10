@@ -1,4 +1,4 @@
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 if (typeof globalThis.ResizeObserver === "undefined") {
@@ -9,7 +9,10 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
-// Cleanup after each test
+beforeEach(() => {
+  localStorage.clear();
+});
+
 afterEach(() => {
   cleanup();
 });

@@ -14,5 +14,11 @@ describe("zh spec board copy", () => {
     expect(zh.specBoard.linkedFrom).toBe("被这些 Issue 引用");
     expect(zh.specBoard.noLinkedIssues).toBe("当前没有记录关联 issue。");
     expect(zh.specBoard.noBacklinks).toBe("目前还没有其它 issue 指向这里。");
+    expect(zh.specBoard.createIssuePrimarySection).toBe("需求内容");
+    expect(zh.specBoard.createIssueMetaSection).toBe("分类信息");
+    expect(zh.specBoard.createIssueAttachmentsTitle).toBe("附件材料");
+    expect(zh.specBoard.mergeCreateKanbanTask).toBe("合并创建看板任务");
+    expect(zh.specBoard.mergeOpenWorkspace).toBe("合并开启工作区");
+    expect(zh.specBoard.mergeSourcesTitle).toBe("合并来源需求");
   });
 });
