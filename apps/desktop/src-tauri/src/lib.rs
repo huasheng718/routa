@@ -491,11 +491,11 @@ fn render_startup_error_html(api_url: &str, db_path: &str, error: &str) -> Strin
 
     format!(
         r#"<!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Routa Desktop Startup Error</title>
+    <title>Routa Desktop 启动失败</title>
     <style>
       :root {{
         color-scheme: light dark;
@@ -572,11 +572,10 @@ fn render_startup_error_html(api_url: &str, db_path: &str, error: &str) -> Strin
   </head>
   <body>
     <main class="panel">
-      <h1>Routa Desktop could not start its backend</h1>
+      <h1>Routa Desktop 未能启动后端</h1>
       <p>
-        The desktop window was not connected to a fresh Rust backend. This usually means another
-        process is already using the desktop port, or startup failed before the app could safely
-        switch to the local HTTP server.
+        桌面窗口没有连接到新的 Rust 后端。通常是因为其他进程已经占用了桌面端口，
+        或者应用在安全切换到本地 HTTP 服务器之前启动失败。
       </p>
       <dl>
         <div>
@@ -584,15 +583,15 @@ fn render_startup_error_html(api_url: &str, db_path: &str, error: &str) -> Strin
           <dd><code>{escaped_api_url}</code></dd>
         </div>
         <div>
-          <dt>Database Path</dt>
+          <dt>数据库路径</dt>
           <dd><code>{escaped_db_path}</code></dd>
         </div>
         <div>
-          <dt>Error</dt>
+          <dt>错误</dt>
           <dd><code>{escaped_error}</code></dd>
         </div>
       </dl>
-      <button type="button" onclick="window.location.reload()">Reload</button>
+      <button type="button" onclick="window.location.reload()">重新加载</button>
     </main>
   </body>
 </html>"#
@@ -602,7 +601,7 @@ fn render_startup_error_html(api_url: &str, db_path: &str, error: &str) -> Strin
 fn show_startup_error(window: &tauri::WebviewWindow, api_url: &str, db_path: &str, error: &str) {
     let html = render_startup_error_html(api_url, db_path, error);
     let serialized_html = serde_json::to_string(&html)
-        .unwrap_or_else(|_| "\"<h1>Routa Desktop startup failed</h1>\"".to_string());
+        .unwrap_or_else(|_| "\"<h1>Routa Desktop 启动失败</h1>\"".to_string());
     let js = format!("document.open(); document.write({serialized_html}); document.close();");
     let _ = window.eval(js);
 }
@@ -880,7 +879,7 @@ pub fn run() {
             let install_agents = MenuItem::with_id(
                 app_handle,
                 "install_agents",
-                "Install Agents...",
+                "安装 Agent...",
                 true,
                 Some("CmdOrCtrl+Shift+I"),
             )?;
@@ -888,7 +887,7 @@ pub fn run() {
             let mcp_tools = MenuItem::with_id(
                 app_handle,
                 "mcp_tools",
-                "MCP Tools",
+                "MCP 工具",
                 true,
                 Some("CmdOrCtrl+Shift+M"),
             )?;
@@ -896,7 +895,7 @@ pub fn run() {
             let reload = MenuItem::with_id(
                 app_handle,
                 "reload",
-                "Reload",
+                "重新加载",
                 true,
                 Some("CmdOrCtrl+R"),
             )?;
@@ -904,7 +903,7 @@ pub fn run() {
             let quit = MenuItem::with_id(
                 app_handle,
                 "quit",
-                "Quit",
+                "退出",
                 true,
                 Some("CmdOrCtrl+Q"),
             )?;
@@ -913,7 +912,7 @@ pub fn run() {
             let toggle_devtools = MenuItem::with_id(
                 app_handle,
                 "toggle_devtools",
-                "Toggle Developer Tools",
+                "切换开发者工具",
                 true,
                 Some("CmdOrCtrl+Option+I"),
             )?;
@@ -921,7 +920,7 @@ pub fn run() {
             let toggle_tool_mode = MenuItem::with_id(
                 app_handle,
                 "toggle_tool_mode",
-                "Toggle Tool Mode (Essential/Full)",
+                "切换工具模式（精简/完整）",
                 true,
                 Some("CmdOrCtrl+Shift+T"),
             )?;
@@ -930,7 +929,7 @@ pub fn run() {
             let nav_dashboard = MenuItem::with_id(
                 app_handle,
                 "nav_dashboard",
-                "Dashboard",
+                "仪表盘",
                 true,
                 Some("CmdOrCtrl+1"),
             )?;
@@ -938,7 +937,7 @@ pub fn run() {
             let nav_kanban = MenuItem::with_id(
                 app_handle,
                 "nav_kanban",
-                "Kanban Board",
+                "看板",
                 true,
                 Some("CmdOrCtrl+2"),
             )?;
@@ -946,7 +945,7 @@ pub fn run() {
             let nav_traces = MenuItem::with_id(
                 app_handle,
                 "nav_traces",
-                "Agent Traces",
+                "Agent 追踪",
                 true,
                 Some("CmdOrCtrl+3"),
             )?;
@@ -954,7 +953,7 @@ pub fn run() {
             let nav_settings = MenuItem::with_id(
                 app_handle,
                 "nav_settings",
-                "Settings",
+                "设置",
                 true,
                 Some("CmdOrCtrl+,"),
             )?;
@@ -962,7 +961,7 @@ pub fn run() {
             // Build Tools submenu
             let tools_submenu = Submenu::with_items(
                 app_handle,
-                "Tools",
+                "工具",
                 true,
                 &[&install_agents, &mcp_tools],
             )?;
@@ -970,7 +969,7 @@ pub fn run() {
             // Build File submenu
             let file_submenu = Submenu::with_items(
                 app_handle,
-                "File",
+                "文件",
                 true,
                 &[&reload, &quit],
             )?;
@@ -978,7 +977,7 @@ pub fn run() {
             // Build View submenu
             let view_submenu = Submenu::with_items(
                 app_handle,
-                "View",
+                "视图",
                 true,
                 &[&toggle_devtools, &toggle_tool_mode],
             )?;
@@ -986,7 +985,7 @@ pub fn run() {
             // Build Navigate submenu
             let navigate_submenu = Submenu::with_items(
                 app_handle,
-                "Navigate",
+                "导航",
                 true,
                 &[&nav_dashboard, &nav_kanban, &nav_traces, &nav_settings],
             )?;

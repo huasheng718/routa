@@ -111,7 +111,7 @@ pub fn build_tray_menu(app: &AppHandle, repos: &[GitHubRepo]) -> tauri::Result<M
     let show_hide = MenuItem::with_id(
         app,
         TRAY_SHOW_HIDE_ID,
-        "Show / Hide Window",
+        "显示 / 隐藏窗口",
         true,
         None::<&str>,
     )?;
@@ -122,20 +122,20 @@ pub fn build_tray_menu(app: &AppHandle, repos: &[GitHubRepo]) -> tauri::Result<M
     let sessions = MenuItem::with_id(
         app,
         TRAY_WORKSPACE_SESSIONS_ID,
-        "Sessions",
+        "会话",
         true,
         None::<&str>,
     )?;
     let kanban = MenuItem::with_id(
         app,
         TRAY_WORKSPACE_KANBAN_ID,
-        "Kanban Board",
+        "看板",
         true,
         None::<&str>,
     )?;
     let team_runs =
-        MenuItem::with_id(app, TRAY_WORKSPACE_TEAM_ID, "Team Runs", true, None::<&str>)?;
-    let messages = MenuItem::with_id(app, TRAY_MESSAGES_ID, "Messages", true, None::<&str>)?;
+        MenuItem::with_id(app, TRAY_WORKSPACE_TEAM_ID, "团队执行", true, None::<&str>)?;
+    let messages = MenuItem::with_id(app, TRAY_MESSAGES_ID, "消息", true, None::<&str>)?;
     menu.append(&sessions)?;
     menu.append(&kanban)?;
     menu.append(&team_runs)?;
@@ -146,24 +146,24 @@ pub fn build_tray_menu(app: &AppHandle, repos: &[GitHubRepo]) -> tauri::Result<M
     let agent_settings = MenuItem::with_id(
         app,
         TRAY_SETTINGS_AGENTS_ID,
-        "Agent Settings…",
+        "Agent 设置…",
         true,
         None::<&str>,
     )?;
     let webhook_settings = MenuItem::with_id(
         app,
         TRAY_SETTINGS_WEBHOOKS_ID,
-        "Webhook Settings…",
+        "Webhook 设置…",
         true,
         None::<&str>,
     )?;
     let settings_submenu =
-        Submenu::with_items(app, "Settings", true, &[&agent_settings, &webhook_settings])?;
+        Submenu::with_items(app, "设置", true, &[&agent_settings, &webhook_settings])?;
     menu.append(&settings_submenu)?;
 
     // ── GitHub repo sub-menus (only when configured) ──
     if !repos.is_empty() {
-        let github_shortcuts = Submenu::new(app, "GitHub Shortcuts", true)?;
+        let github_shortcuts = Submenu::new(app, "GitHub 快捷入口", true)?;
 
         for repo in repos {
             let owner_repo = repo.id_prefix();
@@ -176,21 +176,21 @@ pub fn build_tray_menu(app: &AppHandle, repos: &[GitHubRepo]) -> tauri::Result<M
             let pulls = MenuItem::with_id(
                 app,
                 format!("tray:gh:pulls:{owner_repo}"),
-                "Pull Requests",
+                "PR",
                 true,
                 None::<&str>,
             )?;
             let issues = MenuItem::with_id(
                 app,
                 format!("tray:gh:issues:{owner_repo}"),
-                "Issues",
+                "议题",
                 true,
                 None::<&str>,
             )?;
             let repo_link = MenuItem::with_id(
                 app,
                 format!("tray:gh:repo:{owner_repo}"),
-                "Repository",
+                "仓库",
                 true,
                 None::<&str>,
             )?;
@@ -205,7 +205,7 @@ pub fn build_tray_menu(app: &AppHandle, repos: &[GitHubRepo]) -> tauri::Result<M
     }
 
     // ── Quit ──
-    let quit = MenuItem::with_id(app, TRAY_QUIT_ID, "Quit Routa", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, TRAY_QUIT_ID, "退出 Routa", true, None::<&str>)?;
     menu.append(&quit)?;
 
     Ok(menu)
