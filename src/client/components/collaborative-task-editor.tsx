@@ -311,7 +311,7 @@ export function CollaborativeTaskEditor({
           >
             <FileText className="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
             <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex-1">
-              Spec
+              {t.collaborativeTasks.spec}
             </span>
             {onDeleteNote && (
               <button
@@ -319,7 +319,7 @@ export function CollaborativeTaskEditor({
                   e.stopPropagation();
                   onDeleteNote(specNote.id);
                 }}
-                title="Delete spec"
+                title={t.collaborativeTasks.deleteSpec}
                 className="p-0.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <X className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
@@ -542,10 +542,12 @@ function TaskSection({ title, content }: { title: string; content: string }) {
 
 // ─── Task Content Renderer ──────────────────────────────────────────────────
 function TaskContentRenderer({ content }: { content: string }) {
+  const { t } = useTranslation();
+
   if (!content) {
     return (
       <div className="text-xs text-slate-400 dark:text-slate-500 italic">
-        No content
+        {t.collaborativeTasks.noContent}
       </div>
     );
   }
@@ -566,19 +568,19 @@ function TaskContentRenderer({ content }: { content: string }) {
   return (
     <div className="space-y-0">
       {sections.objective && (
-        <TaskSection title="Objective" content={sections.objective} />
+        <TaskSection title={t.collaborativeTasks.section.objective} content={sections.objective} />
       )}
       {sections.scope && (
-        <TaskSection title="Scope" content={sections.scope} />
+        <TaskSection title={t.collaborativeTasks.section.scope} content={sections.scope} />
       )}
       {sections.inputs && (
-        <TaskSection title="Inputs" content={sections.inputs} />
+        <TaskSection title={t.collaborativeTasks.section.inputs} content={sections.inputs} />
       )}
       {sections.outputs && (
-        <TaskSection title="Outputs" content={sections.outputs} />
+        <TaskSection title={t.collaborativeTasks.section.outputs} content={sections.outputs} />
       )}
       {sections.definitionOfDone && (
-        <TaskSection title="Definition of Done" content={sections.definitionOfDone} />
+        <TaskSection title={t.collaborativeTasks.section.definitionOfDone} content={sections.definitionOfDone} />
       )}
       {sections.remainingContent && (
         <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
@@ -685,7 +687,7 @@ function TaskNoteCard({
             {note.metadata.assignedAgentIds &&
               note.metadata.assignedAgentIds.length > 0 && (
                 <span className="text-[9px] px-1 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300">
-                  Agent: {note.metadata.assignedAgentIds.join(", ")}
+                  {t.collaborativeTasks.agentLabel} {note.metadata.assignedAgentIds.join(", ")}
                 </span>
               )}
           </div>
@@ -696,7 +698,7 @@ function TaskNoteCard({
               e.stopPropagation();
               onDelete();
             }}
-            title="Delete task"
+            title={t.collaborativeTasks.deleteTask}
             className="p-0.5 rounded text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0"
           >
             <X className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
@@ -754,7 +756,7 @@ function TaskNoteCard({
                   }}
                   className="text-[11px] font-medium px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                 >
-                  Edit
+                  {t.collaborativeTasks.edit}
                 </button>
 
                 {/* Status dropdown */}
@@ -767,10 +769,10 @@ function TaskNoteCard({
                   onClick={(e) => e.stopPropagation()}
                   className="min-w-29.5 text-[11px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
                 >
-                  <option value="PENDING">Pending</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="FAILED">Failed</option>
+                  <option value="PENDING">{statusLabels.PENDING.label}</option>
+                  <option value="IN_PROGRESS">{statusLabels.IN_PROGRESS.label}</option>
+                  <option value="COMPLETED">{statusLabels.COMPLETED.label}</option>
+                  <option value="FAILED">{statusLabels.FAILED.label}</option>
                 </Select>
 
                 {onDelete && (
@@ -865,7 +867,7 @@ function TaskNoteEditor({
     <div className="mt-2.5 space-y-2">
       <div>
         <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
-          Title
+          {t.collaborativeTasks.title}
         </label>
         <input
           ref={titleRef}
@@ -876,17 +878,17 @@ function TaskNoteEditor({
       </div>
       <div>
         <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
-          Content
+          {t.collaborativeTasks.content}
         </label>
         <textarea
           value={content}
           onChange={(e) => handleContentChange(e.target.value)}
           rows={8}
           className="mt-0.5 w-full text-xs px-2 py-1.5 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-emerald-500 outline-none resize-y font-mono"
-          placeholder="Task content (Markdown supported)..."
+          placeholder={t.collaborativeTasks.taskContentPlaceholder}
         />
         <div className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">
-          Auto-saves after 1.5s of inactivity
+          {t.collaborativeTasks.autoSaveHint}
         </div>
       </div>
       <div className="flex gap-2 pt-1">

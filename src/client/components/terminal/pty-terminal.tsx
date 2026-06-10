@@ -12,6 +12,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { getPlatformBridge } from "@/core/platform";
 import { Terminal as TerminalIcon1 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 
 // xterm.js types - actual imports are dynamic (browser-only)
@@ -70,6 +71,7 @@ export function PtyTerminal({
   rows = 24,
   cols = 80,
 }: PtyTerminalProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerminal | null>(null);
   const fitAddonRef = useRef<XFitAddon | null>(null);
@@ -210,9 +212,9 @@ export function PtyTerminal({
   if (!isTauri) {
     return (
       <div className="p-4 bg-gray-800 text-gray-400 rounded-lg">
-        <p>Interactive PTY terminal is only available in the desktop app.</p>
+        <p>{t.terminal.unavailableTitle}</p>
         <p className="text-sm mt-2">
-          Use the web terminal for read-only output display.
+          {t.terminal.unavailableDescription}
         </p>
       </div>
     );
@@ -221,7 +223,7 @@ export function PtyTerminal({
   if (error) {
     return (
       <div className="p-4 bg-red-900/20 text-red-400 rounded-lg">
-        <p className="font-semibold">Terminal Error</p>
+        <p className="font-semibold">{t.terminal.errorTitle}</p>
         <p className="text-sm mt-1">{error}</p>
       </div>
     );
@@ -234,10 +236,10 @@ export function PtyTerminal({
         <TerminalIcon1 className="w-3.5 h-3.5 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
         <span className="text-xs font-mono text-gray-300 truncate flex-1">
-          {command || "Terminal"} {args?.join(" ") || ""}
+          {command || t.terminal.defaultTitle} {args?.join(" ") || ""}
         </span>
         <span className="text-[10px] text-gray-500 shrink-0">
-          {initialized ? "connected" : "connecting..."}
+          {initialized ? t.terminal.connected : t.terminal.connecting}
         </span>
       </div>
 

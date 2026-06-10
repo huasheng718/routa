@@ -39,9 +39,23 @@ vi.mock("@/i18n", () => ({
           syncBundled: "Sync bundled",
           syncing: "Syncing...",
           totalSpecialists: "{count} total specialists",
+          explorer: "Explorer",
+          duplicate: "Duplicate",
+          copyName: "{name} Copy",
+          systemPromptPlaceholder: "Define the specialist contract",
+          inspector: "Inspector",
+          sourceLabel: "Source",
+          categoryLabel: "Category",
+          writableLabel: "Writable",
+          categoryKanban: "Kanban",
+          categoryTeam: "Team",
+          categoryHarness: "Harness",
+          categoryCustom: "Custom",
+          categoryAll: "All",
         },
       },
       specialists: {
+        balanced: "Balanced",
         coordinator: "Coordinator",
         createNew: "Create New",
         defaultModelTier: "Default Model Tier",
@@ -49,6 +63,7 @@ vi.mock("@/i18n", () => ({
         description: "Description",
         descriptionPlaceholder: "Brief description of this specialist",
         failedToSync: "Failed to sync specialists",
+        fast: "Fast",
         id: "ID",
         idPlaceholder: "e.g., my-specialist",
         implementor: "Implementor",
@@ -66,6 +81,7 @@ vi.mock("@/i18n", () => ({
           hardcoded: "Built-in",
           user: "User",
         },
+        smart: "Smart",
         systemPromptLabel: "System Prompt",
         tier: "Tier",
         verifier: "Verifier",
@@ -86,7 +102,7 @@ describe("SpecialistsTab", () => {
   beforeEach(() => {
     desktopAwareFetch.mockReset();
     desktopAwareFetch.mockImplementation(async (url: string) => {
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return {
           ok: true,
           json: async () => ({

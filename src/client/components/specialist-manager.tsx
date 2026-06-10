@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { desktopAwareFetch } from "../utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import { Select } from "./select";
 import { useTranslation } from "@/i18n";
 import { SquarePen, Trash2, X, Briefcase } from "lucide-react";
@@ -77,7 +78,7 @@ interface SpecialistForm {
 // ─── Specialist Manager Component ───────────────────────────────────────────
 
 export function SpecialistManager({ open, onClose }: SpecialistManagerProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const requiresPostgresMessage = t.specialists.requiresPostgres;
   const failedToLoadMessage = t.specialists.failedToLoad;
   const [specialists, setSpecialists] = useState<SpecialistConfig[]>([]);
@@ -105,7 +106,7 @@ export function SpecialistManager({ open, onClose }: SpecialistManagerProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await desktopAwareFetch("/api/specialists");
+      const response = await desktopAwareFetch(buildSpecialistsApiPath(locale));
       if (!response.ok) {
         if (response.status === 501) {
           setError(requiresPostgresMessage);
@@ -121,7 +122,7 @@ export function SpecialistManager({ open, onClose }: SpecialistManagerProps) {
     } finally {
       setLoading(false);
     }
-  }, [failedToLoadMessage, requiresPostgresMessage]);
+  }, [failedToLoadMessage, locale, requiresPostgresMessage]);
 
   // Load specialists on open
   useEffect(() => {

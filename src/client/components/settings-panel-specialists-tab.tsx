@@ -11,11 +11,11 @@ import type { AgentRole, ModelTier, SpecialistConfig } from "./specialist-manage
 import {
   EMPTY_SPECIALIST_FORM,
   ROLE_CHIP,
-  TIER_LABELS,
   type ModelDefinition,
   type SpecialistForm,
 } from "./settings-panel-shared";
 import { desktopAwareFetch } from "../utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import {
   SPECIALIST_CATEGORY_OPTIONS,
   filterSpecialistsByCategory,
@@ -40,7 +40,7 @@ const metaChipCls =
 const workbenchRowCls = "border-b border-desktop-border/70 px-4 py-4";
 
 export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [specialists, setSpecialists] = useState<SpecialistConfig[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<SpecialistCategory>("all");
@@ -67,12 +67,24 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
     bundled: t.specialists.source.bundled,
     hardcoded: t.specialists.source.hardcoded,
   };
+  const tierLabels: Record<ModelTier, string> = {
+    FAST: t.specialists.fast,
+    BALANCED: t.specialists.balanced,
+    SMART: t.specialists.smart,
+  };
+  const categoryLabels: Record<SpecialistCategory, string> = {
+    kanban: t.settings.specialistsTab.categoryKanban,
+    team: t.settings.specialistsTab.categoryTeam,
+    harness: t.settings.specialistsTab.categoryHarness,
+    custom: t.settings.specialistsTab.categoryCustom,
+    all: t.settings.specialistsTab.categoryAll,
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await desktopAwareFetch("/api/specialists");
+      const response = await desktopAwareFetch(buildSpecialistsApiPath(locale));
       if (!response.ok) {
         setError(
           response.status === 501
@@ -88,7 +100,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [loadFailedMessage, requiresPostgresMessage]);
+  }, [loadFailedMessage, locale, requiresPostgresMessage]);
 
   useEffect(() => {
     void load();
@@ -114,7 +126,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
     : form.id
       ? `${form.id}.specialist.md`
       : t.settings.specialistsTab.newProfile;
-  const statusModelLabel = form.model || TIER_LABELS[form.defaultModelTier];
+  const statusModelLabel = form.model || tierLabels[form.defaultModelTier];
 
   useEffect(() => {
     if (selectedSpecialist) return;
@@ -214,7 +226,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
     setError(null);
     setForm({
       id: selectedSpecialist.source === "user" ? `${selectedSpecialist.id}-copy` : "",
-      name: `${selectedSpecialist.name} Copy`,
+      name: t.settings.specialistsTab.copyName.replace("{name}", selectedSpecialist.name),
       description: selectedSpecialist.description ?? "",
       role: selectedSpecialist.role,
       defaultModelTier: selectedSpecialist.defaultModelTier,
@@ -261,7 +273,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
         >
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-desktop-border px-3 py-2.5">
             <div className="min-w-0">
-              <p className={sectionTitleCls}>Explorer</p>
+              <p className={sectionTitleCls}>{t.settings.specialistsTab.explorer}</p>
               <p className="mt-0.5 text-[11px] text-desktop-text-secondary">{totalSpecialistsLabel}</p>
             </div>
             <div className="flex items-center gap-2">
@@ -303,7 +315,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
                         : "bg-desktop-bg-primary text-desktop-text-secondary hover:bg-desktop-bg-active hover:text-desktop-text-primary"
                     }`}
                   >
-                    {option.label}
+                    {categoryLabels[option.id]}
                   </button>
                 );
               })}
@@ -337,7 +349,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
                         </span>
                         <span>{sourceLabels[specialist.source]}</span>
                         <span>•</span>
-                        <span>{TIER_LABELS[specialist.defaultModelTier]}</span>
+                        <span>{tierLabels[specialist.defaultModelTier]}</span>
                       </div>
                     </div>
                   </div>
@@ -387,7 +399,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
                   {selectedSpecialist ? (
                     <button onClick={duplicateSelected} className={secondaryButtonCls}>
                       <Copy className="h-3.5 w-3.5" />
-                      <span>Duplicate</span>
+                      <span>{t.settings.specialistsTab.duplicate}</span>
                     </button>
                   ) : null}
                   {editingId ? (
@@ -454,7 +466,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
                       className={`${desktopInputCls} disabled:opacity-60`}
                     >
                       {(["ROUTA", "CRAFTER", "GATE", "DEVELOPER"] as AgentRole[]).map((role) => (
-                        <option key={role} value={role}>{roleLabels[role]} · {role}</option>
+                        <option key={role} value={role}>{roleLabels[role]}</option>
                       ))}
                     </Select>
                   </Field>
@@ -466,7 +478,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
                       className={`${desktopInputCls} disabled:opacity-60`}
                     >
                       {(["FAST", "BALANCED", "SMART"] as ModelTier[]).map((tier) => (
-                        <option key={tier} value={tier}>{TIER_LABELS[tier]}</option>
+                        <option key={tier} value={tier}>{tierLabels[tier]}</option>
                       ))}
                     </Select>
                   </Field>
@@ -499,7 +511,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
                     onChange={(event) => setForm({ ...form, systemPrompt: event.target.value })}
                     disabled={readOnlySelection}
                     rows={14}
-                    placeholder="Define the specialist contract"
+                    placeholder={t.settings.specialistsTab.systemPromptPlaceholder}
                     className={`${desktopInputCls} min-h-[280px] font-mono text-[12px] leading-5 disabled:opacity-60`}
                   />
                 </Field>
@@ -521,16 +533,16 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
 
             <aside className="hidden w-[240px] shrink-0 border-l border-desktop-border bg-desktop-bg-secondary xl:flex xl:flex-col">
               <div className="border-b border-desktop-border px-3 py-3">
-                <p className={sectionTitleCls}>Inspector</p>
+                <p className={sectionTitleCls}>{t.settings.specialistsTab.inspector}</p>
                 <div className="mt-1 text-[11px] text-desktop-text-secondary">{t.settings.specialistsTab.catalog}</div>
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto px-3 py-3 desktop-scrollbar-thin">
-                <InspectorCard label="Source" value={selectedSpecialist ? sourceLabels[selectedSpecialist.source] : t.common.new} />
-                <InspectorCard label="Category" value={selectedSpecialist ? getSpecialistCategory(selectedSpecialist.id) : "custom"} />
-                <InspectorCard label="Writable" value={readOnlySelection ? t.common.disabled : t.common.enabled} />
+                <InspectorCard label={t.settings.specialistsTab.sourceLabel} value={selectedSpecialist ? sourceLabels[selectedSpecialist.source] : t.common.new} />
+                <InspectorCard label={t.settings.specialistsTab.categoryLabel} value={selectedSpecialist ? categoryLabels[getSpecialistCategory(selectedSpecialist.id)] : categoryLabels.custom} />
+                <InspectorCard label={t.settings.specialistsTab.writableLabel} value={readOnlySelection ? t.common.disabled : t.common.enabled} />
                 <InspectorCard label={t.specialists.role} value={roleLabels[form.role]} badgeClass={ROLE_CHIP[form.role]} />
-                <InspectorCard label={t.specialists.tier} value={TIER_LABELS[form.defaultModelTier]} />
+                <InspectorCard label={t.specialists.tier} value={tierLabels[form.defaultModelTier]} />
                 <InspectorCard label={t.specialists.model} value={statusModelLabel} />
               </div>
             </aside>
@@ -542,7 +554,7 @@ export function SpecialistsTab({ modelDefs }: SpecialistsTabProps) {
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <span>{selectedSpecialist ? sourceLabels[selectedSpecialist.source] : t.settings.specialistsTab.newProfile}</span>
           <span>{roleLabels[form.role]}</span>
-          <span>{TIER_LABELS[form.defaultModelTier]}</span>
+          <span>{tierLabels[form.defaultModelTier]}</span>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-3 opacity-90">
           <span>{visibleSpecialists.length}/{specialists.length}</span>

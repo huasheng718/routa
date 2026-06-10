@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Select } from "./select";
 import { useTranslation } from "@/i18n";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import {
   dangerGhostButtonClassName,
   dangerRequiredMarkClassName,
@@ -129,7 +130,7 @@ export function SchedulePanel({ workspaceId }: { workspaceId?: string }) {
   const [success, setSuccess] = useState<string | null>(null);
   const [cronDescription, setCronDescription] = useState<string>("");
   const [now, setNow] = useState(0);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   useEffect(() => {
     const init = setTimeout(() => setNow(Date.now()), 0);
@@ -176,7 +177,7 @@ export function SchedulePanel({ workspaceId }: { workspaceId?: string }) {
 
   // Load specialists from API
   useEffect(() => {
-    desktopAwareFetch("/api/specialists")
+    desktopAwareFetch(buildSpecialistsApiPath(locale))
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.specialists) {
@@ -184,7 +185,7 @@ export function SchedulePanel({ workspaceId }: { workspaceId?: string }) {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [locale]);
 
   function openCreate() {
     if (!workspaceId) return;

@@ -7,6 +7,7 @@ import { RepoPicker } from "../../repo-picker";
 import type { SetupViewProps } from "../types";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { WorkspaceSwitcher } from "../../workspace-switcher";
+import { useTranslation } from "@/i18n";
 
 
 export function SetupView({
@@ -27,6 +28,7 @@ export function SetupView({
   agentRole,
   onAgentRoleChange,
 }: SetupViewProps) {
+  const { t } = useTranslation();
   const [selectedModel, setSelectedModel] = useState("");
 
   const handleProviderChange = useCallback((providerId: string) => {
@@ -59,7 +61,7 @@ export function SetupView({
             value={setupInput}
             onChange={(e) => onSetupInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe your task, question, or goal..."
+            placeholder={t.chatSetup.taskPlaceholder}
             rows={4}
             className="w-full px-5 py-3.5 text-base text-slate-900 dark:text-slate-100 bg-transparent resize-none focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 leading-relaxed"
             autoFocus
@@ -98,7 +100,7 @@ export function SetupView({
         <div className="grid grid-cols-2 gap-3 items-end">
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-              Workspace
+              {t.chatSetup.workspaceLabel}
             </label>
             <WorkspaceSwitcher
               workspaces={workspaces}
@@ -110,7 +112,7 @@ export function SetupView({
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-              Repository
+              {t.chatSetup.repositoryLabel}
             </label>
             <RepoPicker value={repoSelection} onChange={onRepoChange} />
           </div>
@@ -124,13 +126,15 @@ export function SetupView({
 }
 
 function SetupHeader() {
+  const { t } = useTranslation();
+
   return (
     <div className="text-center">
       <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-blue-500/20 to-blue-400/20">
         <Sparkles className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}/>
       </div>
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">What would you like to work on?</h2>
-      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">Describe your task and choose your mode.</p>
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t.chatSetup.title}</h2>
+      <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{t.chatSetup.description}</p>
     </div>
   );
 }
@@ -141,10 +145,12 @@ interface AgentRoleSelectorProps {
 }
 
 function AgentRoleSelector({ agentRole, onAgentRoleChange }: AgentRoleSelectorProps) {
+  const { t } = useTranslation();
+
   return (
     <div>
       <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">
-        Mode
+        {t.chatSetup.modeLabel}
       </label>
       <div className="grid grid-cols-2 gap-3">
         {/* Routa Card */}
