@@ -59,9 +59,13 @@ export interface TailTranslationDictionarySections {
     essential: string;
     toolCount: string;
     noToolSelected: string;
+    description: string;
     argumentsLabel: string;
+    running: string;
     runTool: string;
     back: string;
+    result: string;
+    resultEmpty: string;
     toolResult: string;
     inputSchema: string;
     categoryTask: string;
@@ -79,6 +83,40 @@ export interface TailTranslationDictionarySections {
   // RepoSlide panel
   repoSlide: {
     title: string;
+    subtitle: string;
+    selectProvider: string;
+    launching: string;
+    launch: string;
+    loadingContext: string;
+    targetRepository: string;
+    sourceUrl: string;
+    branch: string;
+    source: string;
+    files: string;
+    directories: string;
+    unknown: string;
+    behaviorNotice: string;
+    skillUnavailable: string;
+    launchPlan: string;
+    launchStepCreateSession: string;
+    launchStepLoadSkill: string;
+    launchStepSendPrompt: string;
+    launchStepContinueSession: string;
+    skillSource: string;
+    skillSourceFallback: string;
+    topLevelFolders: string;
+    noFoldersDetected: string;
+    rootFiles: string;
+    noRootFilesDetected: string;
+    keyFiles: string;
+    noKeyFilesDetected: string;
+    entryPoints: string;
+    noEntryPoints: string;
+    largestTopLevelAreas: string;
+    noFocusDirectories: string;
+    filesScanned: string;
+    promptPreview: string;
+    promptPreviewDesc: string;
     statusReady: string;
     statusPathDetected: string;
     statusWaitingPath: string;
@@ -97,6 +135,11 @@ export interface TailTranslationDictionarySections {
     downloadPptx: string;
     notDownloadable: string;
     noPathDetected: string;
+    errors: {
+      noProvider: string;
+      skillUnavailable: string;
+      noSessionId: string;
+    };
   };
 
   // Debug pages
@@ -252,6 +295,9 @@ export interface TailTranslationDictionarySections {
     typeCreateSession: string;
     connectFirst: string;
     availableAuthMethods: string;
+    defaultModel: string;
+    filterModels: string;
+    noModelsFound: string;
   };
 
   // GitHub Webhook Panel
@@ -349,10 +395,74 @@ export interface TailTranslationDictionarySections {
     enable: string;
   };
 
+  // Messages Page
+  messagesPage: {
+    title: string;
+    backgroundTasks: string;
+    webhookLogs: string;
+    loading: string;
+    prAgentBackgroundTasks: string;
+    noBackgroundTasks: string;
+    typeLabel: string;
+    createdLabel: string;
+    completedLabel: string;
+    webhookTriggerLogs: string;
+    noWebhookLogs: string;
+    configLabel: string;
+    signatureLabel: string;
+    statusPending: string;
+    statusRunning: string;
+    statusCompleted: string;
+    statusFailed: string;
+    statusCancelled: string;
+    outcomeTriggered: string;
+    outcomeSkipped: string;
+    outcomeError: string;
+  };
+
   // A2A Page
   a2aPage: {
     workspaceIdOptional: string;
     describeWhatYouNeed: string;
+    protocolTitle: string;
+    agentToAgentApi: string;
+    live: string;
+    sendMessage: string;
+    sendShortcut: string;
+    sending: string;
+    send: string;
+    networkError: string;
+    tabTasks: string;
+    tabAgentCard: string;
+    tabSkills: string;
+    refreshing: string;
+    tasksCount: string;
+    refresh: string;
+    noTasksYet: string;
+    open: string;
+    loading: string;
+    loadingSkills: string;
+    capabilities: string;
+    streaming: string;
+    pushNotifications: string;
+    inputModes: string;
+    outputModes: string;
+    taskDetail: string;
+    taskId: string;
+    contextId: string;
+    workspace: string;
+    prompt: string;
+    statusMessage: string;
+    rawJson: string;
+    selectTask: string;
+    apiEndpoints: string;
+    hideExamples: string;
+    examplesCount: string;
+    statusSubmitted: string;
+    statusWorking: string;
+    statusCompleted: string;
+    statusFailed: string;
+    statusCanceled: string;
   };
 
   // Git Log Panel
@@ -372,6 +482,7 @@ export interface TailTranslationDictionarySections {
     noCommits: string;
     selectCommit: string;
     loadingCommits: string;
+    loadingRefs: string;
     loadingMore: string;
     filterPlaceholder: string;
     clearFilters: string;
@@ -379,5 +490,12 @@ export interface TailTranslationDictionarySections {
     hideRefs: string;
     parents: string;
     files: string;
+    filesCount: string;
+    justNow: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
+    monthsAgo: string;
+    yearsAgo: string;
   };
 }

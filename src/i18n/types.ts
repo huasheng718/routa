@@ -1,12 +1,16 @@
+import type { CoreTailTranslationDictionarySections } from "./types-core-tail";
 import type { ExtendedTranslationDictionarySections } from "./types-extended";
 
 export type Locale = "en" | "zh";
 
 export const SUPPORTED_LOCALES: Locale[] = ["en", "zh"];
-export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE: Locale = "zh";
 export const LOCALE_STORAGE_KEY = "routa.locale";
 
-export interface TranslationDictionary extends ExtendedTranslationDictionarySections {
+export interface TranslationDictionary
+  extends
+    CoreTailTranslationDictionarySections,
+    ExtendedTranslationDictionarySections {
   // Common
   common: {
     save: string;
@@ -120,6 +124,12 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
     directDesc: string;
     customSpecialist: string;
     specialistMode: string;
+    customSpecialistShort: string;
+    switchBuiltInRole: string;
+    switchSpecialist: string;
+    useCustomSpecialist: string;
+    multiAgentTitle: string;
+    crafterTitle: string;
     repoPath: string;
     openKanbanDescription: string;
     workspaceOverviewDescription: string;
@@ -423,6 +433,16 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
     retrospectiveHistoryStillNeedLabel: string;
   };
 
+  markdown: {
+    htmlPreview: {
+      title: string;
+      preview: string;
+      code: string;
+      copied: string;
+      dragToResize: string;
+    };
+  };
+
   // Settings panel
   settings: {
     title: string;
@@ -451,6 +471,8 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
     rolesDesc: string;
     modelsDesc: string;
     webhooksDesc: string;
+    providersSectionDesc: string;
+    providerCredentials: string;
     nameRequired: string;
     commandRequired: string;
     optionalDescription: string;
@@ -458,11 +480,60 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
     shown: string;
     backToOverview: string;
     customProvider: string;
+    customProviders: string;
+    customProvidersDesc: string;
+    editProvider: string;
+    newProvider: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    commandLabel: string;
+    argsLabel: string;
+    descriptionLabel: string;
+    noCustomProviders: string;
+    providerCatalog: string;
+    providerCatalogDesc: string;
+    noProvidersAvailable: string;
+    hiddenProvidersNotice: string;
     provider: string;
     modelOverride: string;
     builtIn: string;
     custom: string;
     registry: string;
+    roleDescriptions: {
+      ROUTA: string;
+      CRAFTER: string;
+      GATE: string;
+      DEVELOPER: string;
+    };
+    selectModelPlaceholder: string;
+    modelExamplePlaceholder: string;
+    modelBlankHintBefore: string;
+    modelsTabLabel: string;
+    modelBlankHintAfter: string;
+    unavailableSuffix: string;
+    providerStatus: {
+      available: string;
+      checking: string;
+      unavailable: string;
+    };
+    memoryLevel: {
+      normal: string;
+      warning: string;
+      critical: string;
+    };
+    githubWebhookTriggers: string;
+    githubWebhookTriggersDesc: string;
+    webhookUrlLabel: string;
+    webhookUrlHint: string;
+    manageWebhookTriggers: string;
+    dockerAuthPastePrefix: string;
+    dockerAuthPasteSuffix: string;
+    dockerAuthPasteLocalPrefix: string;
+    dockerAuthPasteLocalSuffix: string;
+    invalidJsonFormat: string;
+    dockerConfigurationRequired: string;
+    openCodeAuthJson: string;
+    saveAndRetry: string;
     systemInfo: string;
     memory: string;
     sessions: string;
@@ -512,6 +583,13 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
         viewQualityDimensions: string;
         reviewHooks: string;
         checkCICD: string;
+        fitnessDescription: string;
+        hooksDescription: string;
+        cicdDescription: string;
+        statFitness: string;
+        statGates: string;
+        statHooks: string;
+        statWorkflows: string;
       };
       architectureQuality: {
         navigationLabel: string;
@@ -584,12 +662,21 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
         nodes: string;
         edges: string;
         legend: string;
+        unknownError: string;
+        legendImports: string;
+        legendExtends: string;
+        legendImplements: string;
       };
       healthCards: {
         fitnessScore: string;
         hardGates: string;
         hooks: string;
         cicd: string;
+        dimensionCount: string;
+        metricCount: string;
+        runtimeHooks: string;
+        activeWorkflows: string;
+        notAvailable: string;
       };
     };
     backToHome: string;
@@ -618,12 +705,29 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
       newProfile: string;
       bundledReadOnlyHint: string;
       manageHint: string;
+      explorer: string;
+      duplicate: string;
+      copyName: string;
+      systemPromptPlaceholder: string;
+      inspector: string;
+      sourceLabel: string;
+      categoryLabel: string;
+      writableLabel: string;
+      categoryKanban: string;
+      categoryTeam: string;
+      categoryHarness: string;
+      categoryCustom: string;
+      categoryAll: string;
     };
     mcpTab: {
       idLabel: string;
+      idPlaceholder: string;
       nameLabel: string;
+      namePlaceholder: string;
       descriptionLabel: string;
+      descriptionPlaceholder: string;
       typeLabel: string;
+      typeStdioShort: string;
       typeStdio: string;
       typeStdioLocal: string;
       typeHttp: string;
@@ -645,6 +749,15 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
       serverCount: string;
       editButton: string;
       deleteButton: string;
+      checkingStatus: string;
+      statusTitleChecking: string;
+      activeServerLabel: string;
+      readyLabel: string;
+      unavailableLabel: string;
+      statusCheckFailed: string;
+      noCustomServers: string;
+      customServersEnabled: string;
+      openTools: string;
     };
   };
 
@@ -866,24 +979,104 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
   story: {
     productFlow: string;
     scrollSurfaces: string;
+    productFlowDescription: string;
+    stickyPreview: string;
+    stepByStepScroll: string;
+    liveProductFraming: string;
     intentCapture: string;
     intentCaptureTitle: string;
     intentCaptureBody: string;
+    intentCaptureNote: string;
     parallelRouting: string;
     parallelRoutingTitle: string;
     parallelRoutingBody: string;
+    parallelRoutingNote: string;
     operationalView: string;
     operationalViewTitle: string;
     operationalViewBody: string;
+    operationalViewNote: string;
     traceReview: string;
     traceReviewTitle: string;
     traceReviewBody: string;
+    traceReviewNote: string;
+    liveSurface: string;
     runtimeOnline: string;
     runtimeOffline: string;
+    openWorkspace: string;
+    openKanban: string;
     activeModules: string;
     skills: string;
+    noSkillsConnected: string;
+    missionComposer: string;
+    multiAgent: string;
+    workspaceScoped: string;
+    inlineSkills: string;
+    metricWorkspaces: string;
+    metricContext: string;
+    metricContextValue: string;
+    metricLaunch: string;
+    metricLaunchValue: string;
+    agentFanOut: string;
+    lanesActive: string;
+    lanePlanner: string;
+    lanePlannerDetail: string;
+    laneCrafter: string;
+    laneCrafterDetail: string;
+    laneGate: string;
+    laneGateDetail: string;
+    stateQueued: string;
+    stateRunning: string;
+    stateReady: string;
+    routingAnchoredPrefix: string;
+    routingAnchoredSuffix: string;
+    selectedWorkspaceFallback: string;
+    workInMotion: string;
+    currentWorkspace: string;
+    kanbanTelemetry: string;
+    boardBacklog: string;
+    boardDev: string;
+    boardReview: string;
+    cardIssueDrafting: string;
+    cardSpecHandoff: string;
+    cardHomeRedesign: string;
+    cardSessionUxPass: string;
+    cardApiContractCheck: string;
+    cardVisualQa: string;
+    sessionTrace: string;
+    latest: string;
+    tracePlanner: string;
+    traceCrafter: string;
+    traceGate: string;
+    traceDone: string;
+    evidence: string;
+    logs: string;
+    artifacts: string;
+    checks: string;
     liveTasks: string;
+    liveTasksDescription: string;
     noActiveTasks: string;
+    noActiveTasksDescription: string;
+    liveTask: string;
+    openInBoard: string;
+    unassigned: string;
+    mediumPriority: string;
+    workspaces: string;
+    workspacesDescription: string;
+    allWorkspaces: string;
+    allSessions: string;
+    current: string;
+    recentSessionActivity: string;
+    noRecentSessionsYet: string;
+    noSessionsYet: string;
+    newWorkspace: string;
+    addWorkspaceLane: string;
+    openKanbanBoard: string;
+    openOverview: string;
+    timeNow: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
+    sessionFallback: string;
   };
 
   // Onboarding
@@ -1005,7 +1198,80 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
     apis: string;
     noSurfaceHits: string;
     surfaceMapUnavailable: string;
+    surfaceMapUnavailableBody: string;
+    surfaceMapMissingWarning: string;
+    surfaceMapInvalidWarning: string;
+    surfaceMapWarningGeneric: string;
+    surfaceMapOpenFeatureExplorer: string;
     body: string;
+    createIssue: string;
+    createIssueTitle: string;
+    createIssueDescription: string;
+    createIssuePrimarySection: string;
+    createIssuePrimaryHint: string;
+    createIssueMetaSection: string;
+    createIssueMetaHint: string;
+    createIssueTitleLabel: string;
+    createIssueTitlePlaceholder: string;
+    createIssueAreaPlaceholder: string;
+    createIssueTagsLabel: string;
+    createIssueTagsPlaceholder: string;
+    createIssueTagsHint: string;
+    createIssueBodyPlaceholder: string;
+    createIssueBodyHint: string;
+    createIssueAttachmentsTitle: string;
+    createIssueAttachmentsHint: string;
+    createIssueAttachmentsAction: string;
+    createIssueAttachmentsTypes: string;
+    createIssueRemoveAttachment: string;
+    createIssueAttachmentTooMany: string;
+    createIssueAttachmentTooLarge: string;
+    createIssueAttachmentsTotalTooLarge: string;
+    createIssueAttachmentUnsupportedType: string;
+    creatingIssue: string;
+    createIssueFailed: string;
+    createIssueTitleRequired: string;
+    severityCritical: string;
+    severityHigh: string;
+    severityMedium: string;
+    severityLow: string;
+    severityInfo: string;
+    kindIssue: string;
+    kindAnalysis: string;
+    kindProgressNote: string;
+    kindVerificationReport: string;
+    kindGithubMirror: string;
+    confidenceHigh: string;
+    confidenceMedium: string;
+    confidenceLow: string;
+    githubStateOpen: string;
+    githubStateClosed: string;
+    mergeSelectedCount: string;
+    mergeSelectIssueLabel: string;
+    mergeCreateKanbanTask: string;
+    mergeOpenWorkspace: string;
+    mergeClearSelection: string;
+    mergeSelectionSeparator: string;
+    mergeTaskTitle: string;
+    mergeWorkspaceTitle: string;
+    mergeSourcesTitle: string;
+    mergeCreateKanbanTaskIntro: string;
+    mergeOpenWorkspaceTaskIntro: string;
+    createKanbanTaskFromIssue: string;
+    creatingKanbanTaskFromIssue: string;
+    createKanbanTaskFailed: string;
+    createKanbanTaskIntro: string;
+    createKanbanTaskAcceptanceIssueLinked: string;
+    createKanbanTaskAcceptanceReady: string;
+    openWorkspaceFromIssue: string;
+    openingWorkspaceFromIssue: string;
+    openWorkspaceFailed: string;
+    openWorkspaceTitle: string;
+    openWorkspaceTaskIntro: string;
+    openWorkspaceTaskBodyEmpty: string;
+    openWorkspaceSourceLabel: string;
+    openWorkspaceAcceptanceIssueLinked: string;
+    openWorkspaceAcceptanceCodebaseReady: string;
     expandBranch: string;
     collapseBranch: string;
     statusOpen: string;
@@ -1204,246 +1470,9 @@ export interface TranslationDictionary extends ExtendedTranslationDictionarySect
     thoughts: string;
     tools: string;
     traceContent: string;
+    failedToFetchTraces: string;
     unknownError: string;
     unknownLane: string;
     user: string;
   };
-
-  // Fitness / Fluency
-  fitness: {
-    panel: {
-      genericReport: string;
-      repoLabel: string;
-      blockers: string;
-      failed: string;
-      fit: string;
-      to: string;
-      noData: string;
-      refresh: string;
-      genericProfile: string;
-      orchestratorProfile: string;
-      noReport: string;
-      runFirstReport: string;
-      rerunReport: string;
-      runningReport: string;
-      reportSourceLive: string;
-      reportSourceSnapshot: string;
-      reportSourceNone: string;
-      noContext: string;
-      noContextReport: string;
-      notReady: string;
-      capabilityMatrix: string;
-      matrixNoPoint: string;
-      statusIdle: string;
-      statusLoading: string;
-      statusReady: string;
-      statusEmpty: string;
-      statusError: string;
-      fetchSnapshotFailed: string;
-      analyzeFailedPrefix: string;
-      noAnalyzeResponse: string;
-      noWorkspaceSelected: string;
-      noWorkspaceAction: string;
-    };
-
-    matrix: {
-      collaboration: {
-        title: string[];
-        subtitle: string;
-      };
-      sdlc: {
-        title: string[];
-        subtitle: string;
-      };
-      harness: {
-        title: string[];
-        subtitle: string;
-      };
-      governance: {
-        title: string[];
-        subtitle: string;
-      };
-      context: {
-        title: string[];
-        subtitle: string;
-      };
-      awareness: {
-        title: string[];
-        subtitle: string;
-      };
-      assistedCoding: {
-        title: string[];
-        subtitle: string;
-      };
-      structuredAiCoding: {
-        title: string[];
-        subtitle: string;
-      };
-      agentCentric: {
-        title: string[];
-        subtitle: string;
-      };
-      agentFirst: {
-        title: string[];
-        subtitle: string;
-      };
-      noReport: string;
-      noPointData: string;
-    };
-
-    overview: {
-      noDimensionData: string;
-      currentFindings: string;
-      recommendedActions: string;
-      withoutThis: string;
-      noActiveBlockers: string;
-      noActions: string;
-      noProfileRecommendations: string;
-      noComparisonHint: string;
-      noDimensionChanges: string;
-      noCriteriaChanges: string;
-      dimensionChangesTitle: string;
-      criteriaChangesTitle: string;
-      levelLabel: string;
-      scoreLabel: string;
-      failsLabel: string;
-      weightedChecks: string;
-      examplesLabel: string;
-      startFromLabel: string;
-      noFailures: string;
-      critical: string;
-      fromLast: string;
-      lastOverall: string;
-      currentOverall: string;
-      directionUp: string;
-      directionDown: string;
-      directionSame: string;
-      cellsDivider: string;
-      failingCriteriaLabel: string;
-      criticalBlockersLabel: string;
-      noReportTextLoading: string;
-      noReportTextNotReady: string;
-      noProfileErrorText: string;
-      noReportForProfileText: string;
-      notReached: string;
-    };
-
-    measures: {
-      governance: {
-        title: string;
-        subtitle: string;
-        body: string;
-        without: string;
-        examples: string[];
-      };
-      harness: {
-        title: string;
-        subtitle: string;
-        body: string;
-        without: string;
-        examples: string[];
-      };
-      context: {
-        title: string;
-        subtitle: string;
-        body: string;
-        without: string;
-        examples: string[];
-      };
-      sdlc: {
-        title: string;
-        subtitle: string;
-        body: string;
-        without: string;
-        examples: string[];
-      };
-      collaboration: {
-        title: string;
-        subtitle: string;
-        body: string;
-        without: string;
-        examples: string[];
-      };
-    };
-
-    status: {
-      noData: string;
-      notReady: string;
-      critical: string;
-      priorityFix: string;
-    };
-
-    scoring: {
-      title: string;
-      sourceFromReport: string;
-      sourceFromRun: string;
-      sourceOffline: string;
-      noReadinessInfo: string;
-      levelUnlockPrefix: string;
-      levelUnlockSuffix: string;
-      noLevelUnlock: string;
-      compareEnabled: string;
-      compareDisabled: string;
-      deterministicMode: string;
-      nonDeterministicMode: string;
-      fromUnknown: string;
-    };
-
-    action: {
-      running: string;
-      noAction: string;
-      unknownProfile: string;
-      noSnapshots: string;
-      analyzeFailed: string;
-    };
-
-    levels: {
-      awareness: string;
-      assistedCoding: string;
-      structuredCoding: string;
-      agentCentric: string;
-      agentFirst: string;
-      waitingReport: string;
-      current: string;
-      target: string;
-      cleared: string;
-      locked: string;
-    };
-
-    dashboard: {
-      noReport: string;
-      overallReadiness: string;
-      nextUnlock: string;
-      hardBlockers: string;
-      passRate: string;
-      currentLevelHint: string;
-      targetLevelHint: string;
-      hardBlockersHint: string;
-      passRateHint: string;
-      targetVsCurrent: string;
-      targetVsCurrentHint: string;
-      currentLegend: string;
-      targetLegend: string;
-      unlockRunway: string;
-      unlockRunwayHint: string;
-      currentLevelBar: string;
-      nextLevelBar: string;
-      noNextLevel: string;
-      gateStatus: string;
-      gateStatusHint: string;
-      gatePass: string;
-      gateWarn: string;
-      gateFail: string;
-      noBlockers: string;
-      heatmap: string;
-      heatmapHint: string;
-      fromLastRun: string;
-      changedDimensions: string;
-      changedCriteria: string;
-      noHistory: string;
-      notAvailable: string;
-    };
-  };
-
-  // Harness
 }
