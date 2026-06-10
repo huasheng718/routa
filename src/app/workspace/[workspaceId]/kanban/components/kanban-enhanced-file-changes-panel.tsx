@@ -170,15 +170,14 @@ export function KanbanEnhancedFileChangesPanel({
     const selectedFiles = unstagedWithSelection.filter((f) => f.selected).map((f) => f.path);
     if (selectedFiles.length === 0) return;
 
-    // TODO: Add confirmation dialog
     const confirmed = window.confirm(
-      `Are you sure you want to discard changes to ${selectedFiles.length} file(s)? This cannot be undone.`
+      t.kanban.discardSelectedConfirm.replace("{count}", String(selectedFiles.length))
     );
     if (!confirmed) return;
 
     await discardChanges(selectedFiles);
     setFileSelections({});
-  }, [unstagedWithSelection, discardChanges]);
+  }, [unstagedWithSelection, discardChanges, t.kanban.discardSelectedConfirm]);
 
   const handleCommit = useCallback(async (message: string) => {
     await createCommit(message);
@@ -236,14 +235,15 @@ export function KanbanEnhancedFileChangesPanel({
         workspaceId,
         codebaseId,
         staged,
+        fallbackError: t.kanban.failedToLoadDiff,
       });
       setDiffContent(diff);
     } catch (error) {
-      setDiffError(error instanceof Error ? error.message : "Failed to load diff");
+      setDiffError(error instanceof Error ? error.message : t.kanban.failedToLoadDiff);
     } finally {
       setDiffLoading(false);
     }
-  }, [embedded, taskId, workspaceId, codebaseId]);
+  }, [embedded, taskId, workspaceId, codebaseId, t.kanban.failedToLoadDiff]);
 
   const handleCloseDiff = useCallback(() => {
     setActiveDiffFile(null);
@@ -260,21 +260,11 @@ export function KanbanEnhancedFileChangesPanel({
       const diff = await getCommitDiff(commitSha, file.path);
       setDiffContent(diff);
     } catch (error) {
-      setDiffError(error instanceof Error ? error.message : "Failed to load commit diff");
+      setDiffError(error instanceof Error ? error.message : t.kanban.failedToLoadCommitDiff);
     } finally {
       setDiffLoading(false);
     }
-  }, [getCommitDiff]);
-
-  const handleOpenCommit = useCallback((commit: KanbanCommitInfo) => {
-    // TODO: Open commit in external viewer or GitHub
-    console.log("Open commit:", commit.sha);
-  }, []);
-
-  const handleRevertCommit = useCallback((commit: KanbanCommitInfo) => {
-    // TODO: Implement revert functionality
-    console.log("Revert commit:", commit.sha);
-  }, []);
+  }, [getCommitDiff, t.kanban.failedToLoadCommitDiff]);
 
   const handleExport = useCallback(async () => {
     const result = await exportChanges();
@@ -294,37 +284,32 @@ export function KanbanEnhancedFileChangesPanel({
 
   const handlePull = useCallback(async () => {
     const confirmed = window.confirm(
-      `Pull commits from remote? This will update your local branch.`
+      t.kanban.pullConfirm
     );
     if (!confirmed) return;
 
     await pullCommits();
-  }, [pullCommits]);
+  }, [pullCommits, t.kanban.pullConfirm]);
 
   const handleRebase = useCallback(async () => {
     const targetBranch = activeRepo?.targetBranch || "main";
     const confirmed = window.confirm(
-      `Rebase current branch onto ${targetBranch}? This will rewrite commit history.`
+      t.kanban.rebaseConfirm.replace("{branch}", targetBranch)
     );
     if (!confirmed) return;
 
     await rebaseBranch(targetBranch);
-  }, [rebaseBranch, activeRepo?.targetBranch]);
+  }, [rebaseBranch, activeRepo?.targetBranch, t.kanban.rebaseConfirm]);
 
   const handleReset = useCallback(async () => {
     const targetBranch = activeRepo?.targetBranch || "main";
     const confirmed = window.confirm(
-      `Reset to a clean ${targetBranch}? This will discard all local commits and working directory changes.`
+      t.kanban.resetConfirm.replace("{branch}", targetBranch)
     );
     if (!confirmed) return;
 
     await resetBranch(targetBranch, "hard", true);
-  }, [resetBranch, activeRepo?.targetBranch]);
-
-  const handleArchive = useCallback(() => {
-    // TODO: Implement archive and create new workspace
-    alert("Archive functionality will create a new workspace from fresh checkout. Coming soon!");
-  }, []);
+  }, [resetBranch, activeRepo?.targetBranch, t.kanban.resetConfirm]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -463,13 +448,13 @@ export function KanbanEnhancedFileChangesPanel({
               {t.kanban.fileChanges}
             </div>
             <div className="text-[11px] text-slate-400 dark:text-slate-500">
-              {activeRepo?.label || "No repository"} @ {activeRepo?.branch || "—"}
+              {activeRepo?.label || t.kanban.noRepository} @ {activeRepo?.branch || "—"}
             </div>
           </div>
           <div className="flex items-center gap-2">
             {summary.changedRepos > 0 && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                {summary.changedRepos} dirty
+                {summary.changedRepos} {t.kanban.dirty}
               </span>
             )}
             <button
@@ -486,11 +471,11 @@ export function KanbanEnhancedFileChangesPanel({
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           {loading ? (
             <div className="flex items-center justify-center py-10 text-sm text-slate-400 dark:text-slate-500">
-              Loading repository changes...
+              {t.kanban.loadingRepoChanges}
             </div>
           ) : !activeRepo ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400 dark:border-slate-700 dark:bg-[#0d1018] dark:text-slate-500">
-              No repositories linked to this workspace
+              {t.kanban.noReposLinkedPanel}
             </div>
           ) : (
             <div className="space-y-3">
@@ -534,8 +519,6 @@ export function KanbanEnhancedFileChangesPanel({
               <KanbanCommitsSection
                 commits={commits}
                 onFileClick={handleCommitFileClick}
-                onOpenCommit={handleOpenCommit}
-                onRevertCommit={handleRevertCommit}
                 expanded={commitsOpen}
                 onToggle={() => setCommitsOpen((open) => !open)}
                 loading={commitsLoading}
@@ -557,7 +540,6 @@ export function KanbanEnhancedFileChangesPanel({
               <KanbanWorkflowActions
                 targetBranch={activeRepo?.targetBranch}
                 onReset={handleReset}
-                onArchive={handleArchive}
                 loading={gitLoading}
               />
             </div>

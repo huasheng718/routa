@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/i18n";
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
 import { KanbanEnhancedFileChangesPanel } from "./kanban-enhanced-file-changes-panel";
@@ -88,7 +89,7 @@ export function KanbanTaskChangesTab({
 
     void (async () => {
       try {
-        const response = await desktopAwareFetch(`/api/tasks/${encodeURIComponent(taskId)}/changes`, {
+        const response = await desktopAwareFetch(resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}/changes`), {
           cache: "no-store",
         });
         const payload = await response.json() as { changes?: KanbanTaskChanges; error?: string };
@@ -169,7 +170,7 @@ export function KanbanTaskChangesTab({
 
       try {
         const response = await desktopAwareFetch(
-          `/api/tasks/${encodeURIComponent(taskId)}/changes/commit?sha=${encodeURIComponent(commit.sha)}&context=full`,
+          resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}/changes/commit?sha=${encodeURIComponent(commit.sha)}&context=full`),
           { cache: "no-store", signal: controller.signal },
         );
         const data = await response.json().catch(() => ({}));

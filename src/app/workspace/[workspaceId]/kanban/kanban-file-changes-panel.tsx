@@ -29,12 +29,6 @@ type ChangeSummaryCopy = Pick<
   Record<"unavailable" | "clean" | "modifiedCount" | "untrackedCount", string>,
   "unavailable" | "clean" | "modifiedCount" | "untrackedCount"
 >;
-const DEFAULT_CHANGE_SUMMARY_COPY: ChangeSummaryCopy = {
-  unavailable: "Unavailable",
-  clean: "Clean",
-  modifiedCount: "{count} modified",
-  untrackedCount: "{count} untracked",
-};
 
 export const STATUS_BADGE: Record<KanbanFileChangeStatus, { short: string; className: string; icon: LucideIcon }> = {
   modified: { short: "M", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300", icon: Pencil },
@@ -47,9 +41,35 @@ export const STATUS_BADGE: Record<KanbanFileChangeStatus, { short: string; class
   conflicted: { short: "U", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300", icon: AlertTriangle },
 };
 
+export function formatFileChangeStatusLabel(
+  status: KanbanFileChangeStatus,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  switch (status) {
+    case "modified":
+      return t.kanban.fileStatusModified;
+    case "added":
+      return t.kanban.fileStatusAdded;
+    case "deleted":
+      return t.kanban.fileStatusDeleted;
+    case "renamed":
+      return t.kanban.fileStatusRenamed;
+    case "copied":
+      return t.kanban.fileStatusCopied;
+    case "untracked":
+      return t.kanban.fileStatusUntracked;
+    case "typechange":
+      return t.kanban.fileStatusTypechange;
+    case "conflicted":
+      return t.kanban.fileStatusConflicted;
+    default:
+      return status;
+  }
+}
+
 export function formatChangeSummary(
   repo: KanbanRepoChanges,
-  copy: ChangeSummaryCopy = DEFAULT_CHANGE_SUMMARY_COPY,
+  copy: ChangeSummaryCopy,
 ): string {
   if (repo.error) return copy.unavailable;
   if (repo.status.clean) return copy.clean;
@@ -110,6 +130,7 @@ export function FileRow({
   const { t } = useTranslation();
   const badge = STATUS_BADGE[file.status];
   const StatusIcon = badge.icon;
+  const statusLabel = formatFileChangeStatusLabel(file.status, t);
   const { name, directory } = splitFilePath(file.path);
   const previous = file.previousPath ? splitFilePath(file.previousPath) : null;
   const lineDelta = formatFileLineDelta(file);
@@ -135,13 +156,13 @@ export function FileRow({
           onChange={handleCheckboxChange}
           onClick={(e) => e.stopPropagation()}
           className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500 dark:border-slate-600 dark:bg-slate-700"
-          aria-label={`Select ${file.path}`}
+          aria-label={t.kanban.selectFileLabel.replace("{path}", file.path)}
         />
       )}
       <span
         className={`inline-flex h-4 w-4 shrink-0 items-center justify-center self-start rounded-sm ${badge.className}`}
-        title={file.status}
-        aria-label={file.status}
+        title={statusLabel}
+        aria-label={statusLabel}
       >
         <StatusIcon className="h-2.5 w-2.5" />
       </span>
