@@ -21,6 +21,7 @@ import {
 import { useTranslation } from "@/i18n";
 import type { TranslationDictionary } from "@/i18n/types";
 import { desktopAwareFetch, getDesktopApiBaseUrl } from "@/client/utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import { Plus, RefreshCw, SquarePen, Trash2, Link2, Circle, CircleOff } from "lucide-react";
 
 
@@ -102,7 +103,7 @@ const EMPTY_FORM: FormState = {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function GitHubWebhookPanel() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const wt = t.webhook;
   const [configs, setConfigs] = useState<WebhookConfig[]>([]);
   const [logs, setLogs] = useState<TriggerLog[]>([]);
@@ -137,7 +138,7 @@ export function GitHubWebhookPanel() {
         desktopAwareFetch("/api/webhooks/configs"),
         desktopAwareFetch("/api/webhooks/webhook-logs?limit=50"),
         desktopAwareFetch("/api/polling/config"),
-        desktopAwareFetch("/api/specialists"),
+        desktopAwareFetch(buildSpecialistsApiPath(locale)),
       ]);
       if (cfgRes.ok) {
         const data = await cfgRes.json();
@@ -163,7 +164,7 @@ export function GitHubWebhookPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     loadData();

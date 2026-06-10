@@ -30,12 +30,13 @@ export function HarnessQuickStartCard({
   onNavigateToSection,
 }: HarnessQuickStartCardProps) {
   const { t } = useTranslation();
+  const quickStart = t.settings.harness.quickStart;
 
   const actions: QuickStartAction[] = [
     {
       id: "fitness",
-      title: t.settings.harness.quickStart.viewQualityDimensions || "查看质量维度",
-      description: `检查 Entrix Fitness 的 ${dimensionCount} 个维度`,
+      title: quickStart.viewQualityDimensions,
+      description: quickStart.fitnessDescription.replace("{count}", String(dimensionCount)),
       icon: (
         <ChartColumn className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
       ),
@@ -43,8 +44,8 @@ export function HarnessQuickStartCard({
     },
     {
       id: "hooks",
-      title: t.settings.harness.quickStart.reviewHooks || "审查 Hook 配置",
-      description: `确认 ${hookCount} 个 runtime hooks`,
+      title: quickStart.reviewHooks,
+      description: quickStart.hooksDescription.replace("{count}", String(hookCount)),
       icon: (
         <Settings className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
       ),
@@ -52,8 +53,8 @@ export function HarnessQuickStartCard({
     },
     {
       id: "cicd",
-      title: t.settings.harness.quickStart.checkCICD || "检查 CI/CD 流程",
-      description: `查看 ${workflowCount} 个 GitHub Actions workflows`,
+      title: quickStart.checkCICD,
+      description: quickStart.cicdDescription.replace("{count}", String(workflowCount)),
       icon: (
         <RefreshCw className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
       ),
@@ -62,10 +63,10 @@ export function HarnessQuickStartCard({
   ];
 
   const stats = [
-    { label: "Fitness", value: dimensionCount, color: "emerald", section: "entrix-fitness" },
-    { label: "Gates", value: hardGateCount, color: "amber", section: "entrix-fitness" },
-    { label: "Hooks", value: hookCount, color: "blue", section: "hook-systems" },
-    { label: "Workflows", value: workflowCount, color: "violet", section: "ci-cd" },
+    { label: quickStart.statFitness, value: dimensionCount, color: "emerald", section: "entrix-fitness" },
+    { label: quickStart.statGates, value: hardGateCount, color: "amber", section: "entrix-fitness" },
+    { label: quickStart.statHooks, value: hookCount, color: "blue", section: "hook-systems" },
+    { label: quickStart.statWorkflows, value: workflowCount, color: "violet", section: "ci-cd" },
   ];
 
   const colorClasses = {
@@ -94,7 +95,7 @@ export function HarnessQuickStartCard({
       <div className="mb-1.5 flex items-center gap-1.5">
         <Zap className="h-4 w-4 text-desktop-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
         <h2 className="text-[12px] font-semibold text-desktop-text-primary">
-          {t.settings.harness.quickStart.title || "快速开始"}
+          {quickStart.title}
         </h2>
       </div>
 

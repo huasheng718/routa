@@ -204,6 +204,38 @@ function getStatusTone(status: EdgeStatus | undefined) {
   }
 }
 
+function formatPlanNodeKind(kind: PlanNodeKind, t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (kind) {
+    case "root":
+      return t.harness.executionPlan.nodeKindRoot;
+    case "stage":
+      return t.harness.executionPlan.nodeKindStage;
+    case "dimension":
+      return t.harness.executionPlan.nodeKindDimension;
+    case "metric":
+      return t.harness.executionPlan.nodeKindMetric;
+    case "lane":
+      return t.harness.executionPlan.nodeKindLane;
+    case "anchor":
+      return t.harness.executionPlan.nodeKindAnchor;
+  }
+}
+
+function formatPlanStatus(status: EdgeStatus, t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (status) {
+    case "hard":
+      return t.harness.executionPlan.legendHard;
+    case "warn":
+      return t.harness.executionPlan.legendWarn;
+    case "pass":
+      return t.harness.executionPlan.legendPass;
+    case "blocked":
+      return t.harness.executionPlan.legendBlocked;
+    case "flow":
+      return t.settings.harness.sectionGroups.flow;
+  }
+}
+
 function PlanNodeView({ data }: NodeProps<Node<PlanNodeData>>) {
   const { t } = useTranslation();
   const tone = getStatusTone(data.status);
@@ -284,7 +316,7 @@ function PlanNodeView({ data }: NodeProps<Node<PlanNodeData>>) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className={kindLabelClass}>{data.kind}</div>
+            <div className={kindLabelClass}>{formatPlanNodeKind(data.kind, t)}</div>
             <div className={titleClass} style={{ maxHeight: data.kind === "metric" ? 48 : undefined }}>
               {data.title}
             </div>
@@ -296,7 +328,7 @@ function PlanNodeView({ data }: NodeProps<Node<PlanNodeData>>) {
           </div>
           {data.status ? (
             <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${tone.badge}`}>
-              {data.badgeText ?? data.status}
+              {data.badgeText ?? formatPlanStatus(data.status, t)}
             </span>
           ) : null}
         </div>

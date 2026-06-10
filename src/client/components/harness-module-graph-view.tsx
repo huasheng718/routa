@@ -73,12 +73,12 @@ export function HarnessModuleGraphView({
 
       setGraph(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t.settings.harness.moduleGraph.unknownError);
       setGraph(null);
     } finally {
       setLoading(false);
     }
-  }, [repoRoot, initialLanguage]);
+  }, [repoRoot, initialLanguage, t.settings.harness.moduleGraph.unknownError]);
 
   useEffect(() => {
     loadGraph();
@@ -243,15 +243,15 @@ export function HarnessModuleGraphView({
         </div>
         <div className="flex items-center gap-1">
           <div className="w-4 h-0.5 bg-blue-500" />
-          <span>Imports</span>
+          <span>{t.settings.harness.moduleGraph.legendImports}</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-4 h-0.5 border-t-2 border-green-500 border-dashed" />
-          <span>Extends</span>
+          <span>{t.settings.harness.moduleGraph.legendExtends}</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-4 h-0.5 border-t-2 border-orange-500 border-dashed" />
-          <span>Implements</span>
+          <span>{t.settings.harness.moduleGraph.legendImplements}</span>
         </div>
       </div>
     </div>

@@ -112,41 +112,42 @@ export function HarnessHealthScoreCards({
   fitnessScore,
 }: HarnessHealthScoreCardsProps) {
   const { t } = useTranslation();
+  const healthCards = t.settings.harness.healthCards;
 
   return (
     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
-        label={t.settings.harness.healthCards.fitnessScore || "Fitness Score"}
-        value={fitnessScore !== undefined ? fitnessScore : dimensionCount > 0 ? "—" : "N/A"}
+        label={healthCards.fitnessScore}
+        value={fitnessScore !== undefined ? fitnessScore : dimensionCount > 0 ? "—" : healthCards.notAvailable}
         max={fitnessScore !== undefined ? 100 : undefined}
-        description={`${dimensionCount} dimensions`}
+        description={healthCards.dimensionCount.replace("{count}", String(dimensionCount))}
         color="emerald"
         icon={
           <CircleCheck className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
         }
       />
       <StatCard
-        label={t.settings.harness.healthCards.hardGates || "Hard Gates"}
+        label={healthCards.hardGates}
         value={hardGateCount}
-        description={`${metricCount} total metrics`}
+        description={healthCards.metricCount.replace("{count}", String(metricCount))}
         color="amber"
         icon={
           <TriangleAlert className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
         }
       />
       <StatCard
-        label={t.settings.harness.healthCards.hooks || "Hook Systems"}
+        label={healthCards.hooks}
         value={hookCount}
-        description="runtime hooks"
+        description={healthCards.runtimeHooks}
         color="blue"
         icon={
           <Zap className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
         }
       />
       <StatCard
-        label={t.settings.harness.healthCards.cicd || "CI/CD"}
+        label={healthCards.cicd}
         value={workflowCount}
-        description="active workflows"
+        description={healthCards.activeWorkflows}
         color="violet"
         icon={
           <RefreshCw className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"/>
@@ -155,4 +156,3 @@ export function HarnessHealthScoreCards({
     </div>
   );
 }
-

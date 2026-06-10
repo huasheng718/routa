@@ -92,7 +92,7 @@ export function HarnessRepoSignalsPanel({
         const response = await desktopAwareFetch(`/api/harness/repo-signals?${query.toString()}`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(typeof payload?.details === "string" ? payload.details : "Failed to load repository signals");
+          throw new Error(typeof payload?.details === "string" ? payload.details : t.harness.repoSignals.loadFailed);
         }
         if (!cancelled) {
           setState({
@@ -116,13 +116,13 @@ export function HarnessRepoSignalsPanel({
     return () => {
       cancelled = true;
     };
-  }, [codebaseId, hasContext, repoPath, workspaceId]);
+  }, [codebaseId, hasContext, repoPath, t.harness.repoSignals.loadFailed, workspaceId]);
 
   const tone = categoryTone(mode);
   const focus = state.data?.[mode];
   const scriptGroups = useMemo(() => focus?.entrypointGroups ?? [], [focus]);
   const warnings = useMemo(() => state.data?.warnings ?? [], [state.data?.warnings]);
-  const title = mode === "build" ? "Build Feedback" : "Test Feedback";
+  const title = mode === "build" ? t.harness.repoSignals.buildFeedbackTitle : t.harness.repoSignals.testFeedbackTitle;
   const summaryRows = useMemo(() => {
     return (focus?.overviewRows ?? []).map((row) => ({
       label: row.label,
@@ -218,10 +218,10 @@ export function HarnessRepoSignalsPanel({
                 <table className="min-w-full border-collapse text-left">
                   <thead className="bg-white/60">
                     <tr className="text-[10px] uppercase tracking-[0.12em] text-desktop-text-secondary">
-                      <th className="px-4 py-2.5 font-semibold">Group</th>
-                      <th className="px-4 py-2.5 font-semibold">Primary</th>
-                      <th className="px-4 py-2.5 font-semibold">Command</th>
-                      <th className="px-4 py-2.5 font-semibold">Variants</th>
+                      <th className="px-4 py-2.5 font-semibold">{t.harness.repoSignals.columnGroup}</th>
+                      <th className="px-4 py-2.5 font-semibold">{t.harness.repoSignals.columnPrimary}</th>
+                      <th className="px-4 py-2.5 font-semibold">{t.harness.repoSignals.columnCommand}</th>
+                      <th className="px-4 py-2.5 font-semibold">{t.harness.repoSignals.columnVariants}</th>
                     </tr>
                   </thead>
                   <tbody>
