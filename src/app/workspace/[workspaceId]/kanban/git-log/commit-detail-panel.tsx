@@ -13,6 +13,7 @@ import {
   Hash,
   GitCommit as GitCommitIcon,
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import type { GitCommitDetail, CommitFileChange, FileChangeKind } from "./types";
 
 interface CommitDetailPanelProps {
@@ -20,40 +21,42 @@ interface CommitDetailPanelProps {
   loading: boolean;
 }
 
+function formatTemplate(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
 const STATUS_CONFIG: Record<
   FileChangeKind,
-  { label: string; letter: string; className: string; icon: React.ElementType }
+  { letter: string; className: string; icon: React.ElementType }
 > = {
   added: {
-    label: "Added",
     letter: "A",
     className:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
     icon: Plus,
   },
   modified: {
-    label: "Modified",
     letter: "M",
     className:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
     icon: FileText,
   },
   deleted: {
-    label: "Deleted",
     letter: "D",
     className:
       "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
     icon: Trash2,
   },
   renamed: {
-    label: "Renamed",
     letter: "R",
     className:
       "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
     icon: ArrowRightLeft,
   },
   copied: {
-    label: "Copied",
     letter: "C",
     className:
       "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
@@ -109,11 +112,13 @@ function FileChangeRow({ file }: { file: CommitFileChange }) {
 }
 
 export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps) {
+  const { t } = useTranslation();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-6 text-slate-400">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        <span className="text-[11px]">Loading…</span>
+        <span className="text-[11px]">{t.gitLog.loadingCommits}</span>
       </div>
     );
   }
@@ -122,7 +127,7 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps) {
     return (
       <div className="flex flex-col items-center justify-center gap-1 py-8 text-slate-400 dark:text-slate-500">
         <GitCommitIcon className="h-5 w-5" />
-        <span className="text-[11px]">Select a commit to view details</span>
+        <span className="text-[11px]">{t.gitLog.selectCommit}</span>
       </div>
     );
   }
@@ -165,7 +170,7 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps) {
 
         {commit.parents.length > 0 && (
           <div className="text-[10px] text-slate-400 dark:text-slate-500">
-            Parents:{" "}
+            {t.gitLog.parents}:{" "}
             {commit.parents.map((p, i) => (
               <span key={p}>
                 {i > 0 && ", "}
@@ -179,10 +184,10 @@ export function CommitDetailPanel({ detail, loading }: CommitDetailPanelProps) {
       {/* Changed files */}
       <div className="flex items-center justify-between border-b border-slate-200 px-3 py-1 dark:border-[#1c1f2e]">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          Changed Files
+          {t.gitLog.changedFiles}
         </span>
         <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
-          {files.length} files{" "}
+          {formatTemplate(t.gitLog.filesCount, { count: String(files.length) })}{" "}
           <span className="text-emerald-600 dark:text-emerald-400">+{totalAdditions}</span>
           {" / "}
           <span className="text-rose-600 dark:text-rose-400">−{totalDeletions}</span>

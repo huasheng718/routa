@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Search, RefreshCw, Filter, X } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 interface GitLogToolbarProps {
   searchText: string;
@@ -22,6 +23,8 @@ export function GitLogToolbar({
   total,
   loading,
 }: GitLogToolbarProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center gap-1.5 border-b border-slate-200 bg-slate-50/80 px-2 py-1 dark:border-[#1c1f2e] dark:bg-[#0f1117]/80">
       {/* Search */}
@@ -31,7 +34,7 @@ export function GitLogToolbar({
           type="text"
           value={searchText}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Filter by message, hash, author…"
+          placeholder={t.gitLog.filterPlaceholder}
           className="h-6 w-full rounded border border-slate-200 bg-white pl-6 pr-2 text-[11px] text-slate-700 placeholder-slate-400 outline-none transition-colors focus:border-amber-400 dark:border-[#252837] dark:bg-[#12141c] dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-amber-500"
         />
         {searchText && (
@@ -51,7 +54,7 @@ export function GitLogToolbar({
           type="button"
           onClick={onClearFilters}
           className="inline-flex h-6 items-center gap-1 rounded border border-amber-200 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
-          title="Clear branch filters"
+          title={t.gitLog.clearFilters}
         >
           <Filter className="h-2.5 w-2.5" />
           <span>{activeBranches.length}</span>
@@ -61,7 +64,7 @@ export function GitLogToolbar({
 
       {/* Commit count */}
       <span className="shrink-0 text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
-        {total} commits
+        {total} {t.gitLog.commits}
       </span>
 
       {/* Refresh */}
@@ -69,7 +72,7 @@ export function GitLogToolbar({
         type="button"
         onClick={onRefresh}
         className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-[#1a1d29] dark:hover:text-slate-300"
-        title="Refresh"
+        title={t.common.refresh}
         disabled={loading}
       >
         <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />

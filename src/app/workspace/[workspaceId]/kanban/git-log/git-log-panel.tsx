@@ -17,7 +17,7 @@ interface GitLogPanelProps {
   repoPath: string;
   codebases?: CodebaseData[];
   onSelectRepoPath?: (repoPath: string) => void;
-  /** Panel title — defaults to "Git Log" */
+  /** Panel title. Defaults to the localized Git Log title. */
   title?: string;
   className?: string;
 }
@@ -27,7 +27,7 @@ export function GitLogPanel({
   repoPath,
   codebases = [],
   onSelectRepoPath,
-  title = "Git Log",
+  title,
   className = "",
 }: GitLogPanelProps) {
   const { t } = useTranslation();
@@ -70,7 +70,7 @@ export function GitLogPanel({
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-slate-50 px-2 py-1 dark:border-[#1c1f2e] dark:bg-[#0d1018]">
         <GitBranch className="h-3.5 w-3.5 text-amber-500" />
         <span className="text-[11px] font-semibold tracking-wide text-slate-600 dark:text-slate-300">
-          {title}
+          {title ?? t.gitLog.title}
         </span>
         <span className="text-[10px] text-slate-400 dark:text-slate-500">
           {repoPath.split("/").pop()}

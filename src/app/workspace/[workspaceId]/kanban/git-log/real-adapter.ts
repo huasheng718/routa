@@ -3,6 +3,7 @@
  * Used in production; the mock adapter is swapped in for UI development.
  */
 
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import type {
   GitLogAdapter,
@@ -14,7 +15,7 @@ import type {
 
 export class RealGitAdapter implements GitLogAdapter {
   async getRefs(repoPath: string): Promise<GitRefsResult> {
-    const url = `/api/git/refs?repoPath=${encodeURIComponent(repoPath)}`;
+    const url = resolveApiPath(`/api/git/refs?repoPath=${encodeURIComponent(repoPath)}`);
     const res = await desktopAwareFetch(url, { cache: "no-store" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -36,7 +37,7 @@ export class RealGitAdapter implements GitLogAdapter {
       params.set("search", query.search);
     }
 
-    const res = await desktopAwareFetch(`/api/git/log?${params.toString()}`, {
+    const res = await desktopAwareFetch(resolveApiPath(`/api/git/log?${params.toString()}`), {
       cache: "no-store",
     });
     if (!res.ok) {
@@ -54,7 +55,7 @@ export class RealGitAdapter implements GitLogAdapter {
       repoPath,
       sha,
     });
-    const res = await desktopAwareFetch(`/api/git/commit?${params.toString()}`, {
+    const res = await desktopAwareFetch(resolveApiPath(`/api/git/commit?${params.toString()}`), {
       cache: "no-store",
     });
     if (!res.ok) {

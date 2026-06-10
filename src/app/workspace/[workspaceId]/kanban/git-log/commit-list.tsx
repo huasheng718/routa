@@ -2,6 +2,7 @@
 
 import React, { useRef, useCallback } from "react";
 import { GitBranch, Tag, Loader2 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import type { GitCommit } from "./types";
 import { CommitGraphCell } from "./commit-graph-cell";
 
@@ -15,18 +16,25 @@ interface CommitListProps {
   loading: boolean;
 }
 
-function formatRelativeTime(iso: string): string {
+function formatTemplate(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
+function formatRelativeTime(iso: string, t: ReturnType<typeof useTranslation>["t"]): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t.gitLog.justNow;
+  if (mins < 60) return formatTemplate(t.gitLog.minutesAgo, { count: String(mins) });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return formatTemplate(t.gitLog.hoursAgo, { count: String(hours) });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return formatTemplate(t.gitLog.daysAgo, { count: String(days) });
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
+  if (months < 12) return formatTemplate(t.gitLog.monthsAgo, { count: String(months) });
+  return formatTemplate(t.gitLog.yearsAgo, { count: String(Math.floor(months / 12)) });
 }
 
 function RefBadge({ name, kind }: { name: string; kind: string }) {
@@ -63,6 +71,7 @@ export function CommitList({
   onLoadMore,
   loading,
 }: CommitListProps) {
+  const { t } = useTranslation();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -93,7 +102,7 @@ export function CommitList({
     return (
       <div className="flex items-center justify-center py-8 text-slate-400">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        <span className="text-[11px]">Loading commits…</span>
+        <span className="text-[11px]">{t.gitLog.loadingCommits}</span>
       </div>
     );
   }
@@ -101,7 +110,7 @@ export function CommitList({
   if (commits.length === 0) {
     return (
       <div className="py-8 text-center text-[11px] text-slate-400 dark:text-slate-500">
-        No commits found
+        {t.gitLog.noCommits}
       </div>
     );
   }
@@ -111,10 +120,10 @@ export function CommitList({
       {/* Header row */}
       <div className="sticky top-0 z-10 flex items-center border-b border-slate-200 bg-slate-50 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:border-[#1c1f2e] dark:bg-[#0d1018] dark:text-slate-500">
         <div style={{ width: totalLanes * 14 + 4 }} className="shrink-0" />
-        <div className="min-w-0 flex-1 px-1">Message</div>
-        <div className="w-[120px] shrink-0 px-1 text-right">Author</div>
-        <div className="w-[72px] shrink-0 px-1 text-right">Date</div>
-        <div className="w-[64px] shrink-0 px-1 text-right">Hash</div>
+        <div className="min-w-0 flex-1 px-1">{t.gitLog.message}</div>
+        <div className="w-[120px] shrink-0 px-1 text-right">{t.gitLog.author}</div>
+        <div className="w-[72px] shrink-0 px-1 text-right">{t.gitLog.date}</div>
+        <div className="w-[64px] shrink-0 px-1 text-right">{t.gitLog.hash}</div>
       </div>
 
       {/* Commit rows */}
@@ -165,7 +174,7 @@ export function CommitList({
             className="w-[72px] shrink-0 px-1 text-right text-[10px] tabular-nums text-slate-400 dark:text-slate-500"
             title={new Date(commit.authoredAt).toLocaleString()}
           >
-            {formatRelativeTime(commit.authoredAt)}
+            {formatRelativeTime(commit.authoredAt, t)}
           </div>
 
           {/* Hash */}
@@ -181,7 +190,7 @@ export function CommitList({
       {loadingMore && (
         <div className="flex items-center justify-center py-2 text-slate-400">
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-          <span className="text-[10px]">Loading more…</span>
+          <span className="text-[10px]">{t.gitLog.loadingMore}</span>
         </div>
       )}
     </div>

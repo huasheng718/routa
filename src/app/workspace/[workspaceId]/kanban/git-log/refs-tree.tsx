@@ -9,6 +9,7 @@ import {
   Globe,
   MapPin,
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import type { GitRefsResult, GitRef } from "./types";
 
 interface RefsTreeProps {
@@ -88,10 +89,12 @@ function RefItem({
 }
 
 export function RefsTree({ refs, activeBranches, onToggleBranch }: RefsTreeProps) {
+  const { t } = useTranslation();
+
   if (!refs) {
     return (
       <div className="px-2 py-4 text-center text-[11px] text-slate-400 dark:text-slate-500">
-        Loading…
+        {t.gitLog.loadingRefs}
       </div>
     );
   }
@@ -111,7 +114,7 @@ export function RefsTree({ refs, activeBranches, onToggleBranch }: RefsTreeProps
       {/* HEAD */}
       {headRef && (
         <TreeNode
-          label="HEAD"
+          label={t.gitLog.head}
           icon={<MapPin className="h-3 w-3 shrink-0 text-emerald-500" />}
           defaultOpen
         >
@@ -125,7 +128,7 @@ export function RefsTree({ refs, activeBranches, onToggleBranch }: RefsTreeProps
 
       {/* Local branches */}
       <TreeNode
-        label="Local"
+        label={t.gitLog.local}
         icon={<GitBranch className="h-3 w-3 shrink-0 text-blue-500" />}
         count={refs.local.length}
         defaultOpen
@@ -142,7 +145,7 @@ export function RefsTree({ refs, activeBranches, onToggleBranch }: RefsTreeProps
 
       {/* Remote branches grouped by remote */}
       <TreeNode
-        label="Remote"
+        label={t.gitLog.remote}
         icon={<Globe className="h-3 w-3 shrink-0 text-violet-500" />}
         count={refs.remote.length}
         defaultOpen={false}
@@ -169,7 +172,7 @@ export function RefsTree({ refs, activeBranches, onToggleBranch }: RefsTreeProps
       {/* Tags */}
       {refs.tags.length > 0 && (
         <TreeNode
-          label="Tags"
+          label={t.gitLog.tags}
           icon={<Tag className="h-3 w-3 shrink-0 text-amber-500" />}
           count={refs.tags.length}
           defaultOpen={false}
