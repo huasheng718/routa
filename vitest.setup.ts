@@ -10,7 +10,9 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 }
 
 beforeEach(() => {
-  localStorage.clear();
+  if (typeof localStorage !== "undefined") {
+    localStorage.clear();
+  }
 });
 
 afterEach(() => {

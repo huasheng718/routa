@@ -368,19 +368,19 @@ describe("FeatureExplorerPageClient session analysis", () => {
     expect(screen.getByText("Connect selected file signals to the right inspector panel")).toBeTruthy();
     expect(screen.getByText("Keep user prompts grouped under the owning session card")).toBeTruthy();
     expect(screen.queryByText("Move session changed files into the owning session card")).toBeNull();
-    expect(screen.getByRole("button", { name: "Show All" })).toBeTruthy();
-    expect(screen.getByText("Related files")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Show All|显示全部/ })).toBeTruthy();
+    expect(screen.getByText(/Related files|相关文件/)).toBeTruthy();
     expect(screen.getByText("crates/routa-server/src/api/mcp_routes/tool_executor/agents_tasks.rs")).toBeTruthy();
     expect(screen.getByText("src/app/workspace/[workspaceId]/kanban/kanban-page-client.tsx")).toBeTruthy();
     expect(screen.queryByText("Active file")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Show All" }));
+    fireEvent.click(screen.getByRole("button", { name: /Show All|显示全部/ }));
     expect(screen.getByText("Move session changed files into the owning session card")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Show Less" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Show Less|收起/ })).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Resume: 019d-selected-file",
+        name: /Resume: 019d-selected-file|恢复命令: 019d-selected-file/,
       }),
     );
     expect(clipboardState.writeText).toHaveBeenCalledWith("codex resume 019d-selected-file");
@@ -538,23 +538,23 @@ describe("FeatureExplorerPageClient session analysis", () => {
     const view = render(<FeatureExplorerPageClient workspaceId="default" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Open analysis panel" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /Open analysis panel|打开分析面板/ })).toBeTruthy();
     });
 
     expect(screen.queryByText(/Operation not permitted/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open analysis panel" }));
+    fireEvent.click(screen.getByRole("button", { name: /Open analysis panel|打开分析面板/ }));
 
     await waitFor(() => {
       expect(screen.getByTestId("feature-explorer-session-analysis-drawer")).toBeTruthy();
     });
 
-    expect(screen.getByText("Session diagnostics")).toBeTruthy();
-    expect(screen.getByText("Tool call breakdown")).toBeTruthy();
-    expect(screen.getAllByText("Read files").length).toBeGreaterThan(0);
-    expect(screen.getByText("Repeated reads")).toBeTruthy();
-    expect(screen.getByText("Repeated commands")).toBeTruthy();
-    expect(screen.getByText("Failed tools")).toBeTruthy();
+    expect(screen.getByText(/Session diagnostics|会话诊断/)).toBeTruthy();
+    expect(screen.getByText(/Tool call breakdown|工具调用分布/)).toBeTruthy();
+    expect(screen.getAllByText(/Read files|读取文件/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Repeated reads|重复读取/)).toBeTruthy();
+    expect(screen.getByText(/Repeated commands|重复命令/)).toBeTruthy();
+    expect(screen.getByText(/Failed tools|失败工具/)).toBeTruthy();
     expect(screen.getByText("git status --short")).toBeTruthy();
     expect(screen.getByText("crates/routa-server/src/api/kanban.rs x2")).toBeTruthy();
     expect(
@@ -570,7 +570,7 @@ describe("FeatureExplorerPageClient session analysis", () => {
       within(screen.getByTestId("feature-explorer-session-analysis-provider")).getByRole("button", { name: "Codex" }),
     );
     view.rerender(<FeatureExplorerPageClient workspaceId="default" />);
-    fireEvent.click(screen.getByRole("button", { name: "Analyze selected sessions" }));
+    fireEvent.click(screen.getByRole("button", { name: /Analyze selected sessions|分析选中会话/ }));
 
     await waitFor(() => {
       expect(sessionLaunchState.desktopAwareFetch).toHaveBeenCalledTimes(1);
@@ -591,7 +591,7 @@ describe("FeatureExplorerPageClient session analysis", () => {
       branch: "main",
       role: "ROUTA",
       specialistId: "file-session-analyst",
-      specialistLocale: "en",
+      specialistLocale: "zh",
       provider: "codex",
     });
 
