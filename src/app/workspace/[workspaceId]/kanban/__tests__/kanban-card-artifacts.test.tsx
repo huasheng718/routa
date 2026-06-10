@@ -71,7 +71,7 @@ describe("KanbanCardArtifacts", () => {
       />,
     );
 
-    expect(await screen.findByText("No artifacts attached yet.")).toBeTruthy();
+    expect(await screen.findByText("暂无附加产物。")).toBeTruthy();
 
     rerender(
       <KanbanCardArtifacts
@@ -82,10 +82,10 @@ describe("KanbanCardArtifacts", () => {
     );
 
     expect(await screen.findByText("Review proof")).toBeTruthy();
-    expect(screen.getByText(/Missing for next move/i)).toBeTruthy();
-    expect(screen.getByText(/Ready Screenshot/i)).toBeTruthy();
-    expect(screen.getByText(/Missing Test Results/i)).toBeTruthy();
-    expect(screen.getByText(/by agent-1/i)).toBeTruthy();
+    expect(screen.getByText(/下一步缺失/i)).toBeTruthy();
+    expect(screen.getByText(/就绪 截图/i)).toBeTruthy();
+    expect(screen.getByText(/缺失 测试结果/i)).toBeTruthy();
+    expect(screen.getByText(/来自 agent-1/i)).toBeTruthy();
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });

@@ -67,8 +67,9 @@ describe("KanbanEnhancedFileChangesPanel", () => {
       />
     );
 
-    // Should show workflow actions
-    expect(screen.queryByText(/Reset and continue working/i)).not.toBeNull();
-    expect(screen.queryByText(/Archive and start new space/i)).not.toBeNull();
+    expect(screen.queryByText("重置并继续工作")).not.toBeNull();
+    const archiveButton = screen.getByRole("button", { name: /归档并开启新空间/i });
+    expect((archiveButton as HTMLButtonElement).disabled).toBe(true);
+    expect(archiveButton.getAttribute("title")).toBe("归档流程暂未开放");
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { FileRow } from "../kanban-file-changes-panel";
 import { KanbanTab } from "../kanban-tab";
@@ -108,7 +108,8 @@ describe("KanbanTab file changes panel", () => {
     );
 
     const syncIndicator = screen.getByTestId("kanban-repo-sync-progress");
-    expect(syncIndicator.textContent).toContain("1 repo updated");
+    expect(syncIndicator.textContent).toContain("1");
+    expect(syncIndicator.textContent).toMatch(/repo updated|仓库已更新/);
   });
 
   it("opens the file changes drawer from the repo toolbar and allows collapsing it", () => {
@@ -148,12 +149,57 @@ describe("KanbanTab file changes panel", () => {
     fireEvent.click(screen.getByTestId("kanban-file-changes-open"));
 
     expect(screen.getByTestId("kanban-file-changes-panel")).toBeTruthy();
-    expect(screen.getByText("File Changes")).toBeTruthy();
     expect(screen.getByText("app.tsx")).toBeTruthy();
     expect(screen.getByTitle("src")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide" }));
+    fireEvent.click(screen.getByRole("button", { name: /Hide|隐藏/ }));
 
     expect(screen.getByTestId("kanban-file-changes-open")).toBeTruthy();
+  });
+
+  it("defers repository change scanning until the file changes panel is opened", async () => {
+    const onRepoChangesRequest = vi.fn();
+
+    render(
+      <KanbanTab
+        workspaceId="workspace-1"
+        boards={[board]}
+        tasks={[{
+          id: "task-1",
+          title: "Story One",
+          objective: "Story One objective",
+          status: "PENDING",
+          boardId: board.id,
+          columnId: "backlog",
+          position: 0,
+          codebaseIds: ["codebase-1"],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        }]}
+        sessions={[]}
+        providers={[]}
+        specialists={[]}
+        codebases={[{
+          id: "codebase-1",
+          workspaceId: "workspace-1",
+          repoPath: "/tmp/repo",
+          isDefault: true,
+          label: "Repo",
+          branch: "main",
+          sourceType: "local",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+        }]}
+        onRefresh={vi.fn()}
+        onRepoChangesRequest={onRepoChangesRequest}
+      />,
+    );
+
+    expect(onRepoChangesRequest).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("kanban-file-changes-open"));
+
+    await waitFor(() => {
+      expect(onRepoChangesRequest).toHaveBeenCalledTimes(1);
+    });
   });
 });

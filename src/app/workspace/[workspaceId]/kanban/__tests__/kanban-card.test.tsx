@@ -69,7 +69,7 @@ describe("KanbanCard artifact gate status", () => {
       />,
     );
 
-    expect(screen.getByTestId("kanban-card-artifact-gate").textContent).toContain("Needs Screenshot");
+    expect(screen.getByTestId("kanban-card-artifact-gate").textContent).toContain("需要 截图");
   });
 
   it("shows ready state and artifact count once the gate is satisfied", () => {
@@ -99,8 +99,8 @@ describe("KanbanCard artifact gate status", () => {
       />,
     );
 
-    expect(screen.getByTestId("kanban-card-artifact-gate").textContent).toContain("Review ready");
-    expect(screen.getByTestId("kanban-card-artifact-count").textContent).toContain("2 artifacts");
+    expect(screen.getByTestId("kanban-card-artifact-gate").textContent).toContain("Review 就绪");
+    expect(screen.getByTestId("kanban-card-artifact-count").textContent).toContain("2 个产物");
   });
 
   it("renders live session tail as a single-line preview", () => {
@@ -123,7 +123,7 @@ describe("KanbanCard artifact gate status", () => {
       />,
     );
 
-    expect(screen.getByText("Live Session")).toBeTruthy();
+    expect(screen.getByText("实时会话")).toBeTruthy();
     expect(screen.getByTestId("kanban-card-live-tail").textContent).toContain("Updated parser;");
   });
 
@@ -150,7 +150,7 @@ describe("KanbanCard artifact gate status", () => {
       />,
     );
 
-    expect(screen.getByTestId("kanban-card-review-feedback").textContent).toContain("Returned to Dev");
+    expect(screen.getByTestId("kanban-card-review-feedback").textContent).toContain("已打回 Dev");
     expect(screen.getByTestId("kanban-card-review-feedback").textContent).toContain("AC3 failed");
   });
 
@@ -213,7 +213,7 @@ describe("KanbanCard artifact gate status", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Run" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "运行" })).toBeTruthy();
   });
 
   it("renders canonical story body instead of raw yaml on the card", () => {

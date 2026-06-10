@@ -1,5 +1,8 @@
+import type { ReactElement } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY } from "@/i18n/types";
 import { KanbanTaskChangesTab } from "../kanban-task-changes-tab";
 
 const desktopAwareFetch = vi.fn();
@@ -11,12 +14,17 @@ vi.mock("@/client/utils/diagnostics", () => ({
 describe("KanbanTaskChangesTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
     vi.stubGlobal("ResizeObserver", class ResizeObserver {
       observe() {}
       unobserve() {}
       disconnect() {}
     });
   });
+
+  function renderWithEnglish(ui: ReactElement) {
+    return render(<I18nProvider>{ui}</I18nProvider>);
+  }
 
   it("renders and triggers the PR specialist action for GitHub repositories", async () => {
     desktopAwareFetch.mockResolvedValue({
@@ -39,7 +47,7 @@ describe("KanbanTaskChangesTab", () => {
     const onRunPullRequest = vi.fn().mockResolvedValue("session-pr-1");
     const onSelectSession = vi.fn();
 
-    render(
+    renderWithEnglish(
       <KanbanTaskChangesTab
         task={{
           id: "task-1",
@@ -97,7 +105,7 @@ describe("KanbanTaskChangesTab", () => {
       }),
     });
 
-    render(
+    renderWithEnglish(
       <KanbanTaskChangesTab
         task={{
           id: "task-clean",
@@ -205,7 +213,7 @@ describe("KanbanTaskChangesTab", () => {
       throw new Error(`Unexpected desktopAwareFetch: ${url}`);
     });
 
-    const { container } = render(
+    const { container } = renderWithEnglish(
       <KanbanTaskChangesTab
         task={{
           id: "task-commit",
