@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import { FileRow } from "../kanban-file-changes-panel";
 import type { KanbanFileChangeItem } from "../kanban-file-changes-types";
 
@@ -32,6 +33,7 @@ export function KanbanFileChangesSection({
   defaultExpanded = true,
   badge,
 }: KanbanFileChangesSectionProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   
   const selectedCount = files.filter(f => f.selected).length;
@@ -86,8 +88,8 @@ export function KanbanFileChangesSection({
             }}
             onChange={handleSelectAll}
             className="h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-2 focus:ring-amber-500 dark:border-slate-600 dark:bg-slate-700"
-            aria-label="Select all files"
-            title="Select all files"
+            aria-label={t.kanban.selectAllFiles}
+            title={t.kanban.selectAllFiles}
           />
         )}
       </div>
@@ -97,7 +99,7 @@ export function KanbanFileChangesSection({
         <div className={`${embedded ? "border-t border-slate-200/70 px-0 py-2 dark:border-slate-800/80" : "border-t border-slate-200/70 px-3 py-2 dark:border-[#202433]"}`}>
           {files.length === 0 ? (
             <div className={`${embedded ? "px-1 py-2 text-left" : "rounded-lg border border-dashed border-slate-200 bg-white/50 px-3 py-3 dark:border-slate-700 dark:bg-[#12141c]/50"} text-[10px] text-slate-400 dark:text-slate-500`}>
-              No files in this section
+              {t.kanban.noFilesInSection}
             </div>
           ) : (
             <>

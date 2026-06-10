@@ -1,4 +1,6 @@
 import { useState, useCallback } from "react";
+import { resolveApiPath } from "@/client/config/backend";
+import { desktopAwareFetch } from "@/client/utils/diagnostics";
 
 interface UseGitOperationsProps {
   workspaceId: string;
@@ -18,8 +20,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const stageFiles = useCallback(async (files: string[]): Promise<GitOperationResult> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/stage`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/stage`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -48,8 +50,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const unstageFiles = useCallback(async (files: string[]): Promise<GitOperationResult> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/unstage`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/unstage`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -78,8 +80,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const createCommit = useCallback(async (message: string, files?: string[]): Promise<GitOperationResult & { sha?: string }> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/commit`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/commit`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -109,8 +111,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
     // This is a destructive operation, might need confirmation
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/discard`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/discard`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -138,8 +140,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
 
   const getCommits = useCallback(async (limit = 20): Promise<any[]> => {
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/commits?limit=${limit}`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/commits?limit=${limit}`),
         { method: "GET" }
       );
 
@@ -157,8 +159,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
       const params = new URLSearchParams({ path: filePath });
       if (staged) params.set("staged", "true");
 
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/diff?${params}`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/diff?${params}`),
         { method: "GET" }
       );
 
@@ -176,8 +178,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
       const params = new URLSearchParams();
       if (filePath) params.set("path", filePath);
 
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/commits/${commitSha}/diff?${params}`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/commits/${commitSha}/diff?${params}`),
         { method: "GET" }
       );
 
@@ -193,8 +195,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const pullCommits = useCallback(async (remote = "origin", branch?: string): Promise<GitOperationResult> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/pull`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/pull`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -223,8 +225,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const rebaseBranch = useCallback(async (onto: string): Promise<GitOperationResult> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/rebase`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/rebase`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -253,8 +255,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const resetBranch = useCallback(async (to: string, mode: "soft" | "hard", confirm = false): Promise<GitOperationResult> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/reset`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/reset`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -283,8 +285,8 @@ export function useGitOperations({ workspaceId, codebaseId, onSuccess, onError }
   const exportChanges = useCallback(async (files?: string[], format: "patch" | "diff" = "patch"): Promise<GitOperationResult & { patch?: string; filename?: string }> => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/export`,
+      const response = await desktopAwareFetch(
+        resolveApiPath(`/api/workspaces/${workspaceId}/codebases/${codebaseId}/git/export`),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

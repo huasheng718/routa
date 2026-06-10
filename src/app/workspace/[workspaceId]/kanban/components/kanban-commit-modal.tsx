@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { X, GitCommitHorizontal } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 interface KanbanCommitModalProps {
   open: boolean;
@@ -11,6 +12,7 @@ interface KanbanCommitModalProps {
 }
 
 export function KanbanCommitModal({ open, onClose, onCommit, fileCount }: KanbanCommitModalProps) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -50,10 +52,10 @@ export function KanbanCommitModal({ open, onClose, onCommit, fileCount }: Kanban
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Create Commit
+              {t.kanban.createCommit}
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Commit {fileCount} staged file{fileCount === 1 ? '' : 's'}
+              {t.kanban.commitStagedFiles.replace("{count}", String(fileCount))}
             </p>
           </div>
           <button
@@ -69,20 +71,20 @@ export function KanbanCommitModal({ open, onClose, onCommit, fileCount }: Kanban
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label htmlFor="commit-message" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              Commit message
+              {t.kanban.commitMessage}
             </label>
             <textarea
               id="commit-message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Brief description of your changes..."
+              placeholder={t.kanban.commitMessagePlaceholder}
               disabled={loading}
               className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
               rows={4}
               autoFocus
             />
             <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-              Use present tense (&quot;add&quot; not &quot;added&quot;). Be concise but descriptive.
+              {t.kanban.commitMessageHint}
             </p>
           </div>
 
@@ -93,7 +95,7 @@ export function KanbanCommitModal({ open, onClose, onCommit, fileCount }: Kanban
               disabled={loading}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              Cancel
+              {t.kanban.cancel}
             </button>
             <button
               type="submit"
@@ -101,7 +103,7 @@ export function KanbanCommitModal({ open, onClose, onCommit, fileCount }: Kanban
               className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
             >
               <GitCommitHorizontal className="h-4 w-4" />
-              {loading ? "Committing..." : "Commit"}
+              {loading ? t.kanban.committing : t.kanban.commit}
             </button>
           </div>
         </form>

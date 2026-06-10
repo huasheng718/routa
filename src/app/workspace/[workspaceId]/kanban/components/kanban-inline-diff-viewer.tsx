@@ -2,6 +2,7 @@
 
 import React from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import type { KanbanFileChangeItem } from "../kanban-file-changes-types";
 import { parseUnifiedDiffPreview } from "../kanban-diff-preview";
 
@@ -24,6 +25,7 @@ export function KanbanInlineDiffViewer({
   commitSha,
   embedded = false,
 }: KanbanInlineDiffViewerProps) {
+  const { t } = useTranslation();
   if (!file) return null;
   const parsedDiff = diff ? parseUnifiedDiffPreview({ patch: diff }) : null;
 
@@ -37,7 +39,7 @@ export function KanbanInlineDiffViewer({
           </div>
           {commitSha && (
             <div className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-              Commit: {commitSha.substring(0, 7)}
+              {t.kanban.commitShaLabel.replace("{sha}", commitSha.substring(0, 7))}
             </div>
           )}
         </div>
@@ -54,7 +56,7 @@ export function KanbanInlineDiffViewer({
       <div className="max-h-96 overflow-auto">
         {loading ? (
           <div className={`flex items-center justify-center text-xs text-slate-400 dark:text-slate-500 ${embedded ? "px-1 py-6" : "py-8"}`}>
-            Loading diff...
+            {t.kanbanDetail.loadingFileDiff}
           </div>
         ) : error ? (
           <div className={`${embedded ? "px-0 py-3" : "px-3 py-4"} text-xs text-rose-600 dark:text-rose-400`}>
@@ -62,7 +64,7 @@ export function KanbanInlineDiffViewer({
           </div>
         ) : !diff ? (
           <div className={`${embedded ? "px-0 py-3" : "px-3 py-4"} text-xs text-slate-400 dark:text-slate-500`}>
-            No diff available
+            {t.kanbanDetail.noDiffAvailable}
           </div>
         ) : (
           <div className="font-mono text-[10px]">

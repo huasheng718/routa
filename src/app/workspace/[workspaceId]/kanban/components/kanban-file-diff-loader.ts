@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import type { KanbanFileChangeItem } from "../kanban-file-changes-types";
 
@@ -9,6 +10,7 @@ interface LoadKanbanFileDiffParams {
   workspaceId: string;
   codebaseId?: string;
   staged?: boolean;
+  fallbackError: string;
 }
 
 export async function loadKanbanFileDiff({
@@ -17,6 +19,7 @@ export async function loadKanbanFileDiff({
   workspaceId,
   codebaseId,
   staged = false,
+  fallbackError,
 }: LoadKanbanFileDiffParams): Promise<string | null> {
   const inlineDiff = file.patch ?? file.diff;
   if (typeof inlineDiff === "string") {
@@ -33,12 +36,12 @@ export async function loadKanbanFileDiff({
       params.set("previousPath", file.previousPath);
     }
     const response = await desktopAwareFetch(
-      `/api/tasks/${encodeURIComponent(taskId)}/changes/file?${params.toString()}`,
+      resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}/changes/file?${params.toString()}`),
       { cache: "no-store", signal: controller.signal }
     );
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || "Failed to load diff");
+      throw new Error(typeof data.error === "string" && data.error.trim() ? data.error : fallbackError);
     }
     return data.diff?.patch || null;
   }
@@ -53,12 +56,12 @@ export async function loadKanbanFileDiff({
   }
 
   const response = await desktopAwareFetch(
-    `/api/workspaces/${encodeURIComponent(workspaceId)}/codebases/${encodeURIComponent(codebaseId)}/git/diff?${params.toString()}`,
+    resolveApiPath(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases/${encodeURIComponent(codebaseId)}/git/diff?${params.toString()}`),
     { cache: "no-store" }
   );
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "Failed to load diff");
+    throw new Error(typeof data.error === "string" && data.error.trim() ? data.error : fallbackError);
   }
   return data.diff || null;
 }

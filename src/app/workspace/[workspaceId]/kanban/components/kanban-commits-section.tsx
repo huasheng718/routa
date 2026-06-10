@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { GitCommit, ChevronDown, ChevronRight, ExternalLink, RotateCcw } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import { FileRow } from "../kanban-file-changes-panel";
 import type { KanbanCommitInfo, KanbanFileChangeItem } from "../kanban-file-changes-types";
 
@@ -24,6 +25,7 @@ export function KanbanCommitsSection({
   onToggle,
   loading = false,
 }: KanbanCommitsSectionProps) {
+  const { t } = useTranslation();
   const [expandedCommits, setExpandedCommits] = useState<Set<string>>(new Set());
 
   const toggleCommit = (sha: string) => {
@@ -49,7 +51,7 @@ export function KanbanCommitsSection({
         <div className="flex items-center gap-2">
           <GitCommit className="h-4 w-4 text-slate-400" />
           <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-            COMMITS
+            {t.kanbanDetail.commits}
           </span>
           <span className="text-xs text-slate-500 dark:text-slate-400">
             ({commits.length})
@@ -67,11 +69,11 @@ export function KanbanCommitsSection({
       <div className="border-t border-slate-200/70 px-3.5 py-3 dark:border-[#202433]">
         {loading ? (
           <div className="flex items-center justify-center py-6 text-xs text-slate-400 dark:text-slate-500">
-            Loading commits...
+            {t.gitLog.loadingCommits}
           </div>
         ) : commits.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white/70 px-3 py-4 text-center text-[11px] text-slate-400 dark:border-slate-700 dark:bg-[#12141c] dark:text-slate-500">
-            No commits yet
+            {t.kanban.noCommitsYet}
           </div>
         ) : (
           <div className="space-y-2">
@@ -138,7 +140,7 @@ export function KanbanCommitsSection({
                           type="button"
                           onClick={() => onOpenCommit(commit)}
                           className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-                          title="Open in editor"
+                          title={t.kanban.openInEditor}
                         >
                           <ExternalLink className="h-3 w-3" />
                         </button>
@@ -148,7 +150,7 @@ export function KanbanCommitsSection({
                           type="button"
                           onClick={() => onRevertCommit(commit)}
                           className="rounded p-1 text-slate-400 transition hover:bg-slate-100 hover:text-rose-600 dark:hover:bg-slate-800 dark:hover:text-rose-400"
-                          title="Revert commit"
+                          title={t.kanban.revertCommit}
                         >
                           <RotateCcw className="h-3 w-3" />
                         </button>

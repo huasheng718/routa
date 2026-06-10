@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ChevronDown, Download, GitCommitHorizontal } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import { KanbanFileChangesSection } from "./kanban-file-changes-section";
 import type { KanbanFileChangeItem } from "../kanban-file-changes-types";
 
@@ -26,13 +27,15 @@ export function KanbanStagedSection({
   onExport,
   loading = false,
 }: KanbanStagedSectionProps) {
+  const { t } = useTranslation();
   const selectedCount = files.filter(f => f.selected).length;
   const hasSelection = selectedCount > 0;
   const hasFiles = files.length > 0;
+  const selectedLabel = hasSelection ? `(${selectedCount})` : t.kanban.selectedPlaceholder;
 
   const badge = (
     <span className="text-[9px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-      APPROVED
+      {t.kanban.approvedBadge}
     </span>
   );
 
@@ -44,7 +47,7 @@ export function KanbanStagedSection({
         disabled={!hasSelection || loading}
         className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-[#12141c] dark:text-slate-300 dark:hover:bg-[#191c28]"
       >
-        Unstage {hasSelection ? `(${selectedCount})` : "Selected"}
+        {t.kanban.unstageSelected.replace("{label}", selectedLabel)}
       </button>
 
       <button
@@ -55,7 +58,7 @@ export function KanbanStagedSection({
       >
         <GitCommitHorizontal className="h-3 w-3" />
         <ChevronDown className="h-3 w-3" />
-        Commit
+        {t.kanban.commit}
       </button>
 
       <button
@@ -65,15 +68,15 @@ export function KanbanStagedSection({
         className="flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300 dark:hover:bg-sky-900/30"
       >
         <Download className="h-3 w-3" />
-        Export
+        {t.common.export}
       </button>
     </>
   );
 
   return (
     <KanbanFileChangesSection
-      title="STAGED"
-      subtitle={files.length > 0 ? `${files.length} file${files.length === 1 ? '' : 's'} ready to commit` : undefined}
+      title={t.kanban.stagedTitle}
+      subtitle={files.length > 0 ? t.kanban.filesReadyToCommit.replace("{count}", String(files.length)) : undefined}
       files={files}
       showCheckbox={true}
       onFileClick={onFileClick}
