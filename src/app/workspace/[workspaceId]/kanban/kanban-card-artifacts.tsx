@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { CodeViewer } from "@/client/components/codemirror/code-viewer";
+import { resolveApiPath } from "@/client/config/backend";
 import type { ArtifactType } from "@/core/models/artifact";
 import { useTranslation } from "@/i18n";
 import type { TranslationDictionary } from "@/i18n";
@@ -22,12 +23,25 @@ function getArtifactLabels(t: TranslationDictionary): Record<ArtifactType, strin
     test_results: t.kanban.testResultsType,
     code_diff: t.kanban.codeDiffType,
     logs: t.kanban.logsType,
-    canvas: "Canvas",
+    canvas: t.canvas.liveEntryShortLabel,
   };
 }
 
 function formatArtifactTypeLabel(type: ArtifactType, labels: Record<ArtifactType, string>): string {
   return labels[type] ?? type;
+}
+
+function formatArtifactStatusLabel(status: ArtifactInfo["status"], t: TranslationDictionary): string {
+  switch (status) {
+    case "pending":
+      return t.kanban.artifactStatusPending;
+    case "provided":
+      return t.kanban.artifactStatusProvided;
+    case "expired":
+      return t.kanban.artifactStatusExpired;
+    default:
+      return t.kanban.artifactStatusUnknown;
+  }
 }
 
 function formatArtifactTimestamp(value: string, t: TranslationDictionary): string {
@@ -143,7 +157,7 @@ export function KanbanCardArtifacts({
       setLoading(true);
       setLoadError(null);
       try {
-        const response = await desktopAwareFetch(`/api/tasks/${encodeURIComponent(taskId)}/artifacts`, {
+        const response = await desktopAwareFetch(resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}/artifacts`), {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -269,7 +283,7 @@ export function KanbanCardArtifacts({
                       </div>
                     </div>
                     <div className="truncate text-[11px] uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
-                      {artifact.status}
+                      {formatArtifactStatusLabel(artifact.status, t)}
                     </div>
                   </div>
 

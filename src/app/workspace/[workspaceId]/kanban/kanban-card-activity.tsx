@@ -13,8 +13,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useTranslation } from "@/i18n";
+import { formatKanbanRoleLabel } from "@/client/utils/kanban-role-labels";
 import type { AcpProviderInfo } from "@/client/acp-client";
 import { resolveEffectiveTaskAutomation } from "@/core/kanban/effective-task-automation";
+import type { TranslationDictionary } from "@/i18n/types";
 import type { KanbanColumnInfo } from "../types";
 import type { SessionInfo, TaskInfo, TaskRunInfo } from "../types";
 import {
@@ -29,37 +31,87 @@ import {
 } from "./kanban-card-session-utils";
 import type { KanbanSpecialistLanguage } from "./kanban-specialist-language";
 import { getKanbanSessionCopy } from "./i18n/kanban-session-copy";
-import { useTaskRuns } from "./use-task-runs";
+import { type TaskRunsError, useTaskRuns } from "./use-task-runs";
 
 type ActivityTabId = "runs" | "handoffs" | "github";
+type KanbanCopy = TranslationDictionary["kanban"];
+type LaneHandoff = NonNullable<TaskInfo["laneHandoffs"]>[number];
 
-function formatTaskRunKind(kind: TaskRunInfo["kind"] | undefined): string {
+function formatTaskRunKind(kind: TaskRunInfo["kind"] | undefined, copy: KanbanCopy): string {
   switch (kind) {
     case "a2a_task":
-      return "A2A";
+      return copy.taskRunKindA2a;
     case "runner_acp":
-      return "Runner ACP";
+      return copy.taskRunKindRunnerAcp;
     case "embedded_acp":
-      return "ACP";
+      return copy.taskRunKindEmbeddedAcp;
     default:
-      return "Run";
+      return copy.taskRunKindRun;
   }
 }
 
-function formatTaskRunStatus(status: TaskRunInfo["status"] | undefined): string {
+function formatTaskRunStatus(status: TaskRunInfo["status"] | undefined, copy: KanbanCopy): string {
   switch (status) {
     case "running":
-      return "Running";
+      return copy.taskRunStatusRunning;
     case "completed":
-      return "Completed";
+      return copy.taskRunStatusCompleted;
     case "failed":
-      return "Failed";
+      return copy.taskRunStatusFailed;
     case "timed_out":
-      return "Timed out";
+      return copy.taskRunStatusTimedOut;
     case "transitioned":
-      return "Transitioned";
+      return copy.taskRunStatusTransitioned;
     default:
-      return "Unknown";
+      return copy.taskRunStatusUnknown;
+  }
+}
+
+function formatTaskRunsError(error: TaskRunsError, copy: KanbanCopy): string {
+  return copy.taskRunsLoadFailed
+    .replace("{status}", error.status ? String(error.status) : copy.unavailable)
+    .replace("{detail}", error.detail ? ` ${error.detail}` : "");
+}
+
+function formatRemoteTaskContext(contextId: string, copy: KanbanCopy): string {
+  return copy.remoteTaskContext.replace("{contextId}", contextId);
+}
+
+function formatLaneHandoffRequestType(
+  requestType: LaneHandoff["requestType"] | undefined,
+  copy: KanbanCopy,
+): string {
+  switch (requestType) {
+    case "environment_preparation":
+      return copy.handoffRequestEnvironmentPreparation;
+    case "runtime_context":
+      return copy.handoffRequestRuntimeContext;
+    case "clarification":
+      return copy.handoffRequestClarification;
+    case "rerun_command":
+      return copy.handoffRequestRerunCommand;
+    default:
+      return copy.handoffRequestUnknown;
+  }
+}
+
+function formatLaneHandoffStatus(
+  status: LaneHandoff["status"] | undefined,
+  copy: KanbanCopy,
+): string {
+  switch (status) {
+    case "requested":
+      return copy.handoffStatusRequested;
+    case "delivered":
+      return copy.handoffStatusDelivered;
+    case "completed":
+      return copy.handoffStatusCompleted;
+    case "blocked":
+      return copy.handoffStatusBlocked;
+    case "failed":
+      return copy.handoffStatusFailed;
+    default:
+      return copy.handoffStatusUnknown;
   }
 }
 
@@ -157,6 +209,7 @@ function formatExpectedRunTarget(
   availableProviders: AcpProviderInfo[],
   specialists: KanbanSpecialistOption[],
   workspaceDefaultLabel: string,
+  t: TranslationDictionary,
   autoProviderId?: string,
 ): string {
   const resolveSpecialist = createKanbanSpecialistResolver(specialists);
@@ -167,12 +220,14 @@ function formatExpectedRunTarget(
     effectiveAutomation.specialistId,
     effectiveAutomation.specialistName,
     specialists,
+    t,
   );
+  const roleLabel = formatKanbanRoleLabel(effectiveAutomation.role ?? "DEVELOPER", t);
 
   if (effectiveAutomation.transport === "a2a") {
     return [
       "A2A",
-      effectiveAutomation.role ?? "DEVELOPER",
+      roleLabel,
       specialistName,
       formatAgentCardTarget(effectiveAutomation.agentCardUrl),
       effectiveAutomation.skillId ? `skill:${effectiveAutomation.skillId}` : undefined,
@@ -182,22 +237,23 @@ function formatExpectedRunTarget(
   const providerName = effectiveAutomation.providerId
     ? availableProviders.find((provider) => provider.id === effectiveAutomation.providerId)?.name ?? effectiveAutomation.providerId
     : workspaceDefaultLabel;
-  return [providerName, effectiveAutomation.role ?? "DEVELOPER", specialistName].join(" · ");
+  return [providerName, roleLabel, specialistName].join(" · ");
 }
 
 function formatLaneSessionHeading(
   laneSession: NonNullable<TaskInfo["laneSessions"]>[number] | undefined,
   session: SessionInfo | undefined,
+  copy: KanbanCopy,
 ): string {
   if (laneSession?.transport === "a2a") {
     return laneSession.externalTaskId
-      ? `A2A Task · ${laneSession.externalTaskId}`
+      ? `${copy.remoteTask} · ${laneSession.externalTaskId}`
       : laneSession.contextId
-        ? `A2A Context · ${laneSession.contextId}`
-        : "A2A Task";
+        ? copy.remoteTaskContext.replace("{contextId}", laneSession.contextId)
+        : copy.remoteTask;
   }
 
-  return session?.name ?? session?.provider ?? "Automation Run";
+  return session?.name ?? session?.provider ?? copy.automationRunFallback;
 }
 
 function renderLaneIcon(laneLabel: string | undefined) {
@@ -332,6 +388,7 @@ export function KanbanCardActivityPanel({
   compact?: boolean;
 }) {
   const copy = getKanbanSessionCopy(specialistLanguage);
+  const { t } = useTranslation();
   const { runs, error } = useTaskRuns(
     task.id,
     `${refreshSignal ?? ""}:${task.updatedAt ?? ""}:${task.triggerSessionId ?? ""}:${task.laneSessions?.length ?? 0}`,
@@ -353,7 +410,7 @@ export function KanbanCardActivityPanel({
       <div>
         {error && (
           <div className="mb-2 border-l-2 border-amber-300 px-3 py-2 text-xs text-amber-800 dark:border-amber-700/80 dark:text-amber-200">
-            Run ledger unavailable, showing local run history. {error}
+            {t.kanban.runLedgerUnavailableWithLocalHistory} {formatTaskRunsError(error, t.kanban)}
           </div>
         )}
         <div className="flex flex-wrap border-b border-slate-200/70 dark:border-[#232736]">
@@ -440,7 +497,7 @@ export function KanbanCardActivityBar({
     : orderedSessionIds[orderedSessionIds.length - 1];
   const selectedLaneSession = selectedRunId ? laneSessionMap.get(selectedRunId) : undefined;
   const selectedRun = selectedRunId ? runMap.get(selectedRunId) : undefined;
-  const selectedStepLabel = getLaneSessionStepLabel(selectedLaneSession);
+  const selectedStepLabel = getLaneSessionStepLabel(selectedLaneSession, t);
 
   useEffect(() => {
     if (!selectedRunId) return;
@@ -474,7 +531,7 @@ export function KanbanCardActivityBar({
     <div className="space-y-2 px-1 py-1">
       {error && (
         <div className="border-l-2 border-amber-300 px-3 py-2 text-[11px] text-amber-800 dark:border-amber-700/80 dark:text-amber-200">
-          Run ledger unavailable, using cached task history.
+          {t.kanban.runLedgerUnavailableUsingCachedHistory} {formatTaskRunsError(error, t.kanban)}
         </div>
       )}
       <div className="flex items-start gap-2 border-b border-slate-200/70 pb-2 dark:border-[#232736]">
@@ -484,7 +541,7 @@ export function KanbanCardActivityBar({
             const laneSession = laneSessionMap.get(sessionId);
             const run = runMap.get(sessionId);
             const laneLabel = laneSession?.columnName ?? laneSession?.columnId ?? t.kanban.runLabel;
-            const runLabel = buildSessionDisplayLabel(sessionId, index, sessionMap);
+            const runLabel = buildSessionDisplayLabel(sessionId, index, sessionMap, t);
             const fullTabLabel = laneSession?.stepName?.trim() || runLabel;
 
             return (
@@ -497,7 +554,7 @@ export function KanbanCardActivityBar({
                 onClick={() => onSelectSession?.(sessionId)}
                 className={getRunTabClasses(run?.status ?? laneSession?.status, active)}
                 aria-pressed={active}
-                title={`${fullTabLabel} · ${laneLabel} · Run ${index + 1}`}
+                title={`${fullTabLabel} · ${laneLabel} · ${t.kanban.runLabel} ${index + 1}`}
               >
                 <span
                   className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${getLaneBadgeClasses(laneLabel)}`}
@@ -543,7 +600,7 @@ export function KanbanCardActivityBar({
           )}
           {selectedRun && (
             <span className={`rounded-full px-2 py-0.5 font-semibold uppercase tracking-wide ${getTaskRunStatusClasses(selectedRun.status)}`}>
-              {formatTaskRunStatus(selectedRun.status)}
+              {formatTaskRunStatus(selectedRun.status, t.kanban)}
             </span>
           )}
           {selectedStepLabel && (
@@ -553,7 +610,7 @@ export function KanbanCardActivityBar({
           )}
           {selectedLaneSession?.status && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-              {selectedLaneSession.status}
+              {formatTaskRunStatus(selectedLaneSession.status, t.kanban)}
             </span>
           )}
         </div>
@@ -623,8 +680,9 @@ function SessionHistoryPanel({
             laneSession?.specialistId,
             run?.specialistName ?? laneSession?.specialistName,
             specialists,
+            t,
           );
-          const stepLabel = getLaneSessionStepLabel(laneSession);
+          const stepLabel = getLaneSessionStepLabel(laneSession, t);
           const isA2ARun = laneSession?.transport === "a2a";
           const reconnectLabel = run?.resumeTarget?.type === "external_task" ? t.kanban.inspectLabel : t.kanban.openLabel;
 
@@ -648,7 +706,7 @@ function SessionHistoryPanel({
                 </span>
                 {run && (
                   <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700 dark:border-slate-700 dark:text-slate-200">
-                    {formatTaskRunKind(run.kind)}
+                    {formatTaskRunKind(run.kind, t.kanban)}
                   </span>
                 )}
                 {laneSession?.columnName && (
@@ -673,30 +731,30 @@ function SessionHistoryPanel({
                 )}
                 {(run?.status ?? laneSession?.status) && (
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${getTaskRunStatusClasses(run?.status ?? laneSession?.status)}`}>
-                    {formatTaskRunStatus(run?.status ?? laneSession?.status)}
+                    {formatTaskRunStatus(run?.status ?? laneSession?.status, t.kanban)}
                   </span>
                 )}
               </div>
               <div className="mt-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className={`truncate font-medium text-slate-900 dark:text-slate-100 ${compact ? "text-[13px]" : "text-sm"}`}>
-                    {laneSession ? formatLaneSessionHeading(laneSession, session) : (session?.name ?? session?.provider ?? t.kanban.acpSession)}
+                    {laneSession ? formatLaneSessionHeading(laneSession, session, t.kanban) : (session?.name ?? session?.provider ?? t.kanban.acpSession)}
                   </div>
                   <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     {isA2ARun
                       ? [
-                        "Remote task",
-                        laneSession?.role ?? t.kanban.unknownRole,
+                        t.kanban.remoteTask,
+                        formatKanbanRoleLabel(laneSession?.role, t),
                         laneSpecialist,
                       ].filter(Boolean).join(" · ")
                       : [
                         laneSession?.provider ?? session?.provider ?? t.kanban.unknownProvider,
-                        laneSession?.role ?? session?.role ?? t.kanban.unknownRole,
+                        formatKanbanRoleLabel(laneSession?.role ?? session?.role, t),
                         laneSpecialist,
                       ].filter(Boolean).join(" · ")}
                   </div>
                   <div className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                    {formatSessionTimestamp(run?.startedAt ?? session?.createdAt ?? laneSession?.startedAt)}
+                    {formatSessionTimestamp(run?.startedAt ?? session?.createdAt ?? laneSession?.startedAt, t)}
                   </div>
                 </div>
                 <SessionIdChip
@@ -707,7 +765,7 @@ function SessionHistoryPanel({
               <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="truncate">
                   {isA2ARun
-                    ? (run?.contextId ?? laneSession?.contextId) ? `Context ${run?.contextId ?? laneSession?.contextId}` : "Remote task metadata available"
+                    ? (run?.contextId ?? laneSession?.contextId) ? formatRemoteTaskContext(run?.contextId ?? laneSession?.contextId ?? "", t.kanban) : t.kanban.remoteTaskMetadataAvailable
                     : session?.cwd ?? t.kanban.workingDirUnavailable}
                 </span>
                 <span className="font-medium text-amber-600 dark:text-amber-300">{reconnectLabel}</span>
@@ -745,6 +803,7 @@ export function KanbanEmptySessionPane({
     availableProviders,
     specialists,
     t.kanban.workspaceDefault,
+    t,
     autoProviderId,
   );
 
@@ -804,10 +863,10 @@ function HandoffPanel({ task, compact = false }: { task: TaskInfo; compact?: boo
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-                {handoff.requestType.replace(/_/g, " ")}
+                {formatLaneHandoffRequestType(handoff.requestType, t.kanban)}
               </span>
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                {handoff.status}
+                {formatLaneHandoffStatus(handoff.status, t.kanban)}
               </span>
             </div>
             <div className="mt-2 text-sm text-slate-800 dark:text-slate-200">{handoff.request}</div>
@@ -817,7 +876,7 @@ function HandoffPanel({ task, compact = false }: { task: TaskInfo; compact?: boo
               </div>
             )}
             <div className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
-              {t.kanban.requested} {formatSessionTimestamp(handoff.requestedAt)}{handoff.respondedAt ? ` · ${t.kanban.responded} ${formatSessionTimestamp(handoff.respondedAt)}` : ""}
+              {t.kanban.requested} {formatSessionTimestamp(handoff.requestedAt, t)}{handoff.respondedAt ? ` · ${t.kanban.responded} ${formatSessionTimestamp(handoff.respondedAt, t)}` : ""}
             </div>
           </div>
         ))}
@@ -853,7 +912,7 @@ function GitHubPanel({ task, compact = false }: { task: TaskInfo; compact?: bool
       </a>
       {task.githubSyncedAt && (
         <div className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
-          {t.kanban.syncedAt} {formatSessionTimestamp(task.githubSyncedAt)}
+          {t.kanban.syncedAt} {formatSessionTimestamp(task.githubSyncedAt, t)}
         </div>
       )}
     </div>

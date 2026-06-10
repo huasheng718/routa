@@ -40,6 +40,7 @@ import {
   type KanbanSpecialistLanguage,
 } from "./kanban-specialist-language";
 import { useTranslation } from "@/i18n";
+import { formatKanbanRoleLabel } from "@/client/utils/kanban-role-labels";
 
 export interface KanbanCardDetailProps {
   task: TaskInfo;
@@ -55,6 +56,7 @@ export interface KanbanCardDetailProps {
   sessions?: SessionInfo[];
   fullWidth?: boolean;
   selectedProvider?: string | null;
+  currentAcpProvider?: string | null;
   onPatchTask: (taskId: string, payload: Record<string, unknown>) => Promise<TaskInfo>;
   onRetryTrigger: (taskId: string) => Promise<void>;
   onRunPullRequest?: (taskId: string) => Promise<string | null>;
@@ -79,8 +81,8 @@ type KanbanDetailTabId = "overview" | "readiness" | "execution" | "jitContext" |
 
 const persistedKanbanDetailTabs = new Map<string, KanbanDetailTabId>();
 
-function getProviderName(providerId: string | undefined, availableProviders: AcpProviderInfo[]): string {
-  if (!providerId) return "Workspace default";
+function getProviderName(providerId: string | undefined, availableProviders: AcpProviderInfo[], workspaceDefaultLabel: string): string {
+  if (!providerId) return workspaceDefaultLabel;
   return availableProviders.find((provider) => provider.id === providerId)?.name ?? providerId;
 }
 
@@ -157,16 +159,19 @@ function formatEffectiveAutomationTarget(
   automation: EffectiveTaskAutomation,
   availableProviders: AcpProviderInfo[],
   specialists: SpecialistOption[],
+  workspaceDefaultLabel: string,
+  t: ReturnType<typeof useTranslation>["t"],
 ): string {
   if (automation.transport === "a2a") {
     const specialist = getSpecialistName(
       automation.specialistId,
       automation.specialistName,
       specialists,
+      t,
     );
     return [
       "A2A",
-      automation.role ?? "DEVELOPER",
+      formatKanbanRoleLabel(automation.role ?? "DEVELOPER", t),
       specialist,
       formatAgentCardTarget(automation.agentCardUrl),
       automation.skillId ? `skill:${automation.skillId}` : undefined,
@@ -174,9 +179,9 @@ function formatEffectiveAutomationTarget(
   }
 
   return [
-    getProviderName(automation.providerId, availableProviders),
-    automation.role ?? "DEVELOPER",
-    getSpecialistName(automation.specialistId, automation.specialistName, specialists),
+    getProviderName(automation.providerId, availableProviders, workspaceDefaultLabel),
+    formatKanbanRoleLabel(automation.role ?? "DEVELOPER", t),
+    getSpecialistName(automation.specialistId, automation.specialistName, specialists, t),
   ].join(" · ");
 }
 
@@ -196,6 +201,8 @@ function formatAutomationStepSummary(
   step: KanbanAutomationStep,
   availableProviders: AcpProviderInfo[],
   specialists: SpecialistOption[],
+  workspaceDefaultLabel: string,
+  t: ReturnType<typeof useTranslation>["t"],
   autoProviderId?: string | null,
 ): string {
   const resolvedStep = resolveKanbanAutomationStep(
@@ -206,17 +213,17 @@ function formatAutomationStepSummary(
   if ((resolvedStep.transport ?? "acp") === "a2a") {
     return [
       "A2A",
-      resolvedStep.role ?? "DEVELOPER",
-      getSpecialistName(resolvedStep.specialistId, resolvedStep.specialistName, specialists),
+      formatKanbanRoleLabel(resolvedStep.role ?? "DEVELOPER", t),
+      getSpecialistName(resolvedStep.specialistId, resolvedStep.specialistName, specialists, t),
       formatAgentCardTarget(resolvedStep.agentCardUrl),
       resolvedStep.skillId ? `skill:${resolvedStep.skillId}` : undefined,
     ].filter(Boolean).join(" · ");
   }
 
   return [
-    getProviderName(resolvedStep.providerId, availableProviders),
-    resolvedStep.role ?? "DEVELOPER",
-    getSpecialistName(resolvedStep.specialistId, resolvedStep.specialistName, specialists),
+    getProviderName(resolvedStep.providerId, availableProviders, workspaceDefaultLabel),
+    formatKanbanRoleLabel(resolvedStep.role ?? "DEVELOPER", t),
+    getSpecialistName(resolvedStep.specialistId, resolvedStep.specialistName, specialists, t),
   ].join(" · ");
 }
 
@@ -242,6 +249,7 @@ export function KanbanCardDetail({
   sessions,
   fullWidth,
   selectedProvider,
+  currentAcpProvider,
   onPatchTask,
   onRetryTrigger,
   onRunPullRequest,
@@ -464,9 +472,9 @@ export function KanbanCardDetail({
                 onRefresh();
               }}
             />
-            <MetaBadge label="Column" value={task.columnId ?? "backlog"} compact={compactMode} />
+            <MetaBadge label={t.kanbanDetail.column} value={task.columnId ?? t.kanban.backlog} compact={compactMode} />
             {orderedSessionIds.length > 0 && (
-              <MetaBadge label="Runs" value={String(orderedSessionIds.length)} compact={compactMode} />
+              <MetaBadge label={t.kanbanDetail.runs} value={String(orderedSessionIds.length)} compact={compactMode} />
             )}
             {storyReadinessValue && (
               <MetaBadge label={t.kanbanDetail.storyReadiness} value={storyReadinessValue} compact={compactMode} />
@@ -590,7 +598,7 @@ export function KanbanCardDetail({
                           <div key={entry.id} className="rounded-xl border border-slate-200/70 bg-slate-50/80 px-3 py-2.5 dark:border-slate-700/70 dark:bg-slate-900/30">
                             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span>{`Note ${index + 1}`}</span>
+                                <span>{t.kanbanDetail.progressNoteLabel.replace("{index}", String(index + 1))}</span>
                                 {sourceLabel ? (
                                   <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
                                     {sourceLabel}
@@ -757,6 +765,7 @@ export function KanbanCardDetail({
                 specialists={specialists}
                 specialistLanguage={specialistLanguage}
                 selectedProvider={selectedProvider}
+                currentAcpProvider={currentAcpProvider}
                 onPatchTask={onPatchTask}
                 onRetryTrigger={onRetryTrigger}
                 onProviderChange={onProviderChange}
@@ -909,6 +918,7 @@ function ExecutionSection({
   specialists,
   specialistLanguage,
   selectedProvider,
+  currentAcpProvider,
   onPatchTask,
   onRetryTrigger,
   onProviderChange,
@@ -922,6 +932,7 @@ function ExecutionSection({
   specialists: SpecialistOption[];
   specialistLanguage: KanbanSpecialistLanguage;
   selectedProvider?: string | null;
+  currentAcpProvider?: string | null;
   onPatchTask: (taskId: string, payload: Record<string, unknown>) => Promise<TaskInfo>;
   onRetryTrigger: (taskId: string) => Promise<void>;
   onProviderChange?: (providerId: string | null) => void;
@@ -936,6 +947,7 @@ function ExecutionSection({
   const effectiveAutomation = resolveEffectiveTaskAutomation(task, boardColumns, resolveSpecialist, {
     autoProviderId: selectedProvider ?? undefined,
   });
+  const manualRunProvider = currentAcpProvider ?? selectedProvider;
   const canRunTask = effectiveAutomation.canRun && task.columnId !== "done";
   const hasCardOverride = effectiveAutomation.source === "card";
   const overrideProviderValue = hasCardOverride ? task.assignedProvider ?? "" : "";
@@ -945,7 +957,7 @@ function ExecutionSection({
     : "";
   const usesSelectedProvider = Boolean(
     !hasCardOverride
-    && selectedProvider
+    && manualRunProvider
     && effectiveAutomation.transport !== "a2a"
     && effectiveAutomation.providerSource === "auto",
   );
@@ -953,22 +965,24 @@ function ExecutionSection({
     ? formatEffectiveAutomationTarget(
         {
           ...effectiveAutomation,
-          providerId: selectedProvider ?? undefined,
+          providerId: manualRunProvider ?? undefined,
         },
         availableProviders,
         specialists,
+        t.kanban.workspaceDefault,
+        t,
       )
-    : formatEffectiveAutomationTarget(effectiveAutomation, availableProviders, specialists);
+    : formatEffectiveAutomationTarget(effectiveAutomation, availableProviders, specialists, t.kanban.workspaceDefault, t);
   const manualRunSourceLabel = hasCardOverride
     ? usesSelectedProvider
-      ? "the current ACP provider with this card override"
-      : "this card override"
+      ? t.kanbanDetail.cardOverrideWithProviderRunSource
+      : t.kanbanDetail.cardOverrideRunSource
     : usesSelectedProvider
-      ? "the current ACP provider with this lane's role and specialist"
-      : "the current lane default";
+      ? t.kanbanDetail.laneDefaultWithProviderRunSource
+      : t.kanbanDetail.laneDefaultRunSource;
   const laneName = lane?.name ?? task.columnId ?? "backlog";
   const laneSteps = lane?.automation ? getKanbanAutomationSteps(lane.automation) : [];
-  const cardSpecialist = getSpecialistName(task.assignedSpecialistId, task.assignedSpecialistName, specialists);
+  const cardSpecialist = getSpecialistName(task.assignedSpecialistId, task.assignedSpecialistName, specialists, t);
   const failureMessage = getPromptFailureMessage(task, sessionInfo);
   const activeRunSessionId = task.triggerSessionId
     ?? (task.laneSessions && task.laneSessions.length > 0 ? task.laneSessions[task.laneSessions.length - 1]?.sessionId : undefined);
@@ -978,13 +992,14 @@ function ExecutionSection({
   const failedRunProviderId = task.triggerSessionId
     ? sessionInfo?.sessionId === task.triggerSessionId
       ? sessionInfo.provider
-      : activeLaneSession?.provider ?? (hasCardOverride ? task.assignedProvider : undefined) ?? (usesSelectedProvider ? selectedProvider ?? undefined : effectiveAutomation.providerId)
-    : (hasCardOverride ? task.assignedProvider : undefined) ?? (usesSelectedProvider ? selectedProvider ?? undefined : effectiveAutomation.providerId);
+      : activeLaneSession?.provider ?? (hasCardOverride ? task.assignedProvider : undefined) ?? (usesSelectedProvider ? manualRunProvider ?? undefined : effectiveAutomation.providerId)
+    : (hasCardOverride ? task.assignedProvider : undefined) ?? (usesSelectedProvider ? manualRunProvider ?? undefined : effectiveAutomation.providerId);
   const failedRunLabel = activeLaneSession?.transport === "a2a" || effectiveAutomation.transport === "a2a"
-    ? "current A2A run"
+    ? t.kanbanDetail.currentA2aRun
     : getProviderName(
       failedRunProviderId,
       availableProviders,
+      t.kanban.workspaceDefault,
     );
   const effectiveRunTarget = activeLaneSession
     ? formatEffectiveAutomationTarget(
@@ -998,6 +1013,8 @@ function ExecutionSection({
         },
         availableProviders,
         specialists,
+        t.kanban.workspaceDefault,
+        t,
       )
     : manualRunTarget;
   const lanePipeline = laneSteps.length > 0
@@ -1005,6 +1022,8 @@ function ExecutionSection({
       step,
       availableProviders,
       specialists,
+      t.kanban.workspaceDefault,
+      t,
       selectedProvider,
     )).join(" -> ")
     : t.kanbanDetail.noLaneAutomation;
@@ -1065,7 +1084,7 @@ function ExecutionSection({
       {transitionArtifacts.currentRequiredArtifacts.length > 0 && (
         <div className="mt-1.5">
           <InlineSummary
-            label={`Enter ${laneName}`}
+            label={t.kanbanDetail.enterStage.replace("{stage}", laneName)}
             value={formatArtifactSummary(transitionArtifacts.currentRequiredArtifacts)}
             compact={compact}
           />
@@ -1074,7 +1093,9 @@ function ExecutionSection({
       {transitionArtifacts.nextRequiredArtifacts.length > 0 && (
         <div className="mt-1.5">
           <InlineSummary
-            label={transitionArtifacts.nextColumn?.name ? `Before ${transitionArtifacts.nextColumn.name}` : "Next move"}
+            label={transitionArtifacts.nextColumn?.name
+              ? t.kanbanDetail.beforeStage.replace("{stage}", transitionArtifacts.nextColumn.name)
+              : t.kanbanDetail.nextMove}
             value={formatArtifactSummary(transitionArtifacts.nextRequiredArtifacts)}
             compact={compact}
           />
@@ -1101,7 +1122,7 @@ function ExecutionSection({
         {hasCardOverride && (
           <div className={`mt-2 border-l-2 border-amber-300/80 px-2.5 py-2 text-xs text-amber-800 dark:border-amber-700/70 dark:text-amber-300 ${compact ? "leading-[1.125rem]" : "leading-5"}`}>
             {overrideProviderValue
-              ? `${t.kanbanDetail.cardHasExplicitOverride} ${getProviderName(task.assignedProvider, availableProviders)} · ${task.assignedRole ?? "DEVELOPER"} · ${cardSpecialist}`
+              ? `${t.kanbanDetail.cardHasExplicitOverride} ${getProviderName(task.assignedProvider, availableProviders, t.kanban.workspaceDefault)} · ${formatKanbanRoleLabel(task.assignedRole ?? "DEVELOPER", t)} · ${cardSpecialist}`
               : t.kanbanDetail.noCardOverride}
           </div>
         )}
@@ -1124,7 +1145,7 @@ function ExecutionSection({
                 }}
                 className={`w-full border border-slate-200/80 bg-transparent text-sm text-slate-700 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 ${compact ? "px-2.5 py-2" : "px-3 py-2"}`}
               >
-                {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
+                {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{formatKanbanRoleLabel(role, t)}</option>)}
               </Select>
               <Select
                 value={overrideSpecialistValue}
@@ -1157,26 +1178,32 @@ function ExecutionSection({
       )}
       {canRunTask && (usesSelectedProvider || manualRunTarget !== lanePipeline || hasCardOverride) && (
         <div className={`mt-2 border-l-2 border-sky-300/80 px-3 py-2 text-xs text-sky-800 dark:border-sky-700/70 dark:text-sky-200 ${compact ? "leading-[1.125rem]" : "leading-[1.2rem]"}`}>
-          Manual {hasRecordedRuns ? "reruns" : "runs"} use {manualRunSourceLabel}:
-          {" "}
-          {manualRunTarget}
+          {t.kanbanDetail.manualRunNotice
+            .replace("{mode}", hasRecordedRuns ? t.kanban.rerun : t.kanban.run)
+            .replace("{source}", manualRunSourceLabel)
+            .replace("{target}", manualRunTarget)}
         </div>
       )}
       {failureMessage && (
         <div className={`mt-2 border-l-2 border-rose-300/80 px-3 py-2 text-xs text-rose-800 dark:border-rose-700/70 dark:text-rose-200 ${compact ? "leading-[1.125rem]" : "leading-[1.2rem]"}`}>
-          Current run failed on {failedRunLabel}: {failureMessage}
+          {t.kanbanDetail.currentRunFailedPrefix
+            .replace("{label}", failedRunLabel)
+            .replace("{message}", failureMessage)}
           {" "}
           {effectiveAutomation.transport === "a2a"
-            ? "Check the remote agent card URL, auth config, or A2A task status before rerunning."
+            ? t.kanbanDetail.a2aFailureRecoveryHint
             : needsLiveRunRecovery
               ? t.kanbanDetail.recoverLiveRunHint
-              : "Reset the override or switch providers before rerunning if this looks like a provider authorization or runtime issue."}
+              : t.kanbanDetail.providerFailureRecoveryHint}
         </div>
       )}
       {transitionArtifacts.nextRequiredArtifacts.length > 0 && (
         <div className={`mt-2 border-l-2 border-amber-300/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-700/70 dark:text-amber-300 ${compact ? "leading-[1.125rem]" : "leading-5"}`}>
-          Moving this card to {transitionArtifacts.nextColumn?.name ?? "the next stage"} requires {formatArtifactSummary(transitionArtifacts.nextRequiredArtifacts)}.
-          {" "}This gate is injected into the ACP prompt, but the agent still needs to create those artifacts before calling <code>move_card</code>.
+          {t.kanbanDetail.moveRequiresPrefix
+            .replace("{stage}", transitionArtifacts.nextColumn?.name ?? t.kanbanDetail.nextStageFallback)
+            .replace("{artifacts}", formatArtifactSummary(transitionArtifacts.nextRequiredArtifacts))}
+          {" "}
+          {t.kanbanDetail.moveRequiresSuffix}
         </div>
       )}
       <div className={`flex flex-wrap items-center gap-2 ${compact ? "mt-2.5" : "mt-3"}`}>
@@ -1301,7 +1328,7 @@ function FallbackAgentChainEditor({
               }}
               className="min-w-0 flex-1 border border-slate-200/80 bg-transparent text-xs text-slate-700 outline-none focus:border-amber-400 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 px-2 py-1.5"
             >
-              {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
+              {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{formatKanbanRoleLabel(role, t)}</option>)}
             </Select>
             <Select
               value={agent.specialistId ?? ""}
@@ -1414,7 +1441,7 @@ function RepositoriesWorktreeRow({
             }`}>{effectiveBranch ?? worktree.branch}</span>
           )}
           <span className="ml-auto text-xs text-slate-400 transition-colors group-hover:text-slate-600 dark:group-hover:text-slate-300">
-            Edit
+            {t.common.edit}
           </span>
         </summary>
         <div className={`space-y-3 border-l-2 border-slate-200 dark:border-slate-700 ${compact ? "mt-2.5 pl-2.5" : "mt-3 pl-3"}`}>
@@ -1425,12 +1452,12 @@ function RepositoriesWorktreeRow({
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                    Repo Health
+                    {t.kanbanDetail.repoHealth}
                   </div>
                   <div className={`mt-1 text-xs ${sessionCwdMismatch ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300"}`}>
                     {sessionCwdMismatch
-                      ? "Active session is running in a different directory than this card."
-                      : "Active session matches this card repo."}
+                      ? t.kanbanDetail.sessionMismatch
+                      : t.kanbanDetail.sessionAligned}
                   </div>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
@@ -1438,24 +1465,24 @@ function RepositoriesWorktreeRow({
                     ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                     : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300"
                 }`}>
-                  {sessionCwdMismatch ? "Session mismatch" : "Aligned"}
+                  {sessionCwdMismatch ? t.kanbanDetail.sessionMismatchLabel : t.kanbanDetail.alignedLabel}
                 </span>
               </div>
               <div className="mt-2 space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
                 {expectedPath && (
                   <div>
-                    Expected: <span className="font-mono">{expectedPath}</span>
+                    {t.kanbanDetail.expectedRepoPath}: <span className="font-mono">{expectedPath}</span>
                   </div>
                 )}
                 <div>
-                  Active session: <span className="font-mono">{sessionInfo.cwd}</span>
+                  {t.kanbanDetail.activeSessionPath}: <span className="font-mono">{sessionInfo.cwd}</span>
                 </div>
                 {effectiveBranch && (
                   <div>
-                    Active branch: <span className="font-mono">{effectiveBranch}</span>
+                    {t.kanbanDetail.activeBranch}: <span className="font-mono">{effectiveBranch}</span>
                     {worktree?.branch && sessionInfo?.branch && worktree.branch !== sessionInfo.branch && (
                       <span className="ml-2 text-amber-600 dark:text-amber-300">
-                        worktree stored: {worktree.branch}
+                        {t.kanbanDetail.worktreeStoredBranch}: {worktree.branch}
                       </span>
                     )}
                   </div>
@@ -1469,7 +1496,7 @@ function RepositoriesWorktreeRow({
                       onClick={() => onSelectSession((sessionInfo?.sessionId ?? task.triggerSessionId)!)}
                       className="rounded border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:border-amber-400 hover:text-amber-800"
                     >
-                      Open active session
+                      {t.kanbanDetail.openActiveSession}
                     </button>
                   )}
                   {canAdoptSessionRepo && sessionRepoCodebase && (
@@ -1486,12 +1513,12 @@ function RepositoriesWorktreeRow({
                           onRepositoryChange?.(nextCodebaseIds);
                           onRefresh();
                         } catch (error) {
-                          setUpdateError(error instanceof Error ? error.message : "Failed to switch to the active session repo");
+                          setUpdateError(error instanceof Error ? error.message : t.kanbanDetail.failedToSwitchRepo);
                         }
                       }}
                       className="rounded border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:border-amber-400 hover:text-amber-800"
                     >
-                      Use session repo
+                      {t.kanbanDetail.useSessionRepo}
                     </button>
                   )}
                 </div>
@@ -1500,7 +1527,7 @@ function RepositoriesWorktreeRow({
           )}
           {codebases.length > 0 && (
             <div>
-              <div className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">Edit linked repositories</div>
+              <div className="mb-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">{t.kanbanDetail.editLinkedRepositories}</div>
               <div className="flex flex-wrap gap-1.5">
                 {codebases.map((codebase) => {
                   const selected = currentCodebaseIds.includes(codebase.id);
@@ -1518,7 +1545,7 @@ function RepositoriesWorktreeRow({
                           onRepositoryChange?.(nextCodebaseIds);
                           onRefresh();
                         } catch (error) {
-                          setUpdateError(error instanceof Error ? error.message : "Failed to update repositories");
+                          setUpdateError(error instanceof Error ? error.message : t.kanbanDetail.failedToUpdateRepos);
                         }
                       }}
                         className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] transition-colors ${

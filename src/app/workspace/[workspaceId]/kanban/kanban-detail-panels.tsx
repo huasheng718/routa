@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AcpTaskAdaptiveHarnessOptions } from "@/client/acp-client";
 import { MarkdownViewer } from "@/client/components/markdown/markdown-viewer";
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch, toErrorMessage } from "@/client/utils/diagnostics";
 import { useTranslation } from "@/i18n";
 import type {
@@ -69,7 +70,7 @@ function formatAnalysisStatus(value: string, t: ReturnType<typeof useTranslation
     case "fail":
       return t.kanbanDetail.fail;
     default:
-      return value.toUpperCase();
+      return t.kanban.taskRunStatusUnknown;
   }
 }
 
@@ -1194,7 +1195,7 @@ export function JitContextPanel({
     setAnalysisSuccess(false);
 
     try {
-      const response = await desktopAwareFetch("/api/harness/task-adaptive", {
+      const response = await desktopAwareFetch(resolveApiPath("/api/harness/task-adaptive"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1294,7 +1295,7 @@ export function JitContextPanel({
           : harnessOptions.maxSessions,
       };
       const toolArgs = buildHistorySummaryToolArgs(workspaceId, repoPath, refreshedHarnessOptions);
-      const summaryResponse = await desktopAwareFetch("/api/harness/task-adaptive/history-summary", {
+      const summaryResponse = await desktopAwareFetch(resolveApiPath("/api/harness/task-adaptive/history-summary"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(toolArgs),

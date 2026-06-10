@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "@/i18n";
+import type { TranslationDictionary } from "@/i18n";
+import { resolveApiPath } from "@/client/config/backend";
 import { formatRelativeTime } from "../ui-components";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import type { BackgroundTaskInfo } from "../types";
@@ -97,6 +99,37 @@ function statusClass(status: string): string {
   return map[status.toUpperCase()] ?? map.PENDING;
 }
 
+function translateAgentStatus(t: TranslationDictionary, status: string): string {
+  const map: Record<string, string> = {
+    ACTIVE: t.kanbanBgAgent.statusActive,
+    PENDING: t.kanbanBgAgent.statusPending,
+    COMPLETED: t.kanbanBgAgent.statusCompleted,
+    ERROR: t.kanbanBgAgent.statusError,
+    CANCELLED: t.kanbanBgAgent.statusCancelled,
+  };
+  return map[status.toUpperCase()] ?? status;
+}
+
+function translateTaskStatus(t: TranslationDictionary, status: string): string {
+  const map: Record<string, string> = {
+    PENDING: t.kanbanBgAgent.taskStatusPending,
+    RUNNING: t.kanbanBgAgent.taskStatusRunning,
+    COMPLETED: t.kanbanBgAgent.taskStatusCompleted,
+    FAILED: t.kanbanBgAgent.taskStatusFailed,
+  };
+  return map[status.toUpperCase()] ?? status;
+}
+
+function translateRole(t: TranslationDictionary, role: string): string {
+  const map: Record<string, string> = {
+    DEVELOPER: t.kanbanBgAgent.roleDeveloper,
+    CRAFTER: t.kanbanBgAgent.roleCrafter,
+    GATE: t.kanbanBgAgent.roleGate,
+    ROUTA: t.kanbanBgAgent.roleRouta,
+  };
+  return map[role.toUpperCase()] ?? role;
+}
+
 function roleClass(role: string): string {
   const map: Record<string, string> = {
     ROUTA: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
@@ -138,11 +171,11 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
     setError(null);
     try {
       const [agentsResponse, bgTasksResponse] = await Promise.all([
-        desktopAwareFetch(`/api/agents?workspaceId=${encodeURIComponent(workspaceId)}`, {
+        desktopAwareFetch(resolveApiPath(`/api/agents?workspaceId=${encodeURIComponent(workspaceId)}`), {
           cache: "no-store",
           signal,
         }),
-        desktopAwareFetch(`/api/background-tasks?workspaceId=${encodeURIComponent(workspaceId)}`, {
+        desktopAwareFetch(resolveApiPath(`/api/background-tasks?workspaceId=${encodeURIComponent(workspaceId)}`), {
           cache: "no-store",
           signal,
         }),
@@ -159,17 +192,17 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
       setBgTasks(Array.isArray(bgTasksData?.tasks) ? bgTasksData.tasks : []);
 
       if (!agentsResponse.ok || !bgTasksResponse.ok) {
-        setError("Failed to refresh background agent data.");
+        setError(t.kanbanBgAgent.refreshFailed);
       }
     } catch (fetchError) {
       if (signal?.aborted) return;
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to refresh background agent data.");
+      setError(fetchError instanceof Error ? fetchError.message : t.kanbanBgAgent.refreshFailed);
     } finally {
       if (!signal?.aborted) {
         setLoading(false);
       }
     }
-  }, [workspaceId]);
+  }, [t.kanbanBgAgent.refreshFailed, workspaceId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -308,14 +341,14 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
 
   const handleCreateAgent = useCallback(async () => {
     if (!createForm.name.trim()) {
-      setCreateError("Agent name is required.");
+      setCreateError(t.kanbanBgAgent.agentNameRequired);
       return;
     }
 
     setCreating(true);
     setCreateError(null);
     try {
-      const response = await desktopAwareFetch("/api/agents", {
+      const response = await desktopAwareFetch(resolveApiPath("/api/agents"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -328,18 +361,18 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error ?? "Failed to create background agent");
+        throw new Error(data?.error ?? t.kanbanBgAgent.createFailed);
       }
 
       setShowCreateModal(false);
       setCreateForm({ name: "", role: "DEVELOPER", modelTier: "BALANCED" });
       await fetchPanelData();
     } catch (createAgentError) {
-      setCreateError(createAgentError instanceof Error ? createAgentError.message : "Failed to create background agent");
+      setCreateError(createAgentError instanceof Error ? createAgentError.message : t.kanbanBgAgent.createFailed);
     } finally {
       setCreating(false);
     }
-  }, [createForm, fetchPanelData, workspaceId]);
+  }, [createForm, fetchPanelData, t.kanbanBgAgent.agentNameRequired, t.kanbanBgAgent.createFailed, workspaceId]);
 
   return (
     <>
@@ -503,16 +536,16 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
                                 <div className="flex flex-wrap items-center gap-2">
                                   <div className="truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">{agent.name}</div>
                                   <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${roleClass(agent.role)}`}>
-                                    {agent.role}
+                                    {translateRole(t, agent.role)}
                                   </span>
                                 </div>
                                 <div className="mt-1 truncate font-mono text-[10px] text-slate-400 dark:text-slate-500">
                                   {displayId}
-                                  {extra > 0 && ` +${extra} more`}
+                                  {extra > 0 && ` ${t.kanbanBgAgent.extraMore.replace("{count}", String(extra))}`}
                                 </div>
                               </div>
                               <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${statusClass(agent.status)}`}>
-                                {agent.status}
+                                {translateAgentStatus(t, agent.status)}
                               </span>
                             </div>
 
@@ -535,7 +568,7 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
                                 <>
                                   <div className="font-medium text-slate-700 dark:text-slate-200">{latestTask.title}</div>
                                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                    <span className="capitalize">{latestTask.status.toLowerCase()}</span>
+                                    <span>{translateTaskStatus(t, latestTask.status)}</span>
                                     <span>·</span>
                                     <span>{formatRelativeTime(latestTask.createdAt)}</span>
                                   </div>
@@ -571,7 +604,7 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
                 type="button"
                 onClick={() => setShowCreateModal(false)}
                 className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-[#191c28] dark:hover:text-slate-300"
-                aria-label="Close background agent modal"
+                aria-label={t.kanbanBgAgent.closeModal}
               >
                 <X className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
               </button>
@@ -598,10 +631,10 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
                     onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 dark:border-[#252838] dark:bg-[#0d1018] dark:text-slate-100"
                   >
-                    <option value="DEVELOPER">DEVELOPER</option>
-                    <option value="CRAFTER">CRAFTER</option>
-                    <option value="GATE">GATE</option>
-                    <option value="ROUTA">ROUTA</option>
+                    <option value="DEVELOPER">{t.kanbanBgAgent.roleDeveloper}</option>
+                    <option value="CRAFTER">{t.kanbanBgAgent.roleCrafter}</option>
+                    <option value="GATE">{t.kanbanBgAgent.roleGate}</option>
+                    <option value="ROUTA">{t.kanbanBgAgent.roleRouta}</option>
                   </select>
                 </div>
                 <div>
@@ -611,9 +644,9 @@ export function KanbanBgAgentPanel({ workspaceId }: KanbanBgAgentPanelProps) {
                     onChange={(event) => setCreateForm((current) => ({ ...current, modelTier: event.target.value }))}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20 dark:border-[#252838] dark:bg-[#0d1018] dark:text-slate-100"
                   >
-                    <option value="FAST">FAST</option>
-                    <option value="BALANCED">BALANCED</option>
-                    <option value="SMART">SMART</option>
+                    <option value="FAST">{t.kanbanBgAgent.tierFast}</option>
+                    <option value="BALANCED">{t.kanbanBgAgent.tierBalanced}</option>
+                    <option value="SMART">{t.kanbanBgAgent.tierSmart}</option>
                   </select>
                 </div>
               </div>

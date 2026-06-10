@@ -9,6 +9,7 @@ import {
 } from "./kanban-specialist-language";
 import type { ColumnAutomationConfig } from "./kanban-settings-modal";
 import type { KanbanBoardInfo, SessionInfo, TaskInfo } from "../types";
+import { useTranslation } from "@/i18n";
 
 interface SpecialistOption {
   id: string;
@@ -140,9 +141,10 @@ export function QueueStatusBadge({
   cards: Array<{ cardId: string; cardTitle: string }>;
   className: string;
 }) {
+  const { t } = useTranslation();
   const tooltip = cards.length > 0
     ? `${label}\n${cards.map((card, index) => `${index + 1}. ${card.cardTitle}`).join("\n")}`
-    : `${label}\nNo cards`;
+    : `${label}\n${t.kanbanBoard.noCards}`;
 
   return (
     <span
@@ -161,7 +163,7 @@ export function QueueStatusBadge({
             ))}
           </div>
         ) : (
-          <div className="text-gray-500 dark:text-gray-400">No cards</div>
+          <div className="text-gray-500 dark:text-gray-400">{t.kanbanBoard.noCards}</div>
         )}
       </span>
     </span>

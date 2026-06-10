@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { useTranslation } from "@/i18n";
+import type { TranslationDictionary } from "@/i18n";
 import type { AcpProviderInfo } from "@/client/acp-client";
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
 import { resolveEffectiveTaskAutomation } from "@/core/kanban/effective-task-automation";
@@ -150,32 +151,86 @@ function getSyncLabel(
   return "notSynced";
 }
 
+function formatKanbanArtifactLabel(type: string, t: TranslationDictionary): string {
+  switch (type) {
+    case "screenshot":
+      return t.kanban.screenshotType;
+    case "test_results":
+      return t.kanban.testResultsType;
+    case "code_diff":
+      return t.kanban.codeDiffType;
+    case "logs":
+      return t.kanban.logsType;
+    case "canvas":
+      return t.canvas.liveEntryShortLabel;
+    default:
+      return formatArtifactLabel(type);
+  }
+}
+
+function formatWorktreeStatusLabel(status: WorktreeInfo["status"], t: TranslationDictionary): string {
+  switch (status) {
+    case "creating":
+      return t.kanban.worktreeStatusCreating;
+    case "active":
+      return t.kanban.worktreeStatusActive;
+    case "error":
+      return t.kanban.worktreeStatusError;
+    case "removing":
+      return t.kanban.worktreeStatusRemoving;
+    default:
+      return t.kanban.worktreeStatusUnknown;
+  }
+}
+
+function formatTemplate(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
 function formatArtifactGateBadgeLabel(
   nextColumnName: string | undefined,
   missingArtifacts: string[],
+  t: TranslationDictionary,
 ) {
   if (missingArtifacts.length === 0) {
-    return `${nextColumnName ?? "Next"} ready`;
+    return formatTemplate(t.kanban.artifactGateReady, {
+      stage: nextColumnName ?? t.kanban.nextLaneFallback,
+    });
   }
 
   if (missingArtifacts.length === 1) {
-    return `Needs ${formatArtifactLabel(missingArtifacts[0])}`;
+    return formatTemplate(t.kanban.artifactGateNeeds, {
+      artifact: formatKanbanArtifactLabel(missingArtifacts[0], t),
+    });
   }
 
-  return `Needs ${formatArtifactLabel(missingArtifacts[0])} +${missingArtifacts.length - 1}`;
+  return formatTemplate(t.kanban.artifactGateNeedsMore, {
+    artifact: formatKanbanArtifactLabel(missingArtifacts[0], t),
+    count: String(missingArtifacts.length - 1),
+  });
 }
 
-function formatArtifactCountTooltip(task: TaskInfo): string {
+function formatArtifactCountTooltip(task: TaskInfo, t: TranslationDictionary): string {
   const summary = task.artifactSummary;
   if (!summary || summary.total === 0) {
-    return "noArtifactsAttached";
+    return t.kanban.noArtifactsAttached;
   }
 
   const parts = Object.entries(summary.byType)
     .filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0)
-    .map(([type, count]) => `${count} ${formatArtifactLabel(type)}${count === 1 ? "" : "s"}`);
+    .map(([type, count]) => formatTemplate(t.kanban.artifactCountTooltipItem, {
+      count: String(count),
+      artifact: formatKanbanArtifactLabel(type, t),
+    }));
 
-  return parts.length > 0 ? parts.join(", ") : `${summary.total} artifacts`;
+  return parts.length > 0
+    ? parts.join(", ")
+    : formatTemplate(t.kanban.artifactCountTooltipFallback, {
+      count: String(summary.total),
+    });
 }
 
 function normalizeCardPreviewText(value: string): string {
@@ -272,12 +327,21 @@ function KanbanCardSurface({
     ? "bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-900/40"
     : "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-900/40";
   const artifactCount = task.artifactSummary?.total ?? 0;
-  const artifactCountLabel = `${artifactCount} artifact${artifactCount === 1 ? "" : "s"}`;
-  const artifactCountTooltip = formatArtifactCountTooltip(task);
+  const artifactCountLabel = formatTemplate(t.kanban.artifactCountLabel, {
+    count: String(artifactCount),
+  });
+  const artifactCountTooltip = formatArtifactCountTooltip(task, t);
+  const nextStageName = transitionArtifacts.nextColumn?.name ?? t.kanban.nextLaneFallback;
   const artifactGateTooltip = transitionArtifacts.nextRequiredArtifacts.length > 0
     ? missingNextArtifacts.length === 0
-      ? `Ready for ${transitionArtifacts.nextColumn?.name ?? "the next lane"}: ${transitionArtifacts.nextRequiredArtifacts.map((artifact) => formatArtifactLabel(artifact)).join(", ")} present.`
-      : `Before ${transitionArtifacts.nextColumn?.name ?? "the next lane"}: missing ${missingNextArtifacts.map((artifact) => formatArtifactLabel(artifact)).join(", ")}.`
+      ? formatTemplate(t.kanban.artifactGateReadyTooltip, {
+        stage: nextStageName,
+        artifacts: transitionArtifacts.nextRequiredArtifacts.map((artifact) => formatKanbanArtifactLabel(artifact, t)).join(", "),
+      })
+      : formatTemplate(t.kanban.artifactGateMissingTooltip, {
+        stage: nextStageName,
+        artifacts: missingNextArtifacts.map((artifact) => formatKanbanArtifactLabel(artifact, t)).join(", "),
+      })
     : undefined;
   const hasReviewFeedback = Boolean(task.verificationReport?.trim())
     || (task.verificationVerdict != null && task.verificationVerdict !== "APPROVED");
@@ -406,7 +470,7 @@ function KanbanCardSurface({
               title={artifactGateTooltip}
               data-testid="kanban-card-artifact-gate"
             >
-              {formatArtifactGateBadgeLabel(transitionArtifacts.nextColumn?.name, missingNextArtifacts)}
+              {formatArtifactGateBadgeLabel(transitionArtifacts.nextColumn?.name, missingNextArtifacts, t)}
             </span>
           )}
           {artifactCount > 0 && (
@@ -551,7 +615,7 @@ function WorktreeBadge({ task, worktreeCache, onOpenDetail, stopCardInteraction 
   if (!wt) {
     return (
       <div className="inline-flex items-center text-[9px] text-slate-500 dark:text-slate-400">
-        worktree {t.common.loading}...
+        {t.kanbanDetail.worktreeSource} {t.common.loading}...
       </div>
     );
   }
@@ -572,7 +636,7 @@ function WorktreeBadge({ task, worktreeCache, onOpenDetail, stopCardInteraction 
     >
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${wtDotColor}`} />
       <span className="truncate">
-        worktree {wt.status} · {wt.branch}
+        {t.kanbanDetail.worktreeSource} {formatWorktreeStatusLabel(wt.status, t)} · {wt.branch}
       </span>
     </button>
   );

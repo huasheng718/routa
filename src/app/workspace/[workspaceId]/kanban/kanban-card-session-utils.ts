@@ -1,6 +1,7 @@
 "use client";
 
 import type { AutomationSpecialistResolver } from "@/core/kanban/effective-task-automation";
+import type { TranslationDictionary } from "@/i18n";
 import type { SessionInfo, TaskInfo, TaskRunInfo } from "../types";
 import { findSpecialistById, getSpecialistDisplayName } from "./kanban-specialist-language";
 
@@ -16,9 +17,11 @@ export function getSpecialistName(
   specialistId: string | undefined,
   specialistName: string | undefined,
   specialists: KanbanSpecialistOption[],
+  t?: TranslationDictionary,
 ): string {
-  if (!specialistId && !specialistName) return "None";
-  return getSpecialistDisplayName(findSpecialistById(specialists, specialistId)) ?? specialistName ?? specialistId ?? "None";
+  const fallback = t?.common.none ?? "None";
+  if (!specialistId && !specialistName) return fallback;
+  return getSpecialistDisplayName(findSpecialistById(specialists, specialistId)) ?? specialistName ?? specialistId ?? fallback;
 }
 
 export function createKanbanSpecialistResolver(
@@ -35,10 +38,11 @@ export function createKanbanSpecialistResolver(
   };
 }
 
-export function formatSessionTimestamp(value: string | undefined): string {
-  if (!value) return "Time unavailable";
+export function formatSessionTimestamp(value: string | undefined, t?: TranslationDictionary): string {
+  const fallback = t?.kanban.timeUnavailable ?? "Time unavailable";
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Time unavailable";
+  if (Number.isNaN(date.getTime())) return fallback;
   return date.toLocaleString();
 }
 
@@ -80,21 +84,25 @@ export function buildSessionDisplayLabel(
   sessionId: string,
   index: number,
   sessionMap: Map<string, SessionInfo>,
+  t?: TranslationDictionary,
 ): string {
   const session = sessionMap.get(sessionId);
   const name = session?.name?.trim();
   if (name) return name;
   const provider = session?.provider?.trim();
   if (provider) return provider;
-  return `Run ${index + 1}`;
+  return t?.kanban.runLabel ? `${t.kanban.runLabel} ${index + 1}` : `Run ${index + 1}`;
 }
 
 export function getLaneSessionStepLabel(
   session: { stepIndex?: number; stepName?: string } | undefined,
+  t?: TranslationDictionary,
 ): string | null {
   if (!session) return null;
   const stepName = session.stepName?.trim();
   if (stepName) return stepName;
-  if (typeof session.stepIndex === "number") return `Step ${session.stepIndex + 1}`;
+  if (typeof session.stepIndex === "number") {
+    return t?.kanban.stepLabel.replace("{index}", String(session.stepIndex + 1)) ?? `Step ${session.stepIndex + 1}`;
+  }
   return null;
 }
