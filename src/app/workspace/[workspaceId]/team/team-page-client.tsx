@@ -8,6 +8,7 @@ import { WorkspaceSwitcher } from "@/client/components/workspace-switcher";
 import { HomeInput } from "@/client/components/home-input";
 import { useWorkspaces } from "@/client/hooks/use-workspaces";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import { filterSpecialistsByCategory } from "@/client/utils/specialist-categories";
 import { formatRelativeTime } from "../ui-components";
 import type { SessionInfo } from "../types";
@@ -49,14 +50,14 @@ function compareTeamSpecialists(a: SpecialistSummary, b: SpecialistSummary): num
   return a.name.localeCompare(b.name);
 }
 
-function buildTeamRunName(requirement: string): string {
+function buildTeamRunName(requirement: string, fallback: string, prefix: string): string {
   const normalized = requirement.replace(/\s+/g, " ").trim();
-  if (!normalized) return "Team run";
-  return normalized.length > 56 ? `Team - ${normalized.slice(0, 53)}...` : `Team - ${normalized}`;
+  if (!normalized) return fallback;
+  return normalized.length > 56 ? `${prefix}${normalized.slice(0, 53)}...` : `${prefix}${normalized}`;
 }
 
 export function TeamPageClient() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const params = useParams();
   const router = useRouter();
   const rawWorkspaceId = params.workspaceId as string;
@@ -95,7 +96,7 @@ export function TeamPageClient() {
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await desktopAwareFetch("/api/specialists", {
+        const res = await desktopAwareFetch(buildSpecialistsApiPath(locale), {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -108,7 +109,7 @@ export function TeamPageClient() {
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [locale]);
 
   const teamSpecialists = useMemo(
     () => filterSpecialistsByCategory(specialists, "team").sort(compareTeamSpecialists),
@@ -141,7 +142,7 @@ export function TeamPageClient() {
     promptText: string,
     sessionContext?: { cwd?: string; branch?: string; repoName?: string },
   ) => {
-    const optimisticName = buildTeamRunName(promptText);
+    const optimisticName = buildTeamRunName(promptText, t.team.runNameFallback, t.team.runNamePrefix);
     setTeamRuns((current) => {
       if (current.some((run) => run.sessionId === sessionId)) {
         return current.map((run) => (
@@ -178,7 +179,7 @@ export function TeamPageClient() {
       body: JSON.stringify({ name: optimisticName }),
     }).catch(() => {});
     setRefreshKey((current) => current + 1);
-  }, [workspaceId]);
+  }, [t.team.runNameFallback, t.team.runNamePrefix, workspaceId]);
 
   if (workspacesHook.loading && workspaceId !== "default") {
     return (
@@ -194,12 +195,12 @@ export function TeamPageClient() {
   return (
     <DesktopAppShell
       workspaceId={workspaceId}
-      workspaceTitle={workspace?.title ?? (workspaceId === "default" ? "Default Workspace" : workspaceId)}
+      workspaceTitle={workspace?.title ?? (workspaceId === "default" ? t.workspace.defaultWorkspace : workspaceId)}
       workspaceSwitcher={(
         <WorkspaceSwitcher
           workspaces={workspacesHook.workspaces}
           activeWorkspaceId={workspaceId}
-          activeWorkspaceTitle={workspace?.title ?? (workspaceId === "default" ? "Default Workspace" : workspaceId)}
+          activeWorkspaceTitle={workspace?.title ?? (workspaceId === "default" ? t.workspace.defaultWorkspace : workspaceId)}
           onSelect={handleWorkspaceSelect}
           onCreate={handleWorkspaceCreate}
           loading={workspacesHook.loading}
@@ -266,7 +267,7 @@ export function TeamPageClient() {
                   } : undefined}
                 >
                   {benchItems.map((specialist, index) => {
-                    const roleLabel = specialist.id === TEAM_LEAD_SPECIALIST_ID ? "Lead" : (specialist.role ?? "Specialist");
+                    const roleLabel = specialist.id === TEAM_LEAD_SPECIALIST_ID ? t.team.leadRole : (specialist.role ?? t.team.specialistRole);
                     const isLead = specialist.id === TEAM_LEAD_SPECIALIST_ID;
 
                     return (
@@ -396,11 +397,13 @@ export function TeamPageClient() {
 }
 
 function StatusPill({ status }: { status?: SessionInfo["acpStatus"] }) {
+  const { t } = useTranslation();
+
   if (status === "error") {
-    return <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">error</span>;
+    return <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">{t.team.statusError}</span>;
   }
   if (status === "connecting") {
-    return <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">connecting</span>;
+    return <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">{t.team.statusConnecting}</span>;
   }
-  return <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">ready</span>;
+  return <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">{t.team.statusReady}</span>;
 }

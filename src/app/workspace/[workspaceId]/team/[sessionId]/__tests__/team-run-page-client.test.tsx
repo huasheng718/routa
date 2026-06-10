@@ -127,7 +127,7 @@ describe("TeamRunPageClient", () => {
 
     mockDesktopAwareFetch.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {

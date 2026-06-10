@@ -12,6 +12,7 @@ import { useNotes } from "@/client/hooks/use-notes";
 import { consumePendingPrompt } from "@/client/utils/pending-prompt";
 import { useCodebases, useWorkspaces } from "@/client/hooks/use-workspaces";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import type { RepoSelection } from "@/client/components/repo-picker";
 import type { AcpSessionNotification } from "@/core/store/acp-session-store";
 import {
@@ -139,7 +140,7 @@ function delegationRoleMatchesSession(targetRosterId: string, child: SessionInfo
 }
 
 export function TeamRunPageClient() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const { workspaceId, sessionId, isResolved } = useRealTeamRunParams();
 
@@ -278,11 +279,11 @@ export function TeamRunPageClient() {
   }, [codebases, session?.branch, session?.cwd]);
 
   const fetchSpecialists = useCallback(async () => {
-    const response = await desktopAwareFetch("/api/specialists", { cache: "no-store" });
+    const response = await desktopAwareFetch(buildSpecialistsApiPath(locale), { cache: "no-store" });
     const data = await response.json().catch(() => ({}));
     if (contextKeyRef.current !== `${workspaceId}:${sessionId}`) return;
     setSpecialists(Array.isArray(data?.specialists) ? data.specialists : []);
-  }, [sessionId, workspaceId]);
+  }, [locale, sessionId, workspaceId]);
 
   const fetchRunMetadata = useCallback(async () => {
     const contextKey = `${workspaceId}:${sessionId}`;

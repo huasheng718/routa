@@ -9,6 +9,7 @@
 
 import { Suspense } from "react";
 import { SessionPageClient } from "./session-page-client";
+import { SessionLoadingFallback } from "./session-loading-fallback";
 
 // Required for static export - tells Next.js which paths to pre-render.
 // For static export (ROUTA_BUILD_STATIC=1): return placeholder values
@@ -22,7 +23,7 @@ export async function generateStaticParams() {
 
 export default function WorkspaceSessionPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<SessionLoadingFallback />}>
       <SessionPageClient />
     </Suspense>
   );

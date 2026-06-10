@@ -36,6 +36,7 @@ import { useSessionCanvasArtifacts } from "./use-session-canvas-artifacts";
 import { RepoSlideSessionPanel } from "./repo-slide-session-panel";
 import { Select } from "@/client/components/select";
 import { useTranslation } from "@/i18n";
+import { formatKanbanRoleLabel } from "@/client/utils/kanban-role-labels";
 import { ChevronDown, Columns2, ScrollText, X } from "lucide-react";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import { buildLiveCanvasAgentPrompt } from "@/core/canvas/session-canvas-prompt";
@@ -146,13 +147,7 @@ function buildCrossInstanceRestorePrompt(session: SessionRecord, messages: Trans
   ].filter(Boolean).join("\n");
 }
 
-/** Built-in roles always available in the selector */
-const BUILTIN_ROLES: { value: AgentRole; label: string }[] = [
-  { value: "CRAFTER", label: "CRAFTER" },
-  { value: "ROUTA", label: "ROUTA" },
-  { value: "GATE", label: "GATE" },
-  { value: "DEVELOPER", label: "DEVELOPER" },
-];
+const BUILTIN_ROLE_VALUES: AgentRole[] = ["CRAFTER", "ROUTA", "GATE", "DEVELOPER"];
 
 export function SessionPageClient() {
   const { t } = useTranslation();
@@ -880,8 +875,8 @@ export function SessionPageClient() {
         onChange={(e) => handleAgentChange(e.target.value)}
         className="appearance-none rounded-xl border border-desktop-border bg-desktop-bg-secondary py-1.5 pl-2.5 pr-7 text-[11px] font-medium text-desktop-text-primary cursor-pointer focus:ring-1 focus:ring-desktop-accent"
       >
-        {BUILTIN_ROLES.map((r) => (
-          <option key={r.value} value={r.value}>{r.label}</option>
+        {BUILTIN_ROLE_VALUES.map((role) => (
+          <option key={role} value={role}>{formatKanbanRoleLabel(role, t)}</option>
         ))}
         {specialists.length > 0 && (
           <optgroup label={t.common.customSpecialists}>

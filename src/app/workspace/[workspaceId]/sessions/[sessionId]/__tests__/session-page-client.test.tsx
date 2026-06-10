@@ -260,7 +260,7 @@ describe("SessionPageClient", () => {
   it("restores session role and provider metadata for an existing session", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -378,7 +378,7 @@ describe("SessionPageClient", () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -412,13 +412,13 @@ describe("SessionPageClient", () => {
 
     render(<SessionPageClient />);
 
-    expect(await screen.findByText("RepoSlide Run")).toBeTruthy();
-    expect(await screen.findByText("Deck ready for download")).toBeTruthy();
+    expect(await screen.findByText("RepoSlide 运行")).toBeTruthy();
+    expect(await screen.findByText("幻灯片已就绪，可下载")).toBeTruthy();
     expect(await screen.findByText("/tmp/repo-slide-output/demo-deck.pptx")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Download PPTX" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "下载 PPTX" }).getAttribute("href")).toBe(
       "/api/sessions/session-1/reposlide-result/download",
     );
-    expect(screen.getByRole("link", { name: "Back to RepoSlide" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "返回 RepoSlide" }).getAttribute("href")).toBe(
       "/workspace/default/codebases/cb-1/reposlide",
     );
   });
@@ -432,7 +432,7 @@ describe("SessionPageClient", () => {
       if (url === "/api/mcp/tools" && init?.method === "PATCH") {
         return { ok: true, json: async () => ({ ok: true }) } as Response;
       }
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -455,7 +455,7 @@ describe("SessionPageClient", () => {
   it("shows the live Canvas prompt entry in the composer", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -473,17 +473,17 @@ describe("SessionPageClient", () => {
 
     render(<SessionPageClient />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Use Canvas" }));
+    fireEvent.click(await screen.findByRole("button", { name: "使用 Canvas" }));
 
-    expect(await screen.findByRole("button", { name: "Use Canvas", pressed: true })).toBeTruthy();
-    expect((await screen.findByTestId("input-prefill")).textContent).toContain("Create a Routa Canvas");
+    expect(await screen.findByRole("button", { name: "使用 Canvas", pressed: true })).toBeTruthy();
+    expect((await screen.findByTestId("input-prefill")).textContent).toContain("为当前工作创建一个 Routa Canvas");
     expect((await screen.findByTestId("decorated-prompt")).textContent).toContain("Draw workflow");
   });
 
   it("shows a Resume action for codex sessions and calls ACP resume", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -512,7 +512,7 @@ describe("SessionPageClient", () => {
 
     render(<SessionPageClient />);
 
-    const resumeButton = await screen.findByRole("button", { name: "Resume" });
+    const resumeButton = await screen.findByRole("button", { name: "恢复" });
     fireEvent.click(resumeButton);
 
     await waitFor(() => {
@@ -536,7 +536,7 @@ describe("SessionPageClient", () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -578,7 +578,7 @@ describe("SessionPageClient", () => {
 
     render(<SessionPageClient />);
 
-    const resumeButton = await screen.findByRole("button", { name: "Resume" });
+    const resumeButton = await screen.findByRole("button", { name: "恢复" });
     fireEvent.click(resumeButton);
 
     await waitFor(() => {
@@ -623,7 +623,7 @@ describe("SessionPageClient", () => {
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return { ok: true, json: async () => ({ specialists: [] }) } as Response;
       }
       if (url === "/api/sessions/session-1") {
@@ -660,7 +660,7 @@ describe("SessionPageClient", () => {
 
     render(<SessionPageClient />);
 
-    const resumeButton = await screen.findByRole("button", { name: "Resume" });
+    const resumeButton = await screen.findByRole("button", { name: "恢复" });
     fireEvent.click(resumeButton);
 
     await waitFor(() => {

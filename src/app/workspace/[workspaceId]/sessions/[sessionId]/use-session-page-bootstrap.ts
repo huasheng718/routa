@@ -7,6 +7,8 @@ import {
   type PendingPromptPayload,
 } from "@/client/utils/pending-prompt";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
+import { useTranslation } from "@/i18n";
 
 export type AgentRole = "CRAFTER" | "ROUTA" | "GATE" | "DEVELOPER";
 
@@ -73,6 +75,7 @@ export function useSessionPageBootstrap(params: UseSessionPageBootstrapParams) {
   const sessionMetadataLoadedRef = useRef<Set<string>>(new Set());
   const pendingPromptSentRef = useRef<Set<string>>(new Set());
   const pendingPromptRef = useRef<PendingPromptPayload | null>(null);
+  const { locale } = useTranslation();
 
   const loadSkillContext = useCallback(async (
     skillName: string,
@@ -114,7 +117,7 @@ export function useSessionPageBootstrap(params: UseSessionPageBootstrapParams) {
   useEffect(() => {
     const loadSpecialists = async () => {
       try {
-        const res = await desktopAwareFetch("/api/specialists");
+        const res = await desktopAwareFetch(buildSpecialistsApiPath(locale));
         if (!res.ok) return;
         const data = await res.json();
         const items: SpecialistOption[] = (data.specialists || [])
@@ -132,7 +135,7 @@ export function useSessionPageBootstrap(params: UseSessionPageBootstrapParams) {
       }
     };
     void loadSpecialists();
-  }, [showSpecialistManager]);
+  }, [locale, showSpecialistManager]);
 
   useEffect(() => {
     if (!acpConnected && !acpLoading) {

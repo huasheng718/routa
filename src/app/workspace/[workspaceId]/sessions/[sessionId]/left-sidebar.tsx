@@ -123,6 +123,9 @@ function TaskSnapshotSummary({
   onOpenSpec?: () => void;
 }) {
   const { t } = useTranslation();
+  const taskSummary = taskCount > 0
+    ? `${taskCount} ${t.common.tasks}${runningCount > 0 ? `, ${runningCount} ${t.common.running}` : ""}`
+    : t.common.specAvailable;
   if (taskCount === 0 && !hasSpec) return null;
 
   return (
@@ -130,12 +133,10 @@ function TaskSnapshotSummary({
       <div className="px-3 py-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-            Quick Access
+            {t.common.quickAccess}
           </p>
           <p className="mt-1 text-[12px] text-slate-600 dark:text-slate-300">
-            {taskCount > 0
-              ? `${taskCount} task${taskCount === 1 ? "" : "s"}${runningCount > 0 ? `, ${runningCount} running` : ""}`
-              : t.common.specAvailable}
+            {taskSummary}
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -145,7 +146,7 @@ function TaskSnapshotSummary({
               onClick={onOpenSpec}
               className="px-2 py-1 rounded-md text-[10px] font-medium text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
             >
-              Spec
+              {t.common.spec}
             </button>
           )}
           {taskCount > 0 && (
@@ -154,7 +155,7 @@ function TaskSnapshotSummary({
               onClick={onOpenTasks}
               className="px-2 py-1 rounded-md text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
             >
-              Open Tasks
+              {t.common.openTasks}
             </button>
           )}
         </div>
@@ -167,7 +168,7 @@ function TaskSnapshotSummary({
           className="mx-3 mb-3 flex w-[calc(100%-1.5rem)] flex-col gap-1 rounded-lg border border-blue-100 bg-white/80 px-3 py-2 text-left transition-colors hover:border-blue-200 hover:bg-white dark:border-blue-900/40 dark:bg-[#121722] dark:hover:border-blue-800"
         >
           <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-500 dark:text-blue-300">
-            Spec Preview
+            {t.common.specPreview}
           </span>
           {specPreviewLines.map((line, index) => (
             <span
@@ -348,11 +349,26 @@ const STATUS_COLORS: Record<string, string> = {
   PENDING:     "bg-slate-300 dark:bg-slate-600",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pending", confirmed: "Confirmed", running: "Running",
-  completed: "Done", error: "Error",
-  PENDING: "Pending", IN_PROGRESS: "Running", COMPLETED: "Done", FAILED: "Failed",
-};
+function formatTaskStatus(status: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (status) {
+    case "pending":
+    case "PENDING":
+      return t.common.pending;
+    case "confirmed":
+      return t.common.confirm;
+    case "running":
+    case "IN_PROGRESS":
+      return t.common.running;
+    case "completed":
+    case "COMPLETED":
+      return t.common.done;
+    case "error":
+    case "FAILED":
+      return t.trace.failed;
+    default:
+      return status;
+  }
+}
 
 function MiniTaskList({
   hasCollabNotes,
@@ -367,6 +383,7 @@ function MiniTaskList({
   onExecuteNoteTask: (noteId: string) => Promise<CrafterAgent | null>;
   onExecuteTask: (taskId: string) => Promise<CrafterAgent | null>;
 }) {
+  const { t } = useTranslation();
   const [executingId, setExecutingId] = useState<string | null>(null);
   const items = useMemo(() => {
     if (hasCollabNotes) {
@@ -377,19 +394,19 @@ function MiniTaskList({
           title: n.title,
           status: (n.metadata.taskStatus as string) || "PENDING",
           actionLabel: ["COMPLETED", "IN_PROGRESS"].includes((n.metadata.taskStatus as string) || "PENDING")
-            ? "Open"
-            : "Run",
+            ? t.common.open
+            : t.common.quickRun,
           run: () => onExecuteNoteTask(n.id),
         }));
     }
-    return routaTasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      actionLabel: ["completed", "running"].includes(t.status) ? "Open" : "Run",
-      run: () => onExecuteTask(t.id),
+    return routaTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      actionLabel: ["completed", "running"].includes(task.status) ? t.common.open : t.common.quickRun,
+      run: () => onExecuteTask(task.id),
     }));
-  }, [hasCollabNotes, onExecuteNoteTask, onExecuteTask, routaTasks, sessionNotes]);
+  }, [hasCollabNotes, onExecuteNoteTask, onExecuteTask, routaTasks, sessionNotes, t.common.open, t.common.quickRun]);
 
   if (items.length === 0) return null;
 
@@ -401,24 +418,24 @@ function MiniTaskList({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Task Snapshot
+            {t.common.taskSnapshot}
           </span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-            {items.length} total
+            {items.length} {t.common.total}
           </span>
           {runningCount > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
-              {runningCount} running
+              {runningCount} {t.common.running}
             </span>
           )}
           {completedCount > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
-              {completedCount} done
+              {completedCount} {t.common.done}
             </span>
           )}
         </div>
         <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 shrink-0">
-          quick run
+          {t.common.quickRun}
         </span>
       </div>
       <div className="space-y-1.5">
@@ -435,7 +452,7 @@ function MiniTaskList({
                   {item.title}
                 </span>
                 <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 shrink-0">
-                  {STATUS_LABEL[item.status] ?? item.status}
+                  {formatTaskStatus(item.status, t)}
                 </span>
               </div>
             </div>
@@ -452,10 +469,10 @@ function MiniTaskList({
                 }
               }}
               className="shrink-0 inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
-              title={`${item.actionLabel ?? "Run"} ${item.title}`}
+              title={`${item.actionLabel ?? t.common.quickRun} ${item.title}`}
             >
               <Play className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
-              {executingId === item.id ? "Running" : (item.actionLabel ?? "Run")}
+              {executingId === item.id ? t.common.running : (item.actionLabel ?? t.common.quickRun)}
             </button>
           </div>
         ))}

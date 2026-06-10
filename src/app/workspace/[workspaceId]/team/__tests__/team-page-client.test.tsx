@@ -34,6 +34,16 @@ vi.mock("@/i18n", () => ({
         noTeamRunsYet: "No team runs yet",
         unnamedRun: "Unnamed Team run",
         launchAbove: "Launch one above",
+        runNameFallback: "Team run",
+        runNamePrefix: "Team - ",
+        leadRole: "Lead",
+        specialistRole: "Specialist",
+        statusError: "error",
+        statusConnecting: "connecting",
+        statusReady: "ready",
+      },
+      workspace: {
+        defaultWorkspace: "Default Workspace",
       },
       home: {
         modeTeamTitle: "Team",
@@ -103,7 +113,7 @@ describe("TeamPageClient", () => {
         } as Response;
       }
 
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return {
           ok: true,
           json: async () => ({ specialists: [] }),
@@ -149,7 +159,7 @@ describe("TeamPageClient", () => {
         } as Response;
       }
 
-      if (url === "/api/specialists") {
+      if (url.startsWith("/api/specialists")) {
         return {
           ok: true,
           json: async () => ({ specialists: [] }),
