@@ -18,7 +18,17 @@ export type SpecIssue = {
   githubIssue: number | null;
   githubState: string | null;
   githubUrl: string | null;
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    path: string;
+    mimeType: string;
+    size: number;
+    category: "document" | "image" | "video";
+  }>;
   body: string;
+  bodyLoaded?: boolean;
+  surfaceText?: string;
 };
 
 export type FeatureSurfacePage = {
@@ -484,7 +494,7 @@ function buildPageHit(issue: SpecIssue, page: FeatureSurfacePage): SurfaceHit | 
   let score = 0;
   let explicit = false;
 
-  const text = `${issue.title}\n${issue.body}`;
+  const text = `${issue.title}\n${issue.surfaceText || issue.body}`;
   const routeMentions = extractRouteMentions(text);
   const pathMentions = extractPathMentions(text);
   const semanticTokens = collectSemanticTokens(issue);
@@ -550,7 +560,7 @@ function buildApiHit(issue: SpecIssue, api: FeatureSurfaceApi): SurfaceHit | nul
   let score = 0;
   let explicit = false;
 
-  const text = `${issue.title}\n${issue.body}`;
+  const text = `${issue.title}\n${issue.surfaceText || issue.body}`;
   const apiMentions = extractApiMentions(text);
   const pathMentions = extractPathMentions(text);
   const semanticTokens = collectSemanticTokens(issue);
@@ -680,7 +690,7 @@ function buildFamilyLabel(issues: SpecIssue[], surfaces: SurfaceHit[]): string {
     return topExplicitSurface.label;
   }
 
-  return issues[0]?.title || issues[0]?.filename || "Issue family";
+  return issues[0]?.title || issues[0]?.filename || "需求簇";
 }
 
 export function buildSpecBoardModel(
