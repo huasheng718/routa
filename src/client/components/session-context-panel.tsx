@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { resolveApiPath } from "@/client/config/backend";
 import type { LaneHandoffInfo, LaneSessionInfo, SessionKanbanContext } from "@/client/types/kanban-context";
 import { desktopAwareFetch, shouldSuppressTeardownError } from "../utils/diagnostics";
 import { useTranslation } from "@/i18n";
+import { formatKanbanRoleLabel } from "@/client/utils/kanban-role-labels";
 import { SquarePen, Trash2, Zap, ArrowUp, ArrowDown, FileText, GitBranch, ArrowUpDown, ScrollText, ChevronDown } from "lucide-react";
 
 
@@ -74,7 +76,7 @@ export function SessionContextPanel({
     try {
       setLoading(true);
       const res = await desktopAwareFetch(
-        `/api/sessions/${sessionId}/context`,
+        resolveApiPath(`/api/sessions/${sessionId}/context`),
         { cache: "no-store" }
       );
 
@@ -163,7 +165,7 @@ export function SessionContextPanel({
       return;
     }
     try {
-      const res = await desktopAwareFetch(`/api/sessions/${targetId}`, {
+      const res = await desktopAwareFetch(resolveApiPath(`/api/sessions/${targetId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
@@ -179,7 +181,7 @@ export function SessionContextPanel({
 
   const handleDelete = async (targetId: string) => {
     try {
-      const res = await desktopAwareFetch(`/api/sessions/${targetId}`, {
+      const res = await desktopAwareFetch(resolveApiPath(`/api/sessions/${targetId}`), {
         method: "DELETE",
       });
       if (res.ok) {
@@ -206,10 +208,10 @@ export function SessionContextPanel({
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+    if (diffMins < 1) return t.sessions.justNow;
+    if (diffMins < 60) return `${diffMins}${t.sessions.minutesAgo}`;
+    if (diffHours < 24) return `${diffHours}${t.sessions.hoursAgo}`;
+    return `${diffDays}${t.sessions.daysAgo}`;
   };
 
   const getDefaultName = (s: SessionInfo) => {
@@ -222,15 +224,70 @@ export function SessionContextPanel({
     return s.sessionId.slice(0, 8);
   };
 
-  const formatRequestType = (value: LaneHandoffInfo["requestType"]) =>
-    value.replace(/_/g, " ");
+  const formatRequestType = (value: LaneHandoffInfo["requestType"]) => {
+    switch (value) {
+      case "environment_preparation":
+        return t.kanban.handoffRequestEnvironmentPreparation;
+      case "runtime_context":
+        return t.kanban.handoffRequestRuntimeContext;
+      case "clarification":
+        return t.kanban.handoffRequestClarification;
+      case "rerun_command":
+        return t.kanban.handoffRequestRerunCommand;
+      default:
+        return t.kanban.handoffRequestUnknown;
+    }
+  };
+
+  const formatHandoffDirection = (value: LaneHandoffInfo["direction"]) =>
+    value === "incoming" ? t.sessions.handoffIncoming : t.sessions.handoffOutgoing;
+
+  const formatHandoffStatus = (value: LaneHandoffInfo["status"]) => {
+    switch (value) {
+      case "requested":
+        return t.kanban.handoffStatusRequested;
+      case "delivered":
+        return t.kanban.handoffStatusDelivered;
+      case "completed":
+        return t.kanban.handoffStatusCompleted;
+      case "blocked":
+        return t.kanban.handoffStatusBlocked;
+      case "failed":
+        return t.kanban.handoffStatusFailed;
+      default:
+        return t.kanban.handoffStatusUnknown;
+    }
+  };
+
+  const formatLaneSessionStatus = (value: LaneSessionInfo["status"]) => {
+    switch (value) {
+      case "running":
+        return t.kanban.taskRunStatusRunning;
+      case "completed":
+        return t.kanban.taskRunStatusCompleted;
+      case "failed":
+        return t.kanban.taskRunStatusFailed;
+      case "timed_out":
+        return t.kanban.taskRunStatusTimedOut;
+      case "transitioned":
+        return t.kanban.taskRunStatusTransitioned;
+      default:
+        return t.kanban.taskRunStatusUnknown;
+    }
+  };
 
   const formatLaneSessionLabel = (session: LaneSessionInfo) =>
     [
       session.columnName ?? session.columnId ?? t.sessions.unknownLane,
       session.stepName ?? (typeof session.stepIndex === "number" ? t.sessions.stepLabel.replace("{n}", String(session.stepIndex + 1)) : undefined),
       session.provider,
-      session.role,
+      session.role ? formatKanbanRoleLabel(session.role, t) : undefined,
+    ].filter(Boolean).join(" • ");
+
+  const formatSessionMeta = (session: SessionInfo) =>
+    [
+      session.role ? formatKanbanRoleLabel(session.role, t) : undefined,
+      formatTimeAgo(session.createdAt),
     ].filter(Boolean).join(" • ");
 
   if (!context) {
@@ -345,7 +402,7 @@ export function SessionContextPanel({
               </div>
             )}
             <div className="text-[10px] text-slate-400 dark:text-slate-500">
-              {label ? `${label} • ` : ""}{session.role}{session.role ? " • " : ""}{formatTimeAgo(session.createdAt)}
+              {label ? `${label} • ` : ""}{formatSessionMeta(session)}
             </div>
           </div>
           {!isRenaming && <SessionActions sid={session.sessionId} displayName={displayName} />}
@@ -395,14 +452,14 @@ export function SessionContextPanel({
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400">
               {context.current.role && (
                 <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 rounded">
-                  {context.current.role}
+                  {formatKanbanRoleLabel(context.current.role, t)}
                 </span>
               )}
-              {focusedSession && focusedSession.sessionId !== context.current.sessionId && (
-                <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-300">
-                  Focus: {focusedSession.name ?? getDefaultName(focusedSession)}
-                </span>
-              )}
+                {focusedSession && focusedSession.sessionId !== context.current.sessionId && (
+                  <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-700 dark:text-amber-300">
+                  {t.sessions.focus}: {focusedSession.name ?? getDefaultName(focusedSession)}
+                  </span>
+                )}
               {context.current.provider && (
                 <span className="text-blue-500 dark:text-blue-400">
                   {context.current.provider}
@@ -462,7 +519,7 @@ export function SessionContextPanel({
                               {displayName}
                             </div>
                             <div className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
-                              {session.role}{session.role ? " • " : ""}{formatTimeAgo(session.createdAt)}
+                              {formatSessionMeta(session)}
                             </div>
                           </div>
                           <Zap className="ml-2 h-3 w-3 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} />
@@ -499,14 +556,14 @@ export function SessionContextPanel({
                 )}
               </div>
               <div className="mt-1 text-[10px] text-emerald-700/80 dark:text-emerald-300/80">
-                Task {context.kanbanContext.taskId.slice(0, 8)}
+                {t.sessions.taskIdLabel.replace("{id}", context.kanbanContext.taskId.slice(0, 8))}
               </div>
               {context.kanbanContext.currentLaneSession && (
                 <div className="mt-2 text-[10px] text-slate-600 dark:text-slate-300">
-                  Current lane session: {formatLaneSessionLabel(context.kanbanContext.currentLaneSession)}
+                  {t.sessions.currentLaneSession}: {formatLaneSessionLabel(context.kanbanContext.currentLaneSession)}
                   {" · "}
                   <span className="font-semibold uppercase tracking-wide">
-                    {context.kanbanContext.currentLaneSession.status}
+                    {formatLaneSessionStatus(context.kanbanContext.currentLaneSession.status)}
                   </span>
                 </div>
               )}
@@ -555,8 +612,8 @@ export function SessionContextPanel({
                     ? handoff.fromSessionId
                     : handoff.toSessionId;
                   const counterpartLane = handoff.direction === "incoming"
-                    ? handoff.fromColumnName ?? handoff.fromColumnId ?? "previous lane"
-                    : handoff.toColumnName ?? handoff.toColumnId ?? "next lane";
+                    ? handoff.fromColumnName ?? handoff.fromColumnId ?? t.sessions.previousLane
+                    : handoff.toColumnName ?? handoff.toColumnId ?? t.sessions.nextLane;
 
                   return (
                     <div
@@ -565,13 +622,13 @@ export function SessionContextPanel({
                     >
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                          {handoff.direction}
+                          {formatHandoffDirection(handoff.direction)}
                         </span>
                         <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
                           {formatRequestType(handoff.requestType)}
                         </span>
                         <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                          {handoff.status}
+                          {formatHandoffStatus(handoff.status)}
                         </span>
                       </div>
                       <div className="mt-1 text-[11px] text-slate-700 dark:text-slate-200">
@@ -626,7 +683,7 @@ export function SessionContextPanel({
             {context.parent && (
               <SessionRow
                 session={context.parent}
-                label="Parent"
+                label={t.sessions.parent}
                 highlighted={context.parent.sessionId === focusedSessionId}
                 icon={
                   <ArrowUp className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
@@ -640,7 +697,7 @@ export function SessionContextPanel({
                 <div className="flex items-center gap-1.5 px-2 py-1">
                   <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {context.siblings.length} Sibling Session{context.siblings.length > 1 ? "s" : ""}
+                    {t.sessions.siblingSessionsCount.replace("{count}", String(context.siblings.length))}
                   </span>
                 </div>
                 {context.siblings.map((sibling) => (
@@ -664,7 +721,7 @@ export function SessionContextPanel({
                 <div className="flex items-center gap-1.5 px-2 py-1">
                   <ArrowDown className="w-3 h-3 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                    {context.children.length} Child Session{context.children.length > 1 ? "s" : ""}
+                    {t.sessions.childSessionsCount.replace("{count}", String(context.children.length))}
                   </span>
                 </div>
                 {context.children.map((child) => (

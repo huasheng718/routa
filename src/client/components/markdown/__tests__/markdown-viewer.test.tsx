@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MarkdownViewer } from "../markdown-viewer";
+import { I18nProvider } from "@/i18n/context";
 
 const { openExternalUrlMock } = vi.hoisted(() => ({
   openExternalUrlMock: vi.fn(() => Promise.resolve()),
@@ -68,9 +69,9 @@ describe("MarkdownViewer canonical story rendering", () => {
     expect(screen.getByText("Context before the contract.")).toBeTruthy();
     expect(screen.getByText("Context after the contract.")).toBeTruthy();
     expect(screen.getByTestId("canonical-story-renderer")).toBeTruthy();
-    expect(screen.getByText("Valid YAML")).toBeTruthy();
+    expect(screen.getByText("有效 YAML")).toBeTruthy();
     expect(screen.getByText("Add automatic INVEST quality analysis for user stories")).toBeTruthy();
-    expect(screen.getByText("Problem Statement")).toBeTruthy();
+    expect(screen.getByText("问题陈述")).toBeTruthy();
     expect(screen.queryByText("```yaml")).toBeNull();
   });
 
@@ -86,8 +87,8 @@ story:
     );
 
     expect(screen.getByTestId("canonical-story-renderer-invalid")).toBeTruthy();
-    expect(screen.getByText("Invalid YAML")).toBeTruthy();
-    expect(screen.getByText(/canonical story contract is invalid/i)).toBeTruthy();
+    expect(screen.getByText("无效 YAML")).toBeTruthy();
+    expect(screen.getByText("这份 canonical story 合同无效，执行前应先修复。")).toBeTruthy();
   });
 
   it("keeps generic YAML blocks on the normal markdown path", () => {
@@ -135,5 +136,49 @@ Context after.`}
     fireEvent.click(screen.getByRole("link", { name: "Open PR" }));
 
     expect(openExternalUrlMock).toHaveBeenCalledWith("https://github.com/phodal/routa/pull/497");
+  });
+
+  it("sanitizes rendered markdown html before injecting it into the DOM", () => {
+    const { container } = render(
+      <MarkdownViewer
+        content={[
+          "## Unsafe",
+          "",
+          "<img src=x onerror=\"window.__xss = true\">",
+          "<script>window.__xss = true</script>",
+          "[bad](javascript:alert(1))",
+        ].join("\n")}
+      />,
+    );
+
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("[onerror]")).toBeNull();
+    expect(container.querySelector('a[href^="javascript:"]')).toBeNull();
+    expect(container.textContent).toContain("Unsafe");
+  });
+
+  it("sanitizes html preview blocks and disables script execution in the iframe sandbox", () => {
+    const { container } = render(
+      <I18nProvider>
+        <MarkdownViewer
+          content={`\`\`\`html
+<html>
+  <body>
+    <img src="x" onerror="window.parent.__xss = true">
+    <script>window.parent.__xss = true</script>
+    <p>Preview body</p>
+  </body>
+</html>
+\`\`\``}
+        />
+      </I18nProvider>,
+    );
+
+    const iframe = container.querySelector("iframe");
+    expect(iframe).not.toBeNull();
+    expect(iframe?.getAttribute("sandbox")).toBe("allow-same-origin");
+    expect(iframe?.getAttribute("srcdoc")).toContain("Preview body");
+    expect(iframe?.getAttribute("srcdoc")).not.toContain("<script");
+    expect(iframe?.getAttribute("srcdoc")).not.toContain("onerror");
   });
 });

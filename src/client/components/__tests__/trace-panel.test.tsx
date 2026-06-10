@@ -1,16 +1,23 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY } from "@/i18n/types";
 
 import { TracePanel } from "../trace-panel";
 
 describe("TracePanel", () => {
+  beforeEach(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("renders kanban handoff context for the selected session", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
+      const parsedUrl = new URL(String(input), "http://localhost");
+      const url = `${parsedUrl.pathname}${parsedUrl.search}`;
 
       if (url === "/api/traces?sessionId=session-review-1") {
         return {
@@ -122,7 +129,11 @@ describe("TracePanel", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<TracePanel sessionId="session-review-1" />);
+    render(
+      <I18nProvider>
+        <TracePanel sessionId="session-review-1" />
+      </I18nProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Kanban Story")).toBeTruthy();

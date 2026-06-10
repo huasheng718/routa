@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "../utils/diagnostics";
+import { formatKanbanRoleLabel } from "@/client/utils/kanban-role-labels";
 import type { TraceRecord } from "@/core/trace";
 import type { LaneHandoffInfo, LaneSessionInfo, SessionKanbanContext } from "@/client/types/kanban-context";
 import { MarkdownViewer } from "./markdown/markdown-viewer";
@@ -226,12 +227,61 @@ function formatLaneSessionSummary(session: LaneSessionInfo, t: ReturnType<typeof
     session.columnName ?? session.columnId ?? t.trace.unknownLane,
     session.stepName ?? (typeof session.stepIndex === "number" ? `${t.trace.step} ${session.stepIndex + 1}` : undefined),
     session.provider,
-    session.role,
+    session.role ? formatKanbanRoleLabel(session.role, t) : undefined,
   ].filter(Boolean).join(" • ");
 }
 
-function formatHandoffRequestType(value: LaneHandoffInfo["requestType"]): string {
-  return value.replace(/_/g, " ");
+function formatHandoffDirection(value: LaneHandoffInfo["direction"], t: ReturnType<typeof useTranslation>["t"]): string {
+  return value === "incoming" ? t.trace.handoffIncoming : t.trace.handoffOutgoing;
+}
+
+function formatHandoffRequestType(value: LaneHandoffInfo["requestType"], t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (value) {
+    case "environment_preparation":
+      return t.kanban.handoffRequestEnvironmentPreparation;
+    case "runtime_context":
+      return t.kanban.handoffRequestRuntimeContext;
+    case "clarification":
+      return t.kanban.handoffRequestClarification;
+    case "rerun_command":
+      return t.kanban.handoffRequestRerunCommand;
+    default:
+      return t.kanban.handoffRequestUnknown;
+  }
+}
+
+function formatHandoffStatus(value: LaneHandoffInfo["status"], t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (value) {
+    case "requested":
+      return t.kanban.handoffStatusRequested;
+    case "delivered":
+      return t.kanban.handoffStatusDelivered;
+    case "completed":
+      return t.kanban.handoffStatusCompleted;
+    case "blocked":
+      return t.kanban.handoffStatusBlocked;
+    case "failed":
+      return t.kanban.handoffStatusFailed;
+    default:
+      return t.kanban.handoffStatusUnknown;
+  }
+}
+
+function formatLaneSessionStatus(value: LaneSessionInfo["status"], t: ReturnType<typeof useTranslation>["t"]): string {
+  switch (value) {
+    case "running":
+      return t.kanban.taskRunStatusRunning;
+    case "completed":
+      return t.kanban.taskRunStatusCompleted;
+    case "failed":
+      return t.kanban.taskRunStatusFailed;
+    case "timed_out":
+      return t.kanban.taskRunStatusTimedOut;
+    case "transitioned":
+      return t.kanban.taskRunStatusTransitioned;
+    default:
+      return t.kanban.taskRunStatusUnknown;
+  }
 }
 
 function getTraceMetadataString(trace: TraceRecord, key: string): string | null {
@@ -513,7 +563,7 @@ function AgentResponseBlock({
       <div className="flex-1 min-w-0">
         {/* Header */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Agent</span>
+          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{t.trace.agent}</span>
           {model && (
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{model}</span>
           )}
@@ -599,21 +649,21 @@ export function TracePanel({ sessionId }: TracePanelProps) {
 
     try {
       const params = new URLSearchParams({ sessionId });
-      const res = await desktopAwareFetch(`/api/traces?${params}`, { cache: "no-store" });
+      const res = await desktopAwareFetch(resolveApiPath(`/api/traces?${params}`), { cache: "no-store" });
 
       if (!res.ok) {
-        throw new Error(`Failed to fetch traces: ${res.statusText}`);
+        throw new Error(t.traces.failedToFetchTraces.replace("{status}", String(res.status)));
       }
 
       const data = await res.json();
       setTraces(data.traces || []);
     } catch (err) {
       console.error("[TracePanel] Failed to fetch traces:", err);
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : t.common.unavailable);
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, t.common.unavailable, t.traces.failedToFetchTraces]);
 
   const fetchSessionContext = useCallback(async () => {
     if (!sessionId) {
@@ -622,7 +672,7 @@ export function TracePanel({ sessionId }: TracePanelProps) {
     }
 
     try {
-      const res = await desktopAwareFetch(`/api/sessions/${sessionId}/context`, { cache: "no-store" });
+      const res = await desktopAwareFetch(resolveApiPath(`/api/sessions/${sessionId}/context`), { cache: "no-store" });
       if (!res.ok) {
         setKanbanContext(null);
         return;
@@ -637,9 +687,9 @@ export function TracePanel({ sessionId }: TracePanelProps) {
   const fetchStats = useCallback(async () => {
     try {
       const statsUrl = sessionId
-        ? `/api/traces/stats?${new URLSearchParams({ sessionId }).toString()}`
-        : "/api/traces/stats";
-      const res = await desktopAwareFetch(statsUrl, { cache: "no-store" });
+        ? `/traces/stats?${new URLSearchParams({ sessionId }).toString()}`
+        : "/traces/stats";
+      const res = await desktopAwareFetch(resolveApiPath(statsUrl), { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setStats(data.stats || null);
@@ -813,7 +863,7 @@ export function TracePanel({ sessionId }: TracePanelProps) {
           [
             { key: "all", label: t.trace.all, active: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" },
             { key: "user_message", label: t.trace.user, active: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" },
-            { key: "agent_message", label: "Agent", active: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" },
+            { key: "agent_message", label: t.trace.agent, active: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" },
             { key: "tools", label: t.trace.tools, active: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
             { key: "agent_thought", label: t.trace.thoughts, active: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
           ] as const
@@ -854,7 +904,7 @@ export function TracePanel({ sessionId }: TracePanelProps) {
               {t.trace.currentLaneSession}: {formatLaneSessionSummary(kanbanContext.currentLaneSession, t)}
               {" · "}
               <span className="font-semibold uppercase tracking-wide">
-                {kanbanContext.currentLaneSession.status}
+                {formatLaneSessionStatus(kanbanContext.currentLaneSession.status, t)}
               </span>
             </div>
           )}
@@ -957,13 +1007,13 @@ export function TracePanel({ sessionId }: TracePanelProps) {
                 >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                      {handoff.direction}
+                      {formatHandoffDirection(handoff.direction, t)}
                     </span>
                     <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-                      {formatHandoffRequestType(handoff.requestType)}
+                      {formatHandoffRequestType(handoff.requestType, t)}
                     </span>
                     <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                      {handoff.status}
+                      {formatHandoffStatus(handoff.status, t)}
                     </span>
                   </div>
                   <div className="mt-1 text-[11px] text-slate-700 dark:text-slate-200">

@@ -12,6 +12,8 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Check, PieChart, Globe, SquareArrowOutUpRight, Copy } from "lucide-react";
+import DOMPurify from "dompurify";
+import { useTranslation } from "@/i18n";
 
 
 interface HtmlPreviewRendererProps {
@@ -20,6 +22,8 @@ interface HtmlPreviewRendererProps {
 }
 
 export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendererProps) {
+  const { t } = useTranslation();
+  const copy = t.markdown.htmlPreview;
   const [mode, setMode] = useState<"preview" | "code">("preview");
   const [iframeHeight, setIframeHeight] = useState(400);
   const [copied, setCopied] = useState(false);
@@ -27,6 +31,11 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const dragStartY = useRef<number | null>(null);
   const dragStartHeight = useRef<number>(400);
+  const sanitizedPreviewHtml = DOMPurify.sanitize(code, {
+    WHOLE_DOCUMENT: true,
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "base"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus"],
+  });
 
   // Auto-resize iframe to fit content
   const handleIframeLoad = useCallback(() => {
@@ -75,11 +84,11 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
 
   // Open in new tab
   const handleOpenInTab = useCallback(() => {
-    const blob = new Blob([code], { type: "text/html" });
+    const blob = new Blob([sanitizedPreviewHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [code]);
+  }, [sanitizedPreviewHtml]);
 
   return (
     <div className={`html-preview-renderer my-3 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden ${className}`}>
@@ -88,7 +97,7 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
         <div className="flex items-center gap-1">
           {/* Globe icon */}
           <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
-          <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">HTML Preview</span>
+          <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">{copy.title}</span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -102,7 +111,7 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
               }`}
             >
-              Preview
+              {copy.preview}
             </button>
             <button
               onClick={() => setMode("code")}
@@ -112,14 +121,14 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
               }`}
             >
-              Code
+              {copy.code}
             </button>
           </div>
 
           {/* Open in new tab */}
           <button
             onClick={handleOpenInTab}
-            title="Open in new tab"
+            title={t.common.openInNewTab}
             className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           >
             <SquareArrowOutUpRight className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
@@ -128,7 +137,7 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
           {/* Copy button */}
           <button
             onClick={handleCopy}
-            title={copied ? "Copied!" : "Copy HTML"}
+            title={copied ? copy.copied : t.common.copyToClipboard}
             className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
           >
             {copied ? (
@@ -150,18 +159,18 @@ export function HtmlPreviewRenderer({ code, className = "" }: HtmlPreviewRendere
           )}
           <iframe
             ref={iframeRef}
-            srcDoc={code}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+            srcDoc={sanitizedPreviewHtml}
+            sandbox="allow-same-origin"
             onLoad={handleIframeLoad}
             style={{ height: `${iframeHeight}px` }}
             className="w-full border-0 block"
-            title="HTML Preview"
+            title={copy.title}
           />
           {/* Drag resize handle */}
           <div
             onMouseDown={handleDragStart}
             className="w-full h-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 cursor-row-resize flex items-center justify-center group border-t border-slate-200 dark:border-slate-700"
-            title="Drag to resize"
+            title={copy.dragToResize}
           >
             <div className="w-8 h-0.5 rounded bg-slate-300 dark:bg-slate-600 group-hover:bg-blue-400" />
           </div>

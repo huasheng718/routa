@@ -31,15 +31,24 @@ import TaskItem from "@tiptap/extension-task-item";
 import Link from "@tiptap/extension-link";
 import { all, createLowlight } from "lowlight";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 // ─── Lowlight instance ────────────────────────────────────────────────
 const lowlight = createLowlight(all);
+
+function sanitizeMarkdownHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "base"],
+    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus"],
+  });
+}
 
 // ─── Markdown → HTML conversion ──────────────────────────────────────
 function markdownToHtml(md: string): string {
   if (!md) return "";
   try {
-    return marked.parse(md, { async: false, breaks: true, gfm: true }) as string;
+    const html = marked.parse(md, { async: false, breaks: true, gfm: true }) as string;
+    return sanitizeMarkdownHtml(html);
   } catch {
     // Fallback: escape and wrap in <p>
     return `<p>${md.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`;
