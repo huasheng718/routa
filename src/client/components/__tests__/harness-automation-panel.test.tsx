@@ -92,13 +92,13 @@ describe("HarnessAutomationPanel", () => {
       />,
     );
 
-    expect(screen.getByText(/Cleanup & Correction Loop/i)).toBeDefined();
-    expect(screen.getByText(/Configuration Surface/i)).toBeDefined();
-    expect(screen.getByText(/Repo-defined source of truth/i)).toBeDefined();
+    expect(screen.getByText(/清理与纠错闭环/i)).toBeDefined();
+    expect(screen.getByText(/配置界面/i)).toBeDefined();
+    expect(screen.getByText(/仓库定义的事实来源/i)).toBeDefined();
     expect(screen.getAllByText("docs/harness/automations.yml").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Configured Mechanisms/i)).toBeDefined();
-    expect(screen.getByText(/Pending Cleanup \/ Correction/i)).toBeDefined();
-    expect(screen.getByText(/Recent Execution State/i)).toBeDefined();
+    expect(screen.getAllByText(/已配置机制/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/待处理清理 \/ 纠错/i)).toBeDefined();
+    expect(screen.getByText(/最近执行状态/i)).toBeDefined();
     expect(screen.getByTestId("code-viewer")).toBeDefined();
   });
 
@@ -112,7 +112,7 @@ describe("HarnessAutomationPanel", () => {
       />,
     );
 
-    expect(screen.getByText(/No checked-in cleanup\/correction config file/i)).toBeDefined();
+    expect(screen.getByText(/此仓库暂未找到已入库的清理 \/ 纠错配置文件/i)).toBeDefined();
   });
 
   it("shows a context hint instead of rendering a blank panel when no data has loaded yet", () => {
@@ -125,6 +125,6 @@ describe("HarnessAutomationPanel", () => {
       />,
     );
 
-    expect(screen.getByText(/Select a repo or provide Harness context/i)).toBeDefined();
+    expect(screen.getByText(/请选择仓库或提供 Harness 上下文/i)).toBeDefined();
   });
 });

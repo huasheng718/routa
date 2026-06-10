@@ -8,46 +8,48 @@ import { SettingsRouteShell } from "@/client/components/settings-route-shell";
 import { SettingsPageHeader } from "@/client/components/settings-page-header";
 import { McpToolsExplorer } from "@/client/components/mcp-tools-explorer";
 import { McpServersTab } from "@/client/components/settings-panel-mcp-tab";
+import { useTranslation } from "@/i18n";
 import { Server } from "lucide-react";
 
 type McpTab = "servers" | "tools";
 
-const TAB_META: Array<{ key: McpTab; label: string; href: string }> = [
-  { key: "servers", label: "Servers", href: "/settings/mcp?tab=servers" },
-  { key: "tools", label: "Tools", href: "/settings/mcp?tab=tools" },
-];
-
 export function McpSettingsPageClient() {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const activeTab = useMemo<McpTab>(() => (
     searchParams.get("tab") === "tools" ? "tools" : "servers"
   ), [searchParams]);
+  const tabMeta: Array<{ key: McpTab; label: string; href: string }> = [
+    { key: "servers", label: t.nav.mcpServers, href: "/settings/mcp?tab=servers" },
+    { key: "tools", label: t.mcpTools.title, href: "/settings/mcp?tab=tools" },
+  ];
+  const metadata = [
+    { label: t.mcp.transport, value: t.mcp.stdioHttpSse },
+    { label: t.mcp.scope, value: activeTab === "tools" ? t.mcp.toolExplorer : t.mcp.workspaceIntegrations },
+  ];
 
   return (
     <SettingsRouteShell
       activeSettingsItem="mcp"
-      title="MCP Servers"
-      description="Manage Model Context Protocol servers, transports, and local integration points for your workspace."
-      badgeLabel="Integration"
+      title={t.nav.mcpServers}
+      description={t.mcp.description}
+      badgeLabel={t.mcp.integration}
       contentClassName="flex h-full min-h-0 w-full flex-col"
       icon={(
         <Server className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}/>
       )}
       summary={[
-        { label: "Transport", value: "stdio / http / sse" },
-        { label: "Scope", value: "Workspace integrations" },
+        { label: t.mcp.transport, value: t.mcp.stdioHttpSse },
+        { label: t.mcp.scope, value: t.mcp.workspaceIntegrations },
       ]}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <SettingsPageHeader
-          title={activeTab === "tools" ? "MCP Tools" : "MCP Servers"}
-          metadata={[
-            { label: "Transport", value: "stdio / http / sse" },
-            { label: "Scope", value: activeTab === "tools" ? "Tool explorer" : "Workspace integrations" },
-          ]}
+          title={activeTab === "tools" ? t.mcpTools.title : t.nav.mcpServers}
+          metadata={metadata}
           extra={(
             <div className="inline-flex rounded-full border border-desktop-border bg-desktop-bg-primary/60 p-1">
-              {TAB_META.map((tab) => {
+              {tabMeta.map((tab) => {
                 const active = tab.key === activeTab;
                 return (
                   <Link

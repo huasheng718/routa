@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { HooksResponse, ReleaseTriggerRuleSummary } from "@/client/hooks/use-harness-settings-data";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY, type Locale } from "@/i18n/types";
 import { HarnessReleaseTriggersPanel } from "../harness-release-triggers-panel";
 
 function makeRule(overrides: Partial<ReleaseTriggerRuleSummary>): ReleaseTriggerRuleSummary {
@@ -42,9 +44,22 @@ function createHooksResponse(rules: ReleaseTriggerRuleSummary[] = []): HooksResp
   };
 }
 
+function renderWithI18n(ui: React.ReactElement, locale: Locale = "en") {
+  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
+
 describe("HarnessReleaseTriggersPanel", () => {
+  beforeEach(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(LOCALE_STORAGE_KEY);
+  });
+
   it("renders empty state when no release trigger file", () => {
-    render(
+    renderWithI18n(
       <HarnessReleaseTriggersPanel
         repoLabel="routa"
         data={{ ...createHooksResponse(), releaseTriggerFile: null }}
@@ -54,7 +69,7 @@ describe("HarnessReleaseTriggersPanel", () => {
   });
 
   it("renders empty state when release trigger file has no rules", () => {
-    render(
+    renderWithI18n(
       <HarnessReleaseTriggersPanel
         repoLabel="routa"
         data={createHooksResponse([])}
@@ -103,7 +118,7 @@ describe("HarnessReleaseTriggersPanel", () => {
       }),
     ];
 
-    render(
+    renderWithI18n(
       <HarnessReleaseTriggersPanel
         repoLabel="routa"
         data={createHooksResponse(rules)}
@@ -122,19 +137,19 @@ describe("HarnessReleaseTriggersPanel", () => {
       makeRule({ name: "review_rule", action: "require_human_review", type: "artifact_size_delta" }),
     ];
 
-    render(
+    renderWithI18n(
       <HarnessReleaseTriggersPanel
         repoLabel="routa"
         data={createHooksResponse(rules)}
       />,
     );
 
-    expect(screen.getAllByText(/block.*release/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/human review/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Block release/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Require human review/i).length).toBeGreaterThan(0);
   });
 
   it("renders loading state", () => {
-    render(
+    renderWithI18n(
       <HarnessReleaseTriggersPanel
         repoLabel="routa"
         loading
@@ -144,12 +159,33 @@ describe("HarnessReleaseTriggersPanel", () => {
   });
 
   it("renders unsupported message", () => {
-    render(
+    renderWithI18n(
       <HarnessReleaseTriggersPanel
         repoLabel="routa"
         unsupportedMessage="Repo not supported"
       />,
     );
     expect(screen.getByText(/Release Surface Governance/i)).toBeDefined();
+  });
+
+  it("renders Chinese release governance copy", () => {
+    renderWithI18n(
+      <HarnessReleaseTriggersPanel
+        repoLabel="routa"
+        data={createHooksResponse([
+          makeRule({
+            name: "unexpected_sourcemap_in_release",
+            type: "unexpected_file",
+            severity: "critical",
+            action: "block_release",
+          }),
+        ])}
+      />,
+      "zh",
+    );
+
+    expect(screen.getByRole("heading", { name: "发布面治理" })).toBeDefined();
+    expect(screen.getByText("第 1 层：暴露面")).toBeDefined();
+    expect(screen.getAllByText("阻止发布").length).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY, type Locale } from "@/i18n/types";
 
 vi.mock("../markdown/markdown-viewer", () => ({
   MarkdownViewer: ({ content }: { content: string }) => <div>{content}</div>,
@@ -44,9 +46,22 @@ const instructionsData: InstructionsResponse = {
   },
 };
 
+function renderWithI18n(ui: React.ReactElement, locale: Locale = "en") {
+  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
+
 describe("HarnessAgentInstructionsPanel", () => {
+  beforeEach(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(LOCALE_STORAGE_KEY);
+  });
+
   it("does not render the compact selected-section summary card", () => {
-    const { container } = render(
+    const { container } = renderWithI18n(
       <HarnessAgentInstructionsPanel
         workspaceId="default"
         repoPath="/Users/phodal/ai/routa-js"
@@ -62,7 +77,7 @@ describe("HarnessAgentInstructionsPanel", () => {
   });
 
   it("renders the instruction file content and metadata", () => {
-    render(
+    renderWithI18n(
       <HarnessAgentInstructionsPanel
         workspaceId="default"
         repoPath="/Users/phodal/ai/routa-js"
@@ -77,18 +92,18 @@ describe("HarnessAgentInstructionsPanel", () => {
     expect(screen.getByText("codex · 1.3s")).not.toBeNull();
     expect(screen.getByText("16/20")).not.toBeNull();
     expect(screen.getAllByText("4/5").length).toBeGreaterThanOrEqual(4);
-    expect(screen.getByText("渐进式暴露")).not.toBeNull();
-    expect(screen.getByText("负面约束优先")).not.toBeNull();
-    expect(screen.getByText("反重复机制")).not.toBeNull();
-    expect(screen.getByText("确定性验证")).not.toBeNull();
-    expect(screen.getByLabelText("渐进式暴露 说明")).not.toBeNull();
-    expect(screen.getByText("按任务阶段按需加载最小上下文，先定位，再展开，避免一次性灌入全部背景。")).not.toBeNull();
+    expect(screen.getByText("Progressive disclosure")).not.toBeNull();
+    expect(screen.getByText("Negative constraints first")).not.toBeNull();
+    expect(screen.getByText("Anti-repeat loop")).not.toBeNull();
+    expect(screen.getByText("Deterministic verification")).not.toBeNull();
+    expect(screen.getByLabelText("Progressive disclosure description")).not.toBeNull();
+    expect(screen.getByText("Load the smallest useful context for each task phase, locate first, then expand instead of flooding the agent with background.")).not.toBeNull();
     expect(screen.getByText((content) => content.includes("# Routa.js"))).not.toBeNull();
   });
 
   it("supports re-running audit when callback is provided", () => {
     const onAuditRerun = vi.fn();
-    render(
+    renderWithI18n(
       <HarnessAgentInstructionsPanel
         workspaceId="default"
         repoPath="/Users/phodal/ai/routa-js"
@@ -105,7 +120,7 @@ describe("HarnessAgentInstructionsPanel", () => {
 
   it("keeps the audit rerun entry visible before the first audit result", () => {
     const onAuditRerun = vi.fn();
-    render(
+    renderWithI18n(
       <HarnessAgentInstructionsPanel
         workspaceId="default"
         repoPath="/Users/phodal/ai/routa-js"
@@ -125,7 +140,7 @@ describe("HarnessAgentInstructionsPanel", () => {
   });
 
   it("shows explicit running feedback while audit is refreshing", () => {
-    render(
+    renderWithI18n(
       <HarnessAgentInstructionsPanel
         workspaceId="default"
         repoPath="/Users/phodal/ai/routa-js"
@@ -136,5 +151,26 @@ describe("HarnessAgentInstructionsPanel", () => {
     );
 
     expect(screen.getByText("Running specialist audit...")).not.toBeNull();
+  });
+
+  it("renders localized Chinese guidance copy", () => {
+    renderWithI18n(
+      <HarnessAgentInstructionsPanel
+        workspaceId="default"
+        repoPath="/Users/phodal/ai/routa-js"
+        repoLabel="phodal/routa"
+        data={{
+          ...instructionsData,
+          audit: null,
+        }}
+        onAuditRerun={vi.fn()}
+      />,
+      "zh",
+    );
+
+    expect(screen.getByRole("heading", { name: "指令文件 - CLAUDE.md" })).not.toBeNull();
+    expect(screen.getByText("指令审计")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "重新审计" })).not.toBeNull();
+    expect(screen.getByText("此视图尚未运行审计。点击重新审计生成新的摘要。")).not.toBeNull();
   });
 });

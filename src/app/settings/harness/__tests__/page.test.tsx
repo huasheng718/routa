@@ -424,13 +424,13 @@ describe("HarnessSettingsPage", () => {
     expect(screen.queryByText("dimensions: 1")).toBeNull();
     expect(screen.queryByText("metrics: 2")).toBeNull();
     expect(screen.queryByText("hard gates: 1")).toBeNull();
-    expect(screen.getAllByText("Overview").length).toBeGreaterThan(0);
-    expect(screen.getByText("Intent")).not.toBeNull();
-    expect(screen.getByText("Control")).not.toBeNull();
-    expect(screen.getByText("Flow")).not.toBeNull();
-    expect(screen.getByText("Signal")).not.toBeNull();
-    expect(screen.getByText("Cleanup & Correction")).not.toBeNull();
-    expect(screen.getByText("Test Feedback")).not.toBeNull();
+    expect(screen.getAllByText("概览").length).toBeGreaterThan(0);
+    expect(screen.getByText("意图")).not.toBeNull();
+    expect(screen.getByText("控制")).not.toBeNull();
+    expect(screen.getByText("流程")).not.toBeNull();
+    expect(screen.getByText("信号")).not.toBeNull();
+    expect(screen.getByText("清理与纠错")).not.toBeNull();
+    expect(screen.getByText("测试反馈")).not.toBeNull();
   });
 
   it("uses the active codebase context by default", () => {
@@ -487,7 +487,7 @@ describe("HarnessSettingsPage", () => {
 
     render(<HarnessSettingsPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Spec Sources/i }));
+    fireEvent.click(screen.getByRole("button", { name: /规范来源/i }));
 
     expect(routerReplaceMock).toHaveBeenCalledWith("/settings/harness?workspaceId=default&section=spec-sources");
   });
@@ -507,7 +507,7 @@ describe("HarnessSettingsPage", () => {
 
     render(<HarnessSettingsPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^Spec$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^需求$/i }));
 
     expect(routerReplaceMock).toHaveBeenCalledWith("/settings/harness?workspaceId=default&section=spec");
   });
@@ -589,7 +589,7 @@ describe("HarnessSettingsPage", () => {
     render(<HarnessSettingsPage />);
 
     expect(screen.getByTestId("spec-sources-full")).not.toBeNull();
-    expect(screen.getByRole("button", { name: /Spec Sources/i })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /规范来源/i })).not.toBeNull();
   });
 
   it("does not crash when automation data is missing definitions", () => {

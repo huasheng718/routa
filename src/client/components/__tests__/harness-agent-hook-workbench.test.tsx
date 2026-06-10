@@ -1,12 +1,17 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentHooksResponse } from "@/client/hooks/use-harness-settings-data";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY, type Locale } from "@/i18n/types";
 
 vi.mock("@xyflow/react", () => ({
-  ReactFlow: ({ nodes }: { nodes: Array<{ id: string; data?: { title?: string } }> }) => (
+  ReactFlow: ({ nodes }: { nodes: Array<{ id: string; data?: { title?: string; subtitle?: string } }> }) => (
     <div data-testid="agent-hook-flow">
       {nodes.map((node) => (
-        <div key={node.id}>{node.data?.title ?? node.id}</div>
+        <div key={node.id}>
+          <span>{node.data?.title ?? node.id}</span>
+          {node.data?.subtitle ? <span>{node.data.subtitle}</span> : null}
+        </div>
       ))}
     </div>
   ),
@@ -22,6 +27,11 @@ vi.mock("../codemirror/code-viewer", () => ({
 }));
 
 import { HarnessAgentHookWorkbench } from "../harness-agent-hook-workbench";
+
+function renderWithI18n(ui: React.ReactElement, locale: Locale = "en") {
+  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
 
 function createAgentHooksResponse(): AgentHooksResponse {
   return {
@@ -58,8 +68,16 @@ function createAgentHooksResponse(): AgentHooksResponse {
 }
 
 describe("HarnessAgentHookWorkbench", () => {
+  beforeEach(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+  });
+
+  afterEach(() => {
+    localStorage.removeItem(LOCALE_STORAGE_KEY);
+  });
+
   it("renders the flow canvas for the selected agent hook event", () => {
-    render(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />);
+    renderWithI18n(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />);
 
     const flow = screen.getByTestId("agent-hook-flow");
 
@@ -74,7 +92,7 @@ describe("HarnessAgentHookWorkbench", () => {
   });
 
   it("updates the flow when switching to another event", () => {
-    render(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />);
+    renderWithI18n(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /PostToolUse/i }));
 
@@ -86,12 +104,26 @@ describe("HarnessAgentHookWorkbench", () => {
   });
 
   it("resets inspector to Basic tab when the selected event changes", () => {
-    render(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />);
+    renderWithI18n(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Source/i }));
     expect(screen.queryByText("Lifecycle:")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /PostToolUse/i }));
     expect(screen.getByText("Lifecycle:")).not.toBeNull();
+  });
+
+  it("renders localized Chinese labels and flow outcomes", () => {
+    renderWithI18n(<HarnessAgentHookWorkbench data={createAgentHooksResponse()} />, "zh");
+
+    const flow = screen.getByTestId("agent-hook-flow");
+
+    expect(screen.getByText("事件 → 钩子 → 结果")).not.toBeNull();
+    expect(screen.getByText("Agent 钩子")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "基本信息" })).not.toBeNull();
+    expect(screen.getByText("生命周期:")).not.toBeNull();
+    expect(screen.getByText("可阻塞:")).not.toBeNull();
+    expect(within(flow).getByText("允许")).not.toBeNull();
+    expect(within(flow).getByText("阻止")).not.toBeNull();
   });
 });
