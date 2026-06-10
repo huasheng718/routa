@@ -69,12 +69,12 @@ describe("KanbanCardDetail provider override", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Execution" }));
-    fireEvent.click(screen.getByText("Card session override").closest("summary")!);
+    fireEvent.click(screen.getByTestId("kanban-detail-tab-execution"));
 
     const providerDropdown = screen.getByTestId("kanban-detail-provider-override");
+    fireEvent.click(providerDropdown.closest("details")!.querySelector("summary")!);
     expect(providerDropdown.tagName).toBe("BUTTON");
-    expect(providerDropdown.textContent).toContain("Use lane default");
+    expect(providerDropdown.textContent).toMatch(/Use lane default|使用泳道默认/);
 
     fireEvent.click(providerDropdown);
     fireEvent.click(await screen.findByRole("button", { name: /Claude Code/ }));

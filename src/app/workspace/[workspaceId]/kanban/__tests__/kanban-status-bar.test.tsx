@@ -178,8 +178,8 @@ describe("KanbanStatusBar runtime fitness", () => {
 
     const badge = screen.getByTestId("kanban-runtime-fitness-status");
     expect(badge.textContent).toContain("Fitness");
-    expect(badge.textContent).toContain("Full");
-    expect(badge.textContent).toContain("Running");
+    expect(badge.textContent).toMatch(/Full|完整/);
+    expect(badge.textContent).toMatch(/Running|运行中/);
     expect(badge.textContent).toContain("93.2");
 
     fireEvent.click(badge);
@@ -277,8 +277,8 @@ describe("KanbanStatusBar runtime fitness", () => {
     );
 
     const badge = screen.getByTestId("kanban-runtime-fitness-status");
-    expect(badge.textContent).toContain("Full");
-    expect(badge.textContent).toContain("Running");
+    expect(badge.textContent).toMatch(/Full|完整/);
+    expect(badge.textContent).toMatch(/Running|运行中/);
     expect(badge.textContent).toContain("91.4");
 
     fireEvent.click(badge);
@@ -363,7 +363,7 @@ describe("KanbanStatusBar runtime fitness", () => {
     );
 
     const badge = screen.getByTestId("kanban-runtime-fitness-status");
-    expect(badge.textContent).toContain("Hard gate failed");
+    expect(badge.textContent).toMatch(/Hard gate failed|硬门禁失败/);
     expect(badge.firstElementChild?.className).toContain("bg-rose-500");
   });
 });

@@ -137,7 +137,7 @@ describe("KanbanTab GitHub import merge mode", () => {
         return {
           ok: true,
           json: async () => ({
-            task: createTask("task-imported-merged", "Merged GitHub issues", {
+            task: createTask("task-imported-merged", "合并导入的 GitHub issues", {
               codebaseIds: ["codebase-1"],
             }),
           }),
@@ -207,14 +207,14 @@ describe("KanbanTab GitHub import merge mode", () => {
       />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /import issues/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /import issues|导入 Issues/i }));
 
     expect(await screen.findByRole("link", { name: /imported issue one/i })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("checkbox", { name: /merge into one card/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /merge into one card|合并为一张卡/i }));
     fireEvent.click(screen.getAllByRole("checkbox")[1]!);
     fireEvent.click(screen.getAllByRole("checkbox")[2]!);
-    fireEvent.click(screen.getByRole("button", { name: /import selected/i }));
+    fireEvent.click(screen.getByRole("button", { name: /import selected|导入所选/i }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/tasks", {
@@ -224,16 +224,16 @@ describe("KanbanTab GitHub import merge mode", () => {
           workspaceId: "workspace-1",
           boardId: "board-1",
           columnId: "backlog",
-          title: "Merged GitHub issues",
+          title: "合并导入的 GitHub issues",
           objective: [
-            "Source links",
+            "来源链接",
             "- #161 Imported issue one",
             "  https://github.com/phodal/routa-js/issues/161",
-            "  Summary: First imported summary.",
+            "  摘要: First imported summary.",
             "",
             "- #162 Imported issue two",
             "  https://github.com/phodal/routa-js/issues/162",
-            "  Summary: Second imported summary.",
+            "  摘要: Second imported summary.",
           ].join("\n"),
           labels: ["bug", "frontend", "triage"],
           codebaseIds: ["codebase-1"],
@@ -283,7 +283,7 @@ describe("KanbanTab GitHub import merge mode", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: /import issues/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /import issues|导入 Issues/i })).toBeNull();
     });
   });
 });
