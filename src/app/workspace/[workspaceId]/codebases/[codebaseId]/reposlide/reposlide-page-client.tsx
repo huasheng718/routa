@@ -8,6 +8,7 @@ import { AcpProviderDropdown } from "@/client/components/acp-provider-dropdown";
 import { useAcp } from "@/client/hooks/use-acp";
 import { storePendingPrompt } from "@/client/utils/pending-prompt";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation } from "@/i18n";
 
 interface RepoSlideLaunchPoint {
   name: string;
@@ -63,6 +64,7 @@ export function RepoSlidePageClient() {
   const workspaceId = params.workspaceId;
   const codebaseId = params.codebaseId;
   const acp = useAcp();
+  const { t } = useTranslation();
 
   const [data, setData] = useState<RepoSlideResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,10 +136,10 @@ export function RepoSlidePageClient() {
 
       const provider = selectableProvider;
       if (!provider) {
-        throw new Error("No available ACP provider for RepoSlide launch.");
+        throw new Error(t.repoSlide.errors.noProvider);
       }
       if (!data.launch.skillAvailable) {
-        throw new Error(data.launch.unavailableReason ?? "slide-skill is not available for RepoSlide.");
+        throw new Error(data.launch.unavailableReason ?? t.repoSlide.errors.skillUnavailable);
       }
       if (provider !== acp.selectedProvider) {
         acp.setProvider(provider);
@@ -160,7 +162,7 @@ export function RepoSlidePageClient() {
       );
 
       if (!result?.sessionId) {
-        throw new Error("RepoSlide session creation returned no session id.");
+        throw new Error(t.repoSlide.errors.noSessionId);
       }
 
       storePendingPrompt(result.sessionId, {
@@ -176,7 +178,7 @@ export function RepoSlidePageClient() {
       setError(launchError instanceof Error ? launchError.message : String(launchError));
       setLaunching(false);
     }
-  }, [acp, codebaseId, data, router, selectableProvider, workspaceId]);
+  }, [acp, codebaseId, data, router, selectableProvider, t.repoSlide.errors, workspaceId]);
 
   const content = (
     <div className="flex h-full flex-col bg-desktop-bg-primary" data-testid="reposlide-root">
@@ -187,12 +189,12 @@ export function RepoSlidePageClient() {
             onClick={() => router.back()}
             className="text-xs text-desktop-text-secondary hover:text-desktop-text-primary"
           >
-            ← Back
+            ← {t.common.back}
           </button>
           <div>
             <div className="text-sm font-semibold text-desktop-text-primary">RepoSlide</div>
             <div className="text-xs text-desktop-text-secondary">
-              Agent-driven deck generation via `slide-skill`
+              {t.repoSlide.subtitle}
             </div>
           </div>
         </div>
@@ -202,7 +204,7 @@ export function RepoSlidePageClient() {
             selectedProvider={selectableProvider ?? acp.selectedProvider}
             onProviderChange={acp.setProvider}
             disabled={launching || acp.loading}
-            ariaLabel="Select RepoSlide provider"
+            ariaLabel={t.repoSlide.selectProvider}
           />
           <button
             type="button"
@@ -210,14 +212,14 @@ export function RepoSlidePageClient() {
             disabled={loading || launching || !data || !selectableProvider || !data.launch.skillAvailable}
             className="rounded-lg bg-[var(--dt-accent)] px-3 py-2 text-sm font-medium text-[var(--dt-accent-text)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {launching ? "Launching…" : "Launch RepoSlide"}
+            {launching ? t.repoSlide.launching : t.repoSlide.launch}
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto px-5 py-5">
         {loading && (
-          <div className="text-sm text-desktop-text-secondary">Loading RepoSlide context…</div>
+          <div className="text-sm text-desktop-text-secondary">{t.repoSlide.loadingContext}</div>
         )}
         {error && (
           <div className="rounded-xl border border-rose-300/50 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/20 dark:text-rose-300">
@@ -229,7 +231,7 @@ export function RepoSlidePageClient() {
             <section className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr]">
               <div className="rounded-2xl border border-desktop-border bg-white p-5 shadow-sm dark:bg-[#12141c]">
                 <div className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--dt-accent)]">
-                  Target Repository
+                  {t.repoSlide.targetRepository}
                 </div>
                 <h1 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
                   {repoName}
@@ -239,22 +241,21 @@ export function RepoSlidePageClient() {
                 </div>
                 {data.codebase.sourceUrl && (
                   <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    Source URL: {data.codebase.sourceUrl}
+                    {t.repoSlide.sourceUrl}: {data.codebase.sourceUrl}
                   </div>
                 )}
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <StatCard label="Branch" value={data.codebase.branch ?? "unknown"} />
-                  <StatCard label="Source" value={data.codebase.sourceType} />
-                  <StatCard label="Files" value={String(data.summary.totalFiles)} />
-                  <StatCard label="Directories" value={String(data.summary.totalDirectories)} />
+                  <StatCard label={t.repoSlide.branch} value={data.codebase.branch ?? t.repoSlide.unknown} />
+                  <StatCard label={t.repoSlide.source} value={data.codebase.sourceType} />
+                  <StatCard label={t.repoSlide.files} value={String(data.summary.totalFiles)} />
+                  <StatCard label={t.repoSlide.directories} value={String(data.summary.totalDirectories)} />
                 </div>
                 <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                  This page no longer renders a hardcoded slide deck. It starts an ACP session in the selected repo,
-                  injects `slide-skill`, and asks the agent to build a real deck artifact.
+                  {t.repoSlide.behaviorNotice}
                 </div>
                 {!data.launch.skillAvailable && (
                   <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/20 dark:text-amber-200">
-                    RepoSlide launch is blocked because `slide-skill` is unavailable.
+                    {t.repoSlide.skillUnavailable}
                     {data.launch.unavailableReason ? ` ${data.launch.unavailableReason}` : ""}
                   </div>
                 )}
@@ -262,39 +263,39 @@ export function RepoSlidePageClient() {
 
               <div className="rounded-2xl border border-desktop-border bg-white p-5 shadow-sm dark:bg-[#12141c]">
                 <div className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--dt-accent)]">
-                  Launch Plan
+                  {t.repoSlide.launchPlan}
                 </div>
                 <ul className="mt-3 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <li>1. Create a new `DEVELOPER` ACP session with the repo as `cwd`.</li>
-                  <li>2. Load `slide-skill` from Routa&apos;s slide tooling when available.</li>
-                  <li>3. Auto-send a structured prompt with repo context and orientation targets.</li>
-                  <li>4. Continue in the session page and let the agent generate the PPTX deck.</li>
+                  <li>1. {t.repoSlide.launchStepCreateSession}</li>
+                  <li>2. {t.repoSlide.launchStepLoadSkill}</li>
+                  <li>3. {t.repoSlide.launchStepSendPrompt}</li>
+                  <li>4. {t.repoSlide.launchStepContinueSession}</li>
                 </ul>
                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-                  Skill source: {data.launch.skillRepoPath ?? "global / installed skill resolution"}
+                  {t.repoSlide.skillSource}: {data.launch.skillRepoPath ?? t.repoSlide.skillSourceFallback}
                 </div>
               </div>
             </section>
 
             <section className="grid gap-4 xl:grid-cols-3">
-              <InfoCard title="Top-level folders" items={data.summary.topLevelFolders} emptyLabel="No folders detected" />
-              <InfoCard title="Root files" items={data.context.rootFiles} emptyLabel="No root files detected" />
+              <InfoCard title={t.repoSlide.topLevelFolders} items={data.summary.topLevelFolders} emptyLabel={t.repoSlide.noFoldersDetected} />
+              <InfoCard title={t.repoSlide.rootFiles} items={data.context.rootFiles} emptyLabel={t.repoSlide.noRootFilesDetected} />
               <InfoCard
-                title="Key files"
+                title={t.repoSlide.keyFiles}
                 items={data.context.keyFiles.map((file) => file.path)}
-                emptyLabel="No key files detected"
+                emptyLabel={t.repoSlide.noKeyFilesDetected}
               />
             </section>
 
             <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
               <div className="rounded-2xl border border-desktop-border bg-white p-5 shadow-sm dark:bg-[#12141c]">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Entry Points & Anchors
+                  {t.repoSlide.entryPoints}
                 </h2>
                 <div className="mt-4 space-y-3">
                   {data.context.entryPoints.length === 0 && (
                     <div className="text-sm text-slate-500 dark:text-slate-400">
-                      No entry points detected in the scanned tree.
+                      {t.repoSlide.noEntryPoints}
                     </div>
                   )}
                   {data.context.entryPoints.map((item) => (
@@ -315,12 +316,12 @@ export function RepoSlidePageClient() {
 
               <div className="rounded-2xl border border-desktop-border bg-white p-5 shadow-sm dark:bg-[#12141c]">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Largest Top-level Areas
+                  {t.repoSlide.largestTopLevelAreas}
                 </h2>
                 <div className="mt-4 space-y-3">
                   {data.context.focusDirectories.length === 0 && (
                     <div className="text-sm text-slate-500 dark:text-slate-400">
-                      No focus directories detected in the scanned tree.
+                      {t.repoSlide.noFocusDirectories}
                     </div>
                   )}
                   {data.context.focusDirectories.map((directory) => (
@@ -334,7 +335,7 @@ export function RepoSlidePageClient() {
                             {directory.path}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {directory.fileCount} files scanned
+                            {t.repoSlide.filesScanned.replace("{count}", String(directory.fileCount))}
                           </div>
                         </div>
                       </div>
@@ -358,10 +359,10 @@ export function RepoSlidePageClient() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    Prompt Preview
+                    {t.repoSlide.promptPreview}
                   </h2>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
-                    This is the first task the agent will receive.
+                    {t.repoSlide.promptPreviewDesc}
                   </div>
                 </div>
               </div>

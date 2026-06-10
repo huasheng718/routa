@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import zh from "@/i18n/locales/zh";
 
 const navState = vi.hoisted(() => ({
   push: vi.fn(),
@@ -449,10 +450,10 @@ describe("FeatureExplorerPageClient", () => {
 
     expect(screen.getByTestId("generate-feature-tree-drawer")).toBeTruthy();
 
-    await screen.findByText("Quick scan");
-    fireEvent.click(screen.getByRole("button", { name: "Quick scan" }));
-    fireEvent.click(screen.getByLabelText("Preview only"));
-    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    await screen.findByText(zh.featureExplorer.generateModeQuickScan);
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateModeQuickScan }));
+    fireEvent.click(screen.getByLabelText(zh.featureExplorer.dryRunLabel));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateAction }));
 
     await waitFor(() => {
       expect(sessionLaunchState.desktopAwareFetch).toHaveBeenCalledWith(
@@ -590,9 +591,9 @@ describe("FeatureExplorerPageClient", () => {
     render(<FeatureExplorerPageClient workspaceId="default" />);
 
     await waitFor(() => {
-      expect(screen.getByText("1 file profiles")).toBeTruthy();
-      expect(screen.getByText("1 feature profiles")).toBeTruthy();
-      expect(screen.getByText("Friction profile ready")).toBeTruthy();
+      expect(screen.getByText(`1 ${zh.featureExplorer.fileProfilesLabel}`)).toBeTruthy();
+      expect(screen.getByText(`1 ${zh.featureExplorer.featureProfilesLabel}`)).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.frictionProfilesReady)).toBeTruthy();
     });
 
     fireEvent.click(screen.getByTestId("refresh-friction-profiles-button"));
@@ -714,10 +715,10 @@ describe("FeatureExplorerPageClient", () => {
     render(<FeatureExplorerPageClient workspaceId="default" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Saved history")).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryTitle)).toBeTruthy();
       expect(screen.getByText("Start from the workspace shell, then narrow to a single feature file.")).toBeTruthy();
       expect(screen.getAllByText("Workspace Overview").length).toBeGreaterThan(0);
-      expect(screen.getByText("Feature")).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryFeature)).toBeTruthy();
     });
 
     expect(
@@ -941,11 +942,11 @@ describe("FeatureExplorerPageClient", () => {
     render(<FeatureExplorerPageClient workspaceId="default" />);
 
     await waitFor(() => {
-      expect(screen.getByText("Scope")).toBeTruthy();
-      expect(screen.getByText("Next ask")).toBeTruthy();
-      expect(screen.getByText("Must include")).toBeTruthy();
-      expect(screen.getByText("Avoid")).toBeTruthy();
-      expect(screen.getByText("Still need")).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryScopeLabel)).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryNextAskLabel)).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryMustIncludeLabel)).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryAvoidLabel)).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.retrospectiveHistoryStillNeedLabel)).toBeTruthy();
       expect(screen.getByText("Analyze only how session-analysis.ts writes retrospective memory.")).toBeTruthy();
       expect(screen.getByText("none")).toBeTruthy();
     });
@@ -995,9 +996,9 @@ describe("FeatureExplorerPageClient", () => {
 
     expect(screen.getByTestId("generate-feature-tree-drawer")).toBeTruthy();
 
-    await screen.findByText("Quick scan");
-    fireEvent.click(screen.getByRole("button", { name: "Quick scan" }));
-    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    await screen.findByText(zh.featureExplorer.generateModeQuickScan);
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateModeQuickScan }));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateAction }));
 
     await waitFor(() => {
       expect(screen.queryByTestId("generate-feature-tree-drawer")).toBeNull();
@@ -1080,7 +1081,7 @@ describe("FeatureExplorerPageClient", () => {
     fireEvent.click(screen.getByTestId("generate-feature-tree-button"));
 
     await screen.findByText("Agent");
-    fireEvent.click(screen.getByRole("button", { name: "Generate with agent" }));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateWithAgentAction }));
 
     await waitFor(() => {
       expect(analysisAcpState.connect).toHaveBeenCalled();
@@ -1093,7 +1094,7 @@ describe("FeatureExplorerPageClient", () => {
         undefined,
         undefined,
         "feature-tree-orchestrator",
-        "en",
+        "zh",
         undefined,
         undefined,
         "main",
@@ -1227,7 +1228,7 @@ describe("FeatureExplorerPageClient", () => {
 
     fireEvent.click(screen.getByTestId("generate-feature-tree-button"));
     await screen.findByText("Agent");
-    fireEvent.click(screen.getByRole("button", { name: "Generate with agent" }));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateWithAgentAction }));
 
     await waitFor(() => {
       expect(analysisAcpState.promptSession).toHaveBeenCalledWith(
@@ -1246,7 +1247,7 @@ describe("FeatureExplorerPageClient", () => {
     view.rerender(<FeatureExplorerPageClient workspaceId="default" />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Applying agent result…" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: zh.featureExplorer.applyingAgentResult })).toBeTruthy();
     });
 
     expect(
@@ -1277,7 +1278,7 @@ describe("FeatureExplorerPageClient", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Applying agent result…" })).toBeNull();
+      expect(screen.queryByRole("button", { name: zh.featureExplorer.applyingAgentResult })).toBeNull();
     });
   });
 
@@ -1358,7 +1359,7 @@ describe("FeatureExplorerPageClient", () => {
 
     fireEvent.click(screen.getByTestId("generate-feature-tree-button"));
     await screen.findByText("Agent");
-    fireEvent.click(screen.getByRole("button", { name: "Generate with agent" }));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.generateWithAgentAction }));
 
     await waitFor(() => {
       expect(analysisAcpState.promptSession).toHaveBeenCalledWith(
@@ -1480,32 +1481,31 @@ describe("FeatureExplorerPageClient", () => {
     const executionGroupToggle = screen.getByRole("button", { name: /Execution/i });
     expect(screen.getAllByText("Execution").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Feature A").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Feature Structure")).toBeNull();
+    expect(screen.queryByText(zh.featureExplorer.featureStructureHeading)).toBeNull();
     expect(screen.getByText("Summary")).toBeTruthy();
     expect(screen.getByTestId("feature-metric-pages-feature-a").textContent).toContain("1");
     expect(screen.getByTestId("feature-metric-apis-feature-a").textContent).toContain("1");
-    expect(within(executionGroupToggle).getByText("1 Pages")).toBeTruthy();
+    expect(within(executionGroupToggle).getByText(`1 ${zh.featureExplorer.pageSection}`)).toBeTruthy();
     expect(within(executionGroupToggle).getByText("1 API")).toBeTruthy();
-    expect(within(executionGroupToggle).getByText("1 files")).toBeTruthy();
+    expect(within(executionGroupToggle).getByText(`1 ${zh.featureExplorer.filesLabel}`)).toBeTruthy();
     expect(screen.getByLabelText("Expand Feature A")).toBeTruthy();
-    expect(screen.getByText("Feature taxonomy ready")).toBeTruthy();
-    expect(screen.getByText("1 curated")).toBeTruthy();
-    expect(screen.getByText("0 inferred")).toBeTruthy();
-    expect(screen.getByText("Frontend routes")).toBeTruthy();
-    expect(screen.getAllByText("API surfaces").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Source files").length).toBeGreaterThan(0);
+    expect(screen.getByText(zh.featureExplorer.repositoryReady)).toBeTruthy();
+    expect(screen.getByText(`1 ${zh.featureExplorer.curatedFeaturesLabel}`)).toBeTruthy();
+    expect(screen.getByText(`0 ${zh.featureExplorer.inferredFeaturesLabel}`)).toBeTruthy();
+    expect(screen.getByText(zh.featureExplorer.frontendRoutesLabel)).toBeTruthy();
+    expect(screen.getAllByText(zh.featureExplorer.apiSurfacesLabel).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(zh.featureExplorer.sourceFilesLabel).length).toBeGreaterThan(0);
     expect(screen.queryByText("/workspace/:workspaceId/feature-explorer")).toBeNull();
     expect(screen.queryByText("/api/feature-explorer")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /Frontend routes/i }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(zh.featureExplorer.frontendRoutesLabel) }));
     expect(screen.getByText("/workspace/:workspaceId/feature-explorer")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /API Source/i }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(zh.featureExplorer.apiSourceLabel) }));
     expect(screen.getByText("/api/feature-explorer")).toBeTruthy();
 
-    expect(screen.queryByRole("button", { name: "Context" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Screenshot" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "API" })).toBeNull();
+    expect(screen.queryByRole("button", { name: zh.featureExplorer.contextTab })).toBeNull();
+    expect(screen.queryByRole("button", { name: zh.featureExplorer.screenshotTab })).toBeNull();
   });
 
   it("switches surface navigation to surfaces tree mode", async () => {
@@ -1540,7 +1540,7 @@ describe("FeatureExplorerPageClient", () => {
 
     render(<FeatureExplorerPageClient workspaceId="default" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Surfaces" }));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.browserUrlView }));
 
     expect(screen.getByText("/workspace")).toBeTruthy();
     expect(screen.queryByText(":workspaceId")).toBeNull();
@@ -1616,10 +1616,10 @@ describe("FeatureExplorerPageClient", () => {
 
     render(<FeatureExplorerPageClient workspaceId="default" />);
 
-    expect(screen.getByText("Inferred feature map available")).toBeTruthy();
-    expect(screen.getByText("0 curated")).toBeTruthy();
-    expect(screen.getByText("1 inferred")).toBeTruthy();
-    expect(screen.queryByText("Feature taxonomy missing")).toBeNull();
+    expect(screen.getByText(zh.featureExplorer.repositoryInferred)).toBeTruthy();
+    expect(screen.getByText(`0 ${zh.featureExplorer.curatedFeaturesLabel}`)).toBeTruthy();
+    expect(screen.getByText(`1 ${zh.featureExplorer.inferredFeaturesLabel}`)).toBeTruthy();
+    expect(screen.queryByText(zh.featureExplorer.repositoryMissingTaxonomy)).toBeNull();
     expect(screen.getAllByText("Inferred Surfaces").length).toBeGreaterThan(0);
   });
 
@@ -1755,7 +1755,7 @@ describe("FeatureExplorerPageClient", () => {
     expect(screen.getByLabelText("Expand Feature Next.js")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Feature Hidden" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "APIs" }));
+    fireEvent.click(screen.getByRole("button", { name: zh.featureExplorer.apiView }));
 
     expect(screen.getByText("/feature-explorer")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Feature Next\.js/ })).toBeNull();
@@ -1901,7 +1901,7 @@ describe("FeatureExplorerPageClient", () => {
 
     render(<FeatureExplorerPageClient workspaceId="default" />);
 
-    expect(screen.queryByText("Selected surface")).toBeNull();
+    expect(screen.queryByText(zh.featureExplorer.selectedSurface)).toBeNull();
     expect(screen.getAllByText("Kanban Workflow").length).toBeGreaterThan(0);
     expect(screen.queryByText("Capability group")).toBeNull();
   });
@@ -2009,7 +2009,7 @@ describe("FeatureExplorerPageClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "/api/feature-explorer" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Selected surface")).toBeTruthy();
+      expect(screen.getByText(zh.featureExplorer.selectedSurface)).toBeTruthy();
     });
     expect(screen.queryByText("Learned prompt context")).toBeNull();
   });
@@ -2106,7 +2106,7 @@ describe("FeatureExplorerPageClient", () => {
     });
 
     expect(screen.getAllByText("Kanban Workflow").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Source files").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(zh.featureExplorer.sourceFilesLabel).length).toBeGreaterThan(0);
     expect(screen.getByTestId("feature-tree-changes-folder-src").textContent).toBe("6");
     expect(screen.getByTestId("feature-tree-sessions-folder-app").textContent).toBe("6");
     expect(screen.getByTestId("feature-tree-updated-folder-src").textContent).not.toBe("-");

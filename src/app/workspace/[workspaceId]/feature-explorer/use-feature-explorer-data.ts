@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation } from "@/i18n";
 import type {
   CapabilityGroup,
   FeatureDetail,
@@ -42,7 +44,7 @@ async function loadFeatureDetail(
 ): Promise<FeatureDetail | null> {
   const query = buildQuery(options);
   const response = await desktopAwareFetch(
-    `/feature-explorer/${encodeURIComponent(featureId)}?${query}`,
+    resolveApiPath(`/feature-explorer/${encodeURIComponent(featureId)}?${query}`),
   );
   if (!response.ok) return null;
   return response.json();
@@ -63,9 +65,48 @@ function emptySurfaceIndexResponse(warnings: string[] = []): FeatureSurfaceIndex
   };
 }
 
+function formatTemplate(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
+function localizeSurfaceIndexWarning(
+  warning: string,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const missingPrefix = "Feature surface index not found at ";
+  if (warning.startsWith(missingPrefix)) {
+    return formatTemplate(t.specBoard.surfaceMapMissingWarning, {
+      path: warning.slice(missingPrefix.length),
+    });
+  }
+
+  const invalidPrefix = "Feature surface index is not valid JSON at ";
+  if (warning.startsWith(invalidPrefix)) {
+    return formatTemplate(t.specBoard.surfaceMapInvalidWarning, {
+      path: warning.slice(invalidPrefix.length),
+    });
+  }
+
+  if (warning.includes("FEATURE_TREE.md not found")) {
+    return formatTemplate(t.specBoard.surfaceMapMissingWarning, {
+      path: "docs/product-specs/FEATURE_TREE.md",
+    });
+  }
+
+  if (warning === "Feature surface index unavailable") {
+    return t.specBoard.surfaceMapUnavailable;
+  }
+
+  return t.specBoard.surfaceMapWarningGeneric;
+}
+
 function normalizeSurfaceIndexPayload(
   payload: unknown,
   fallbackWarning: string,
+  t: ReturnType<typeof useTranslation>["t"],
 ): FeatureSurfaceIndexResponse {
   if (!payload || typeof payload !== "object") {
     return emptySurfaceIndexResponse([fallbackWarning]);
@@ -102,7 +143,7 @@ function normalizeSurfaceIndexPayload(
     warnings: Array.isArray((payload as { warnings?: unknown }).warnings)
       ? (payload as { warnings: unknown[] }).warnings.filter(
         (warning): warning is string => typeof warning === "string",
-      )
+      ).map((warning) => localizeSurfaceIndexWarning(warning, t))
       : [],
   };
 }
@@ -110,6 +151,7 @@ function normalizeSurfaceIndexPayload(
 export function useFeatureExplorerData(
   options: UseFeatureExplorerDataOptions,
 ): UseFeatureExplorerDataResult {
+  const { t } = useTranslation();
   const { workspaceId, repoPath, refreshKey } = options;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,8 +178,8 @@ export function useFeatureExplorerData(
         const opts = { workspaceId, repoPath, refreshKey };
         const query = buildQuery(opts);
         const [response, surfaceResponse] = await Promise.all([
-          desktopAwareFetch(`/feature-explorer?${query}`),
-          desktopAwareFetch(`/spec/surface-index?${query}`),
+          desktopAwareFetch(resolveApiPath(`/feature-explorer?${query}`)),
+          desktopAwareFetch(resolveApiPath(`/spec/surface-index?${query}`)),
         ]);
         const body = await response.json().catch(() => ({}));
         const surfacePayload = await surfaceResponse.json().catch(() => null);
@@ -150,8 +192,8 @@ export function useFeatureExplorerData(
           setFeatures(data.features ?? []);
           setSurfaceIndex(
             surfaceResponse.ok
-              ? normalizeSurfaceIndexPayload(surfacePayload, "Feature surface index unavailable")
-              : emptySurfaceIndexResponse(["Feature surface index unavailable"]),
+              ? normalizeSurfaceIndexPayload(surfacePayload, t.specBoard.surfaceMapUnavailable, t)
+              : emptySurfaceIndexResponse([t.specBoard.surfaceMapUnavailable]),
           );
 
           // Auto-fetch first feature detail
@@ -180,7 +222,7 @@ export function useFeatureExplorerData(
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, repoPath, refreshKey]);
+  }, [workspaceId, repoPath, refreshKey, t]);
 
   const fetchFeatureDetail = useCallback(
     async (featureId: string): Promise<FeatureDetail | null> => {

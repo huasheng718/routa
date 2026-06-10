@@ -28,7 +28,7 @@ describe("useFeatureExplorerData", () => {
   beforeEach(() => {
     desktopAwareFetch.mockReset();
     desktopAwareFetch.mockImplementation(async (url: string) => {
-      if (url.startsWith("/feature-explorer/feature-a?")) {
+      if (url.startsWith("/api/feature-explorer/feature-a?")) {
         return okJson({
           id: "feature-a",
           name: "Feature A",
@@ -48,7 +48,7 @@ describe("useFeatureExplorerData", () => {
         });
       }
 
-      if (url.startsWith("/feature-explorer?")) {
+      if (url.startsWith("/api/feature-explorer?")) {
         return okJson({
           capabilityGroups: [{ id: "execution", name: "Execution", description: "" }],
           features: [
@@ -69,7 +69,7 @@ describe("useFeatureExplorerData", () => {
         });
       }
 
-      if (url.startsWith("/spec/surface-index?")) {
+      if (url.startsWith("/api/spec/surface-index?")) {
         return okJson({
           generatedAt: "2026-04-17T00:00:00.000Z",
           pages: [
@@ -120,9 +120,9 @@ describe("useFeatureExplorerData", () => {
       expect(result.current.initialFeatureId).toBe("feature-a");
     });
 
-    expect(desktopAwareFetch).toHaveBeenCalledWith("/feature-explorer?workspaceId=default");
-    expect(desktopAwareFetch).toHaveBeenCalledWith("/spec/surface-index?workspaceId=default");
-    expect(desktopAwareFetch).toHaveBeenCalledWith("/feature-explorer/feature-a?workspaceId=default");
+    expect(desktopAwareFetch).toHaveBeenCalledWith("/api/feature-explorer?workspaceId=default");
+    expect(desktopAwareFetch).toHaveBeenCalledWith("/api/spec/surface-index?workspaceId=default");
+    expect(desktopAwareFetch).toHaveBeenCalledWith("/api/feature-explorer/feature-a?workspaceId=default");
 
     rerender({
       workspaceId: "default",
@@ -132,29 +132,29 @@ describe("useFeatureExplorerData", () => {
 
     await waitFor(() => {
       expect(desktopAwareFetch).toHaveBeenCalledWith(
-        "/feature-explorer?workspaceId=default&repoPath=%2Ftmp%2Flocal-project",
+        "/api/feature-explorer?workspaceId=default&repoPath=%2Ftmp%2Flocal-project",
       );
     });
 
     expect(desktopAwareFetch).toHaveBeenCalledWith(
-      "/spec/surface-index?workspaceId=default&repoPath=%2Ftmp%2Flocal-project",
+      "/api/spec/surface-index?workspaceId=default&repoPath=%2Ftmp%2Flocal-project",
     );
     expect(desktopAwareFetch).toHaveBeenCalledWith(
-      "/feature-explorer/feature-a?workspaceId=default&repoPath=%2Ftmp%2Flocal-project",
+      "/api/feature-explorer/feature-a?workspaceId=default&repoPath=%2Ftmp%2Flocal-project",
     );
   });
 
   it("keeps the page usable when no generated feature tree exists", async () => {
     desktopAwareFetch.mockReset();
     desktopAwareFetch.mockImplementation(async (url: string) => {
-      if (url.startsWith("/feature-explorer?")) {
+      if (url.startsWith("/api/feature-explorer?")) {
         return okJson({
           capabilityGroups: [],
           features: [],
         });
       }
 
-      if (url.startsWith("/spec/surface-index?")) {
+      if (url.startsWith("/api/spec/surface-index?")) {
         return okJson({
           generatedAt: "",
           pages: [],
@@ -188,9 +188,9 @@ describe("useFeatureExplorerData", () => {
     expect(result.current.error).toBeNull();
     expect(result.current.features).toEqual([]);
     expect(result.current.initialFeatureId).toBe("");
-    expect(result.current.surfaceIndex.warnings[0]).toContain("FEATURE_TREE.md");
+    expect(result.current.surfaceIndex.warnings[0]).toBe("未找到产品面索引：docs/product-specs/FEATURE_TREE.md");
     expect(desktopAwareFetch).not.toHaveBeenCalledWith(
-      expect.stringMatching(/^\/feature-explorer\/[^?]+\?/),
+      expect.stringMatching(/^\/api\/feature-explorer\/[^?]+\?/),
     );
   });
 });

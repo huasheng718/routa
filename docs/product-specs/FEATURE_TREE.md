@@ -598,12 +598,13 @@ Multi-agent coordination platform. This document is auto-generated from:
 | POST | `/api/skills/clone` | Clone a skill repository | `src/app/api/skills/clone/route.ts` | `crates/routa-server/src/api/skills_clone.rs` |
 | POST | `/api/skills/upload` | Upload skill as zip | `src/app/api/skills/upload/route.ts` | `crates/routa-server/src/api/skills_upload.rs` |
 
-### Spec (3)
+### Spec (4)
 
 | Method | Endpoint | Details | Next.js | Rust |
 |--------|----------|---------|---------|------|
 | POST | `/api/spec/feature-tree/generate` | Scan the repository and generate FEATURE_TREE.md + feature-tree.index.json | `src/app/api/spec/feature-tree/generate/route.ts` | `crates/routa-server/src/api/spec.rs` |
 | GET | `/api/spec/issues` | List local issue specs | `src/app/api/spec/issues/route.ts` | `crates/routa-server/src/api/spec.rs` |
+| POST | `/api/spec/issues` | Create a local issue spec with optional attachments | `src/app/api/spec/issues/route.ts` | `crates/routa-server/src/api/spec.rs` |
 | GET | `/api/spec/surface-index` | Read the generated product surface index for spec analysis | `src/app/api/spec/surface-index/route.ts` | `crates/routa-server/src/api/spec.rs` |
 
 ### Specialists (4)

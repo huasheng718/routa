@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { OverlayModal, BgTaskStatusIcon, bgTaskStatusClass, formatRelativeTime } from "./ui-components";
 import { useTranslation } from "@/i18n";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import type { BackgroundTaskInfo } from "./types";
 import { Clock, Plus, RefreshCw, Trash2, X, TriangleAlert, SquarePen } from "lucide-react";
 
@@ -17,7 +18,7 @@ interface BgTasksTabProps {
 }
 
 export function BgTasksTab({ bgTasks, workspaceId, workspaces, onRefresh }: BgTasksTabProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const router = useRouter();
 
   const [specialists, setSpecialists] = useState<Array<{ id: string; name: string; description?: string }>>([]);
@@ -29,11 +30,11 @@ export function BgTasksTab({ bgTasks, workspaceId, workspaces, onRefresh }: BgTa
 
   // Fetch specialists for agent selector
   useEffect(() => {
-    desktopAwareFetch("/api/specialists")
+    desktopAwareFetch(buildSpecialistsApiPath(locale))
       .then((r) => r.json())
       .then((d) => setSpecialists((d.specialists ?? []).filter((s: { enabled?: boolean }) => s.enabled !== false)))
       .catch(() => { });
-  }, []);
+  }, [locale]);
 
   // Auto-refresh every 10s when enabled
   useEffect(() => {

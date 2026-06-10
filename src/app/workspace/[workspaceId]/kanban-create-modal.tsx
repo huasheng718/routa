@@ -174,15 +174,15 @@ export function KanbanCreateModal({
               onChange={(e) => setDraft((d) => ({ ...d, priority: e.target.value }))}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-[#0d1018] dark:text-slate-200"
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
+              <option value="low">{t.kanbanCreate.low}</option>
+              <option value="medium">{t.kanbanCreate.medium}</option>
+              <option value="high">{t.kanbanCreate.high}</option>
+              <option value="urgent">{t.kanbanCreate.urgent}</option>
             </select>
             <input
               value={draft.labels}
               onChange={(e) => setDraft((d) => ({ ...d, labels: e.target.value }))}
-              placeholder="labels,comma,separated"
+              placeholder={t.kanbanCreate.labelsPlaceholder}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-[#0d1018] dark:text-slate-200"
             />
           </div>
