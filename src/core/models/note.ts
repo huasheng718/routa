@@ -76,7 +76,7 @@ export function createNote(params: {
 export function createSpecNote(workspaceId: string): Note {
   return createNote({
     id: SPEC_NOTE_ID,
-    title: "Spec",
+    title: "规格",
     content: "",
     workspaceId,
     metadata: { type: "spec" },

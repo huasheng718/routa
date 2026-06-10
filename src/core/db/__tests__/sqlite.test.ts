@@ -37,7 +37,7 @@ describe("ensureSqliteDefaultWorkspace", () => {
 
     expect(row).toMatchObject({
       id: "default",
-      title: "Default Workspace",
+      title: "默认工作区",
       status: "active",
     });
     expect(JSON.parse(row?.metadata ?? "{}")).toHaveProperty("worktreeRoot");

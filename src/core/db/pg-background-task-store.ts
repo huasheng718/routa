@@ -2,7 +2,7 @@
  * PgBackgroundTaskStore — Postgres-backed implementation of BackgroundTaskStore.
  */
 
-import { eq, and, asc, desc, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { eq, and, asc, desc, isNotNull, isNull, lt, sql, inArray } from "drizzle-orm";
 import type { Database } from "./index";
 import { backgroundTasks } from "./schema";
 import type { BackgroundTask, BackgroundTaskStatus } from "../models/background-task";
@@ -237,7 +237,6 @@ export class PgBackgroundTaskStore implements BackgroundTaskStore {
   }
 
   async listReadyToRun(): Promise<BackgroundTask[]> {
-    // Get all PENDING tasks
     const pending = await this.db
       .select()
       .from(backgroundTasks)
@@ -247,25 +246,26 @@ export class PgBackgroundTaskStore implements BackgroundTaskStore {
         asc(backgroundTasks.createdAt)
       );
 
-    // Filter to tasks whose dependencies are all COMPLETED
-    const ready: BackgroundTask[] = [];
-    for (const row of pending) {
-      const task = this.toModel(row);
-      if (!task.dependsOnTaskIds || task.dependsOnTaskIds.length === 0) {
-        ready.push(task);
-        continue;
-      }
-      // Check all dependencies
-      const deps = await this.db
+    const tasks = pending.map(this.toModel.bind(this));
+    const dependencyIds = [...new Set(tasks.flatMap((task) => task.dependsOnTaskIds ?? []))];
+    const dependencyStatusById = new Map<string, BackgroundTaskStatus>();
+
+    if (dependencyIds.length > 0) {
+      const dependencies = await this.db
         .select()
         .from(backgroundTasks)
-        .where(sql`${backgroundTasks.id} = ANY(${task.dependsOnTaskIds})`);
-      const allCompleted = deps.every((d) => d.status === "COMPLETED");
-      if (allCompleted) {
-        ready.push(task);
+        .where(inArray(backgroundTasks.id, dependencyIds));
+
+      for (const dependency of dependencies) {
+        dependencyStatusById.set(dependency.id, dependency.status as BackgroundTaskStatus);
       }
     }
-    return ready;
+
+    return tasks.filter((task) => {
+      const dependsOnTaskIds = task.dependsOnTaskIds ?? [];
+      if (dependsOnTaskIds.length === 0) return true;
+      return dependsOnTaskIds.every((dependencyId) => dependencyStatusById.get(dependencyId) === "COMPLETED");
+    });
   }
 
   async updateTaskOutput(taskId: string, output: string): Promise<void> {

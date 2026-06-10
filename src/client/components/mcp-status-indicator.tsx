@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation } from "@/i18n";
 
 interface McpStatusResponse {
   available: boolean;
@@ -32,6 +33,7 @@ interface McpStatusIndicatorProps {
 }
 
 export function McpStatusIndicator({ compact = false, className = "" }: McpStatusIndicatorProps) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<McpStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +81,7 @@ export function McpStatusIndicator({ compact = false, className = "" }: McpStatu
       setStatus({
         available: false,
         checkedAt: new Date().toISOString(),
-        error: "MCP status check failed",
+        error: t.settings.mcpTab.statusCheckFailed,
         activeServerCount: 1,
         toolsHref: "/settings/mcp?tab=tools",
         builtInServer: {
@@ -99,7 +101,7 @@ export function McpStatusIndicator({ compact = false, className = "" }: McpStatu
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t.settings.mcpTab.statusCheckFailed]);
 
   useEffect(() => {
     void refresh();
@@ -123,23 +125,25 @@ export function McpStatusIndicator({ compact = false, className = "" }: McpStatu
       ? "bg-sky-500"
       : "bg-amber-500";
   const label = isChecking
-    ? "Checking MCP..."
+    ? t.settings.mcpTab.checkingStatus
     : available
       ? status.activeServerCount > 1
-        ? `MCP ${status.activeServerCount} active`
-        : "MCP ready"
-      : "MCP unavailable";
+        ? t.settings.mcpTab.activeServerLabel.replace("{count}", String(status.activeServerCount))
+        : t.settings.mcpTab.readyLabel
+      : t.settings.mcpTab.unavailableLabel;
   const title = isChecking
-    ? "Checking MCP status"
+    ? t.settings.mcpTab.statusTitleChecking
     : available && status
       ? [
         `${status.builtInServer.name} · ${status.builtInServer.toolCount} tools · ${status.builtInServer.mode}`,
         status.customServers.totalCount > 0
-          ? `${status.customServers.enabledCount}/${status.customServers.totalCount} custom servers enabled`
-          : "No custom MCP servers configured",
-        "Open MCP tools",
+          ? t.settings.mcpTab.customServersEnabled
+            .replace("{enabled}", String(status.customServers.enabledCount))
+            .replace("{total}", String(status.customServers.totalCount))
+          : t.settings.mcpTab.noCustomServers,
+        t.settings.mcpTab.openTools,
       ].join(" · ")
-      : `${status?.error ?? "MCP unavailable"}. Open MCP tools.`;
+      : `${status?.error ?? t.settings.mcpTab.unavailableLabel}. ${t.settings.mcpTab.openTools}.`;
 
   return (
     <div className="flex items-center">

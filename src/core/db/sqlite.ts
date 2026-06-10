@@ -122,7 +122,7 @@ export function ensureSqliteDefaultWorkspace(rawDb?: BetterSqlite3.Database): vo
 
   const workspace = createWorkspace({
     id: "default",
-    title: "Default Workspace",
+    title: "默认工作区",
   });
 
   sqlite.prepare(`

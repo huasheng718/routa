@@ -55,12 +55,6 @@ const EMPTY_MCP_FORM: McpServerForm = {
   env: "",
 };
 
-const TYPE_LABEL: Record<McpServerType, string> = {
-  stdio: "Stdio",
-  http: "HTTP",
-  sse: "SSE",
-};
-
 const TYPE_CHIP: Record<McpServerType, string> = {
   stdio: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
   http: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
@@ -81,6 +75,11 @@ export function McpServersTab() {
   const [form, setForm] = useState<McpServerForm>(EMPTY_MCP_FORM);
   const { t } = useTranslation();
   const tab = t.settings.mcpTab;
+  const typeLabels: Record<McpServerType, string> = {
+    stdio: tab.typeStdioShort,
+    http: tab.typeHttpStream,
+    sse: tab.typeSseSse,
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -226,14 +225,14 @@ export function McpServersTab() {
               <label className={labelCls}>{tab.idLabel}</label>
               <input type="text" value={form.id}
                 onChange={(event) => setForm({ ...form, id: event.target.value })}
-                placeholder="my-mcp-server" disabled={!!editingId}
+                placeholder={tab.idPlaceholder} disabled={!!editingId}
                 className={`${inputCls} font-mono ${editingId ? "opacity-60" : ""}`} />
             </div>
             <div className="space-y-1">
               <label className={labelCls}>{tab.nameLabel}</label>
               <input type="text" value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
-                placeholder="My MCP Server" className={inputCls} />
+                placeholder={tab.namePlaceholder} className={inputCls} />
             </div>
           </div>
 
@@ -241,7 +240,7 @@ export function McpServersTab() {
             <label className={labelCls}>{tab.descriptionLabel}</label>
             <input type="text" value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
-              placeholder="Brief description" className={inputCls} />
+              placeholder={tab.descriptionPlaceholder} className={inputCls} />
           </div>
 
           <div className="space-y-1">
@@ -358,7 +357,7 @@ export function McpServersTab() {
               </button>
 
               <span className="text-xs font-medium text-slate-800 dark:text-slate-200 flex-1 truncate">{server.name}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${TYPE_CHIP[server.type]}`}>{TYPE_LABEL[server.type]}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${TYPE_CHIP[server.type]}`}>{typeLabels[server.type]}</span>
               <button onClick={() => handleEdit(server)}
                 className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors" title={tab.editTitle}>
                 <SquarePen className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>

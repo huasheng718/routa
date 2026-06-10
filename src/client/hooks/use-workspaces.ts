@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { resolveApiPath } from "../config/backend";
 import { desktopAwareFetch } from "../utils/diagnostics";
 
 export interface WorkspaceData {
@@ -41,7 +42,7 @@ export function useWorkspaces(): UseWorkspacesReturn {
   const fetchWorkspaces = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await desktopAwareFetch("/api/workspaces?status=active");
+      const res = await desktopAwareFetch(resolveApiPath("/workspaces?status=active"));
       if (!res.ok) return;
       const data = await res.json();
       setWorkspaces(data.workspaces ?? []);
@@ -51,7 +52,7 @@ export function useWorkspaces(): UseWorkspacesReturn {
   }, []);
 
   const createWorkspace = useCallback(async (title: string): Promise<WorkspaceData | null> => {
-    const res = await desktopAwareFetch("/api/workspaces", {
+    const res = await desktopAwareFetch(resolveApiPath("/workspaces"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
@@ -63,7 +64,7 @@ export function useWorkspaces(): UseWorkspacesReturn {
   }, [fetchWorkspaces]);
 
   const archiveWorkspace = useCallback(async (id: string): Promise<void> => {
-    await desktopAwareFetch(`/api/workspaces/${id}/archive`, {
+    await desktopAwareFetch(resolveApiPath(`/workspaces/${id}/archive`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: true }),
@@ -86,24 +87,40 @@ export function useCodebases(workspaceId: string): {
 
   const fetchCodebases = useCallback(async () => {
     // Skip if workspaceId is missing or is a placeholder (static export mode)
-    if (!workspaceId || workspaceId === "__placeholder__") return;
-    const res = await desktopAwareFetch(`/api/workspaces/${workspaceId}/codebases`);
+    if (!workspaceId || workspaceId === "__placeholder__") {
+      setCodebases([]);
+      return;
+    }
+    const res = await desktopAwareFetch(resolveApiPath(`/workspaces/${workspaceId}/codebases`));
     if (!res.ok) return;
     const data = await res.json();
-    setCodebases(data.codebases ?? []);
+    setCodebases(Array.isArray(data.codebases) ? data.codebases : []);
   }, [workspaceId]);
 
   useEffect(() => {
     let active = true;
+
     queueMicrotask(() => {
-      if (active) {
-        void fetchCodebases();
-      }
+      if (!active) return;
+      setCodebases([]);
+
+      void (async () => {
+        if (!workspaceId || workspaceId === "__placeholder__") return;
+        const res = await desktopAwareFetch(resolveApiPath(`/workspaces/${workspaceId}/codebases`));
+        if (!active || !res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        setCodebases(Array.isArray(data.codebases) ? data.codebases : []);
+      })().catch(() => {
+        if (!active) return;
+        setCodebases([]);
+      });
     });
+
     return () => {
       active = false;
     };
-  }, [fetchCodebases]);
+  }, [workspaceId]);
 
   return { codebases, fetchCodebases };
 }

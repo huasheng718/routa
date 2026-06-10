@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation, type TranslationDictionary } from "@/i18n";
 
 interface McpToolDefinition {
   name: string;
@@ -88,7 +89,25 @@ function getToolCategory(name: string): ToolCategory {
   return "Agent";
 }
 
+function getToolCategoryLabel(category: ToolCategory, t: TranslationDictionary): string {
+  switch (category) {
+    case "Task":
+      return t.mcpTools.categoryTask;
+    case "Agent":
+      return t.mcpTools.categoryAgent;
+    case "Note":
+      return t.mcpTools.categoryNote;
+    case "Workspace":
+      return t.mcpTools.categoryWorkspace;
+    case "Kanban":
+      return t.nav.kanban;
+    case "Git":
+      return t.mcpTools.categoryGit;
+  }
+}
+
 export function McpToolsExplorer() {
+  const { t } = useTranslation();
   const [tools, setTools] = useState<McpToolDefinition[]>([]);
   const [selectedToolName, setSelectedToolName] = useState<string>("");
   const [argsJson, setArgsJson] = useState<string>("{}");
@@ -109,7 +128,7 @@ export function McpToolsExplorer() {
     try {
       const response = await desktopAwareFetch("/api/mcp/tools", { cache: "no-store" });
       if (!response.ok) {
-        throw new Error(`Failed to load tools: ${response.status}`);
+        throw new Error(`${t.mcpTools.loadFailedPrefix} ${response.status}`);
       }
       const data = await response.json();
       const nextTools = Array.isArray(data?.tools) ? data.tools : [];
@@ -120,11 +139,11 @@ export function McpToolsExplorer() {
         setEssentialMode(data.globalMode === "essential");
       }
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to load tools");
+      setLoadError(error instanceof Error ? error.message : t.mcpTools.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t.mcpTools.loadFailed, t.mcpTools.loadFailedPrefix]);
 
   const handleToggleMode = useCallback(async (checked: boolean) => {
     setEssentialMode(checked);
@@ -138,9 +157,9 @@ export function McpToolsExplorer() {
       });
       await loadTools();
     } catch (error) {
-      console.error("Failed to toggle tool mode:", error);
+      console.error(t.mcpTools.toggleModeFailed, error);
     }
-  }, [loadTools]);
+  }, [loadTools, t.mcpTools.toggleModeFailed]);
 
   useEffect(() => {
     void loadTools();
@@ -158,16 +177,16 @@ export function McpToolsExplorer() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setResult(JSON.stringify({ error: data?.error ?? "Tool execution failed" }, null, 2));
+        setResult(JSON.stringify({ error: data?.error ?? t.mcpTools.executionFailed }, null, 2));
         return;
       }
       setResult(JSON.stringify(data, null, 2));
     } catch (error) {
-      setResult(JSON.stringify({ error: error instanceof Error ? error.message : "Invalid JSON" }, null, 2));
+      setResult(JSON.stringify({ error: error instanceof Error ? error.message : t.mcpTools.invalidJson }, null, 2));
     } finally {
       setExecuting(false);
     }
-  }, [argsJson, selectedTool]);
+  }, [argsJson, selectedTool, t.mcpTools.executionFailed, t.mcpTools.invalidJson]);
 
   return (
     <div className="grid items-start gap-4 md:grid-cols-[300px_minmax(0,1fr)]">
@@ -175,9 +194,9 @@ export function McpToolsExplorer() {
         <div className="border-b border-desktop-border px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[13px] font-semibold text-desktop-text-primary">MCP Tools</h2>
+              <h2 className="text-[13px] font-semibold text-desktop-text-primary">{t.mcpTools.title}</h2>
               <p className="mt-1 text-[11px] text-desktop-text-secondary">
-                Browse routa-coordination tools and run focused checks against the live MCP surface.
+                {t.mcpTools.description}
               </p>
             </div>
             <button
@@ -186,7 +205,7 @@ export function McpToolsExplorer() {
               disabled={loading}
               className="rounded-full border border-desktop-border bg-desktop-bg-primary px-3 py-1 text-[11px] font-medium text-desktop-text-secondary transition-colors hover:bg-desktop-bg-active disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Loading..." : "Refresh"}
+              {loading ? t.mcpTools.loading : t.mcpTools.refresh}
             </button>
           </div>
 
@@ -201,7 +220,7 @@ export function McpToolsExplorer() {
               <div className="h-4 w-8 rounded-full bg-slate-300 transition-colors peer-checked:bg-sky-500 dark:bg-slate-700" />
               <div className="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
             </div>
-            <span>Essential ({ESSENTIAL_TOOLS_COUNT})</span>
+            <span>{t.mcpTools.essential} ({ESSENTIAL_TOOLS_COUNT})</span>
           </label>
         </div>
 
@@ -232,7 +251,7 @@ export function McpToolsExplorer() {
                     }}
                     className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-[11px] font-semibold ${category.toneClass} ${category.panelClass}`}
                   >
-                    <span>{category.name} ({categoryTools.length})</span>
+                    <span>{getToolCategoryLabel(category.name, t)} ({categoryTools.length})</span>
                     <span>{isCollapsed ? "▶" : "▼"}</span>
                   </button>
 
@@ -267,7 +286,7 @@ export function McpToolsExplorer() {
       <section className="space-y-4">
         {!selectedTool ? (
           <div className="rounded-2xl border border-desktop-border bg-desktop-bg-secondary/70 px-5 py-8 text-[12px] text-desktop-text-secondary shadow-sm">
-            No MCP tool selected.
+            {t.mcpTools.noToolSelected}
           </div>
         ) : (
           <>
@@ -280,7 +299,7 @@ export function McpToolsExplorer() {
                   </p>
                 </div>
                 <div className="rounded-full border border-desktop-border bg-desktop-bg-primary px-2.5 py-1 text-[10px] font-medium text-desktop-text-secondary">
-                  {getToolCategory(selectedTool.name)}
+                  {getToolCategoryLabel(getToolCategory(selectedTool.name), t)}
                 </div>
               </div>
             </div>
@@ -288,14 +307,14 @@ export function McpToolsExplorer() {
             <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <div className="rounded-2xl border border-desktop-border bg-desktop-bg-secondary/70 p-5 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="text-[13px] font-semibold text-desktop-text-primary">Arguments</h4>
+                  <h4 className="text-[13px] font-semibold text-desktop-text-primary">{t.mcpTools.argumentsLabel}</h4>
                   <button
                     type="button"
                     onClick={() => void handleExecuteTool()}
                     disabled={executing}
                     className="rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 transition-colors hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-900/50 dark:bg-sky-900/10 dark:text-sky-300 dark:hover:bg-sky-900/20"
                   >
-                    {executing ? "Running..." : "Run Tool"}
+                    {executing ? t.mcpTools.running : t.mcpTools.runTool}
                   </button>
                 </div>
                 <textarea
@@ -307,15 +326,15 @@ export function McpToolsExplorer() {
               </div>
 
               <div className="rounded-2xl border border-desktop-border bg-desktop-bg-secondary/70 p-5 shadow-sm">
-                <h4 className="mb-3 text-[13px] font-semibold text-desktop-text-primary">Result</h4>
+                <h4 className="mb-3 text-[13px] font-semibold text-desktop-text-primary">{t.mcpTools.result}</h4>
                 <pre className="h-[360px] overflow-auto rounded-xl border border-desktop-border bg-desktop-bg-primary px-3 py-3 font-mono text-[12px] leading-5 text-desktop-text-secondary">
-                  {result || "Run the selected tool to inspect its output."}
+                  {result || t.mcpTools.resultEmpty}
                 </pre>
               </div>
             </div>
 
             <div className="rounded-2xl border border-desktop-border bg-desktop-bg-secondary/70 p-5 shadow-sm">
-              <h4 className="mb-3 text-[13px] font-semibold text-desktop-text-primary">Input Schema</h4>
+              <h4 className="mb-3 text-[13px] font-semibold text-desktop-text-primary">{t.mcpTools.inputSchema}</h4>
               <pre className="overflow-auto rounded-xl border border-desktop-border bg-desktop-bg-primary px-3 py-3 font-mono text-[12px] leading-5 text-desktop-text-secondary">
                 {JSON.stringify(selectedTool.inputSchema ?? {}, null, 2)}
               </pre>
