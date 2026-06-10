@@ -193,7 +193,7 @@ describe("KanbanCodebaseModal", () => {
 
     const branchDeleteButtons = screen.getAllByRole("button", { name: /Remove branch|删除分支/ });
     expect(branchDeleteButtons).toHaveLength(1);
-    expect(screen.getByRole("button", { name: /Clear issue/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Clear issue|清理 issue/i })).toBeTruthy();
 
     fireEvent.click(branchDeleteButtons[0]!);
     expect(handleDeleteIssueBranch).toHaveBeenCalledWith("issue/3487c6ee-js-hello-world");

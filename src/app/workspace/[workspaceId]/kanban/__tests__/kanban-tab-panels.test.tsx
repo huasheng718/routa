@@ -3,8 +3,15 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { buildKanbanSessionRestorePrompt } from "../kanban-tab-panels";
 import type { SessionInfo, TaskInfo } from "../../types";
+
+const source = readFileSync(
+  resolve(__dirname, "../kanban-tab-panels.tsx"),
+  "utf8",
+).replace(/\r\n/g, "\n");
 
 function createSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
   return {
@@ -62,5 +69,13 @@ describe("buildKanbanSessionRestorePrompt", () => {
     expect(prompt).toContain("Card context:");
     expect(prompt).toContain("- Card: unknown");
     expect(prompt).not.toContain("Recent clean conversation:");
+  });
+});
+
+describe("KanbanBoardSurface source performance guards", () => {
+  it("groups tasks by column before rendering columns", () => {
+    expect(source).toContain("const boardTasksByColumn = useMemo(() => {");
+    expect(source).toContain("const columnTasks = boardTasksByColumn.get(column.id) ?? [];");
+    expect(source).not.toContain("const columnTasks = boardTasks.filter");
   });
 });

@@ -82,15 +82,15 @@ describe("KanbanTab URL state", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Story One" }));
-    await screen.findByText("Card Detail");
+    fireEvent.click(screen.getByRole("button", { name: "打开 Story One" }));
+    await screen.findByRole("tablist", { name: "卡片详情" });
 
     expect(window.location.search).toContain("taskId=task-1");
 
-    fireEvent.click(screen.getByRole("button", { name: /Close card detail/i }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭卡片详情" }));
 
     await waitFor(() => {
-      expect(screen.queryByText("Card Detail")).toBeNull();
+      expect(screen.queryByRole("tablist", { name: "卡片详情" })).toBeNull();
     });
     expect(window.location.search).not.toContain("taskId=");
   });
@@ -109,18 +109,18 @@ describe("KanbanTab URL state", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Story Two" }));
+    fireEvent.click(screen.getByRole("button", { name: "打开 Story Two" }));
     await screen.findByDisplayValue("Story Two");
 
-    fireEvent.click(screen.getByRole("button", { name: /Close card detail/i }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭卡片详情" }));
     await waitFor(() => {
-      expect(screen.queryByText("Card Detail")).toBeNull();
+      expect(screen.queryByRole("tablist", { name: "卡片详情" })).toBeNull();
     });
 
     window.history.pushState({}, "", "/workspace/workspace-1/kanban?taskId=task-1");
     window.dispatchEvent(new PopStateEvent("popstate"));
 
-    await screen.findByText("Card Detail");
+    await screen.findByRole("tablist", { name: "卡片详情" });
     expect(screen.getByDisplayValue("Story One")).toBeTruthy();
   });
 
@@ -157,9 +157,57 @@ describe("KanbanTab URL state", () => {
     fireEvent.change(boardSelect, { target: { value: "board-1" } });
 
     await waitFor(() => {
-      expect(screen.queryByText("Card Detail")).toBeNull();
+      expect(screen.queryByRole("tablist", { name: "卡片详情" })).toBeNull();
     });
     expect(window.location.search).toContain("boardId=board-1");
+    expect(window.location.search).not.toContain("taskId=");
+  });
+
+  it("clears stale detail state when switching workspaces in place", async () => {
+    const workspaceTwoBoard: KanbanBoardInfo = {
+      ...board,
+      id: "board-2",
+      workspaceId: "workspace-2",
+      name: "Workspace Two Board",
+    };
+
+    const { rerender } = render(
+      <KanbanTab
+        workspaceId="workspace-1"
+        boards={[board]}
+        tasks={[createTask("task-1", "Story One")]}
+        sessions={[]}
+        providers={[]}
+        specialists={[]}
+        codebases={[]}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "打开 Story One" }));
+    await screen.findByDisplayValue("Story One");
+    expect(window.location.search).toContain("taskId=task-1");
+
+    window.history.replaceState({}, "", "/workspace/workspace-2/kanban?taskId=task-1");
+    rerender(
+      <KanbanTab
+        workspaceId="workspace-2"
+        boards={[workspaceTwoBoard]}
+        tasks={[createTask("task-2", "Story Two", { boardId: workspaceTwoBoard.id })]}
+        sessions={[]}
+        providers={[]}
+        specialists={[]}
+        codebases={[]}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue("Story One")).toBeNull();
+    });
+
+    expect(screen.getByText("Story Two")).toBeTruthy();
+    expect(screen.queryByRole("tablist", { name: "卡片详情" })).toBeNull();
     expect(window.location.search).not.toContain("taskId=");
   });
 });

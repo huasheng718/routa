@@ -1,12 +1,15 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
+import type { ReactElement } from "react";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY } from "@/i18n/types";
 import { KanbanTab } from "../kanban-tab";
 import { KanbanCardDetail } from "../kanban-card-detail";
 import { KanbanCardActivityBar, KanbanCardActivityPanel } from "../kanban-card-activity";
 import { KanbanMoveBlockedModal } from "../kanban-tab-modals";
 import { buildKanbanSessionRestorePrompt } from "../kanban-tab-panels";
 import { buildKanbanMoveBlockedRemediationPrompt } from "../i18n/kanban-task-agent";
-import type { KanbanBoardInfo, TaskInfo } from "../../types";
+import type { KanbanBoardInfo, SessionInfo, TaskInfo } from "../../types";
 import type { UseAcpActions, UseAcpState } from "@/client/hooks/use-acp";
 import { resetDesktopAwareFetchToGlobalFetch } from "./test-utils";
 
@@ -69,7 +72,12 @@ function createTask(id: string, title: string, overrides: Partial<TaskInfo> = {}
   };
 }
 
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: I18nProvider });
+}
+
 beforeEach(() => {
+  localStorage.setItem(LOCALE_STORAGE_KEY, "en");
   resetDesktopAwareFetchToGlobalFetch(desktopAwareFetch);
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
@@ -255,7 +263,7 @@ describe("KanbanCardDetail repository health", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Execution" }));
     fireEvent.click(screen.getByText("Repo").closest("summary")!);
 
-    expect(await screen.findByText("Repo Health")).toBeTruthy();
+    expect(await screen.findByText("Repo health")).toBeTruthy();
     expect(screen.getByText(/Active session is running in a different directory/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Open active session/i }));
@@ -1591,6 +1599,48 @@ describe("KanbanCardDetail repository health", () => {
 });
 
 describe("KanbanCardActivityBar", () => {
+  it("localizes run status labels in Chinese", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "zh");
+    desktopAwareFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tasks/task-zh-runs/runs") {
+        return new Response(JSON.stringify({
+          runs: [
+            { id: "run-1", sessionId: "session-1", status: "completed", kind: "runner_acp" },
+          ],
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`Unexpected desktopAwareFetch: ${url}`);
+    });
+
+    render(
+      <KanbanCardActivityBar
+        task={createTask("task-zh-runs", "中文运行记录", {
+          laneSessions: [{
+            sessionId: "session-1",
+            columnName: "Review",
+            status: "completed",
+            startedAt: "2025-01-01T00:00:00.000Z",
+          }],
+          triggerSessionId: "session-1",
+        })}
+        sessions={[]}
+        currentSessionId="session-1"
+        onSelectSession={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(desktopAwareFetch).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getAllByText("已完成").length).toBeGreaterThan(0);
+    expect(screen.getByTitle("运行 1 · Review · 运行 1")).toBeTruthy();
+    expect(screen.queryByText("Completed")).toBeNull();
+  });
+
   it("renders run tabs with lane icons and numeric labels while preserving the full title in the tooltip", async () => {
     desktopAwareFetch.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -1719,9 +1769,68 @@ describe("KanbanTab live session tail", () => {
     );
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/sessions/session-123/history?consolidated=true", { cache: "no-store" });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/sessions/session-123/history?consolidated=true",
+        expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }),
+      );
       expect(screen.getByTestId("kanban-card-live-tail").textContent).toContain("Added live tail support.");
     });
+  });
+
+  it("caps concurrent live session tail history polling", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        history: [
+          { update: { sessionUpdate: "agent_message", content: { type: "text", text: "Still working." } } },
+        ],
+      }),
+    }) as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runningTasks = Array.from({ length: 20 }, (_, index) => {
+      const sessionId = `session-${index + 1}`;
+      return {
+        ...createTask(`task-${index + 1}`, `Story ${index + 1}`, {
+          position: index,
+          triggerSessionId: sessionId,
+          laneSessions: [{
+            sessionId,
+            status: "running" as const,
+            startedAt: "2025-01-01T00:00:00.000Z",
+          }],
+        }),
+      };
+    });
+    const runningSessions: SessionInfo[] = runningTasks.map((task) => ({
+      sessionId: task.triggerSessionId!,
+      cwd: "/tmp/project",
+      workspaceId: "workspace-1",
+      provider: "claude",
+      acpStatus: "ready",
+      createdAt: "2025-01-01T00:00:00.000Z",
+    }));
+
+    render(
+      <KanbanTab
+        workspaceId="workspace-1"
+        boards={[board]}
+        tasks={runningTasks}
+        sessions={runningSessions}
+        providers={[]}
+        specialists={[]}
+        codebases={[]}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+    });
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/sessions/session-7/history?consolidated=true",
+      expect.anything(),
+    );
   });
 
   it("does not poll history for completed trigger sessions", async () => {

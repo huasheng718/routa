@@ -1,6 +1,8 @@
-import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
+import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
+import { I18nProvider } from "@/i18n/context";
+import { LOCALE_STORAGE_KEY } from "@/i18n/types";
 import { KanbanTab } from "../kanban-tab";
 import { KanbanCardDetail } from "../kanban-card-detail";
 import type { KanbanBoardInfo, TaskInfo } from "../../types";
@@ -123,7 +125,12 @@ function createTask(id: string, title: string, overrides: Partial<TaskInfo> = {}
   };
 }
 
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: I18nProvider });
+}
+
 beforeEach(() => {
+  localStorage.setItem(LOCALE_STORAGE_KEY, "en");
   resetDesktopAwareFetchToGlobalFetch(desktopAwareFetch);
   dndKitHarness.reset();
   vi.useRealTimers();
@@ -315,6 +322,47 @@ describe("KanbanTab session task visibility", () => {
 
     expect(screen.getByText("Board Story")).toBeTruthy();
     expect(screen.queryByText("Session Scratchpad")).toBeNull();
+  });
+
+  it("does not auto-patch missing task repositories on mount", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      throw new Error(`Unexpected fetch: ${method} ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tasksWithMissingRepos = Array.from({ length: 20 }, (_, index) =>
+      createTask(`task-${index + 1}`, `Story ${index + 1}`, {
+        codebaseIds: [],
+      }));
+
+    render(
+      <KanbanTab
+        workspaceId="workspace-1"
+        boards={[board]}
+        tasks={tasksWithMissingRepos}
+        sessions={[]}
+        providers={[]}
+        specialists={[]}
+        codebases={[{
+          id: "codebase-1",
+          workspaceId: "workspace-1",
+          repoPath: "/tmp/repo",
+          branch: "main",
+          label: "Repo",
+          isDefault: true,
+          sourceType: "local",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+        }]}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Story 1")).toBeTruthy();
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
@@ -1041,7 +1089,7 @@ describe("KanbanTab manual run provider selection", () => {
     fireEvent.click(await screen.findByRole("tab", { name: "Execution" }));
 
     const runButton = await screen.findByTestId("kanban-detail-run");
-    expect(screen.getByText(/Manual runs use the current ACP provider with this lane's role and specialist/i)).toBeTruthy();
+    expect(screen.getByText(/Manual Run uses the current ACP provider with this lane's role and specialist/i)).toBeTruthy();
     expect(screen.getAllByText("Codex · ROUTA · Backlog Refiner").length).toBeGreaterThan(0);
 
     fireEvent.click(runButton);
