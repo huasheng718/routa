@@ -81,7 +81,7 @@ export function evaluateKanbanTransitionGates(
   targetColumn: Pick<KanbanColumn, "id" | "name" | "automation"> | undefined,
 ): KanbanTransitionGateResult {
   const automation = targetColumn?.automation;
-  if (!automation?.enabled) {
+  if (!automation || automation.enabled === false) {
     return {
       mode: "blocking",
       passed: true,

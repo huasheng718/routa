@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import type { AcpProviderInfo } from "@/client/acp-client";
+import { resolveApiPath } from "@/client/config/backend";
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
 import type { UseAcpState, UseAcpActions } from "@/client/hooks/use-acp";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
@@ -53,6 +54,7 @@ interface SpecialistOption {
 interface KanbanTabProps {
   workspaceId: string;
   refreshSignal?: number;
+  fitnessRefreshSignal?: number;
   boards: KanbanBoardInfo[];
   tasks: TaskInfo[];
   sessions: SessionInfo[];
@@ -61,10 +63,13 @@ interface KanbanTabProps {
   specialistLanguage?: KanbanSpecialistLanguage;
   onSpecialistLanguageChange?: (language: KanbanSpecialistLanguage) => void;
   codebases: CodebaseData[];
+  loading?: boolean;
+  loadError?: string | null;
   onRefresh: () => void;
   repoSync?: RepoSyncState;
   repoChanges?: KanbanRepoChanges[];
   repoChangesLoading?: boolean;
+  onRepoChangesRequest?: () => void;
   acp?: UseAcpState & UseAcpActions;
   onAgentPrompt?: KanbanAgentPromptHandler;
 }
@@ -82,6 +87,7 @@ const KANBAN_DETAIL_TASK_QUERY_KEY = "taskId";
 const MIN_DETAIL_SPLIT_RATIO = 0.32;
 const MAX_DETAIL_SPLIT_RATIO = 0.72;
 const LIVE_SESSION_TAIL_POLL_MS = 10_000;
+const LIVE_SESSION_TAIL_MAX_POLLED_SESSIONS = 6;
 
 type MoveBlockedState = {
   message: string;
@@ -151,6 +157,7 @@ function updateKanbanUrlState(
 export function KanbanTab({
   workspaceId,
   refreshSignal,
+  fitnessRefreshSignal,
   boards,
   tasks,
   sessions,
@@ -159,10 +166,13 @@ export function KanbanTab({
   specialistLanguage = "en",
   onSpecialistLanguageChange: _onSpecialistLanguageChange,
   codebases,
+  loading = false,
+  loadError = null,
   onRefresh,
   repoSync,
   repoChanges = [],
   repoChangesLoading = false,
+  onRepoChangesRequest,
   acp,
   onAgentPrompt,
 }: KanbanTabProps) {
@@ -203,7 +213,6 @@ export function KanbanTab({
     return initialUrlState?.boardId ?? defaultBoardId;
   });
   const [localTasks, setLocalTasks] = useState<TaskInfo[]>(tasks);
-  const autoPatchedTasksRef = useRef(new Set<string>());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showGitHubImportModal, setShowGitHubImportModal] = useState(false);
   const [githubAccessAvailable, setGitHubAccessAvailable] = useState(false);
@@ -226,26 +235,21 @@ export function KanbanTab({
   const [detailSplitRatio, setDetailSplitRatio] = useState(0.48);
   const [isDraggingDetailSplit, setIsDraggingDetailSplit] = useState(false);
 
-  // Codebase detail popup state
   const [showCodebaseModal, setShowCodebaseModal] = useState(false);
   const [selectedCodebase, setSelectedCodebase] = useState<CodebaseData | null>(null);
   const [codebaseWorktrees, setCodebaseWorktrees] = useState<WorktreeInfo[]>([]);
   const [addRepoSelection, setAddRepoSelection] = useState<RepoSelection | null>(null);
   const [addSaving, setAddSaving] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  // Codebase edit state - use RepoPicker for re-selecting/cloning
   const [editingCodebase, setEditingCodebase] = useState(false);
   const [editRepoSelection, setEditRepoSelection] = useState<RepoSelection | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  // Re-clone state
   const [recloning, setRecloning] = useState(false);
   const [recloneError, setRecloneError] = useState<string | null>(null);
   const [recloneSuccess, setRecloneSuccess] = useState<string | null>(null);
-  // Replace all repos state
   const [showReplaceAllConfirm, setShowReplaceAllConfirm] = useState(false);
   const [replacingAll, setReplacingAll] = useState(false);
-  // Delete codebase state
   const [showDeleteCodebaseConfirm, setShowDeleteCodebaseConfirm] = useState(false);
   const [deletingCodebase, setDeletingCodebase] = useState(false);
   const [deletingWorktreeIds, setDeletingWorktreeIds] = useState<string[]>([]);
@@ -261,10 +265,8 @@ export function KanbanTab({
   const [liveSessionTails, setLiveSessionTails] = useState<Record<string, string>>({});
   const [backfilledSessions, setBackfilledSessions] = useState<Record<string, SessionInfo>>({});
 
-  // Settings state - column automation rules (initialized from board columns)
   const [columnAutomation, setColumnAutomation] = useState<Record<string, ColumnAutomationConfig>>({});
 
-  // Delete confirmation modal state
   const [deleteConfirmTask, setDeleteConfirmTask] = useState<TaskInfo | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -277,9 +279,68 @@ export function KanbanTab({
   const sessionBackfillInFlightRef = useRef(new Set<string>());
   const emptySessionRecoveryRef = useRef<string | null>(null);
   const previousPreferredTaskSessionIdRef = useRef<string | null>(null);
+  const previousWorkspaceIdRef = useRef(workspaceId);
   const [isPageVisible, setIsPageVisible] = useState(() => (
     typeof document === "undefined" || document.visibilityState === "visible"
   ));
+
+  useEffect(() => {
+    if (previousWorkspaceIdRef.current === workspaceId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = workspaceId;
+
+    setLocalBoards([]);
+    setLocalTasks([]);
+    setSelectedBoardId(null);
+    setActiveSessionId(null);
+    setActiveTaskId(null);
+    setVisibleColumns([]);
+    setShowCreateModal(false);
+    setShowGitHubImportModal(false);
+    setShowSettings(false);
+    setShowCodebaseModal(false);
+    setSelectedCodebase(null);
+    setCodebaseWorktrees([]);
+    setAddRepoSelection(null);
+    setAddSaving(false);
+    setAddError(null);
+    setEditingCodebase(false);
+    setEditRepoSelection(null);
+    setEditSaving(false);
+    setEditError(null);
+    setRecloning(false);
+    setRecloneError(null);
+    setRecloneSuccess(null);
+    setShowReplaceAllConfirm(false);
+    setReplacingAll(false);
+    setShowDeleteCodebaseConfirm(false);
+    setDeletingCodebase(false);
+    setDeletingWorktreeIds([]);
+    setDeletingBranchNames([]);
+    setBranchActionError(null);
+    setWorktreeActionError(null);
+    setLiveBranchInfo(null);
+    setWorktreeCache({});
+    setMissingWorktreeIds({});
+    setLiveSessionTails({});
+    setBackfilledSessions({});
+    setColumnAutomation({});
+    setDeleteConfirmTask(null);
+    setIsDeleting(false);
+    setMoveError(null);
+    setMoveBlockedState(null);
+    setMoveBlockedDelegatingTaskId(null);
+    setIsTaskDetailFullscreen(false);
+    setFileChangesOpen(false);
+    setGitLogOpen(false);
+    sessionBackfillInFlightRef.current.clear();
+    emptySessionRecoveryRef.current = null;
+    previousPreferredTaskSessionIdRef.current = null;
+    updateKanbanUrlState({ boardId: null, taskId: null }, "replace");
+    // The following prop-sync effects repopulate state when the new workspace data arrives.
+    // Clearing first prevents stale cards/details from the previous workspace from remaining interactive.
+  }, [workspaceId]);
 
   const sessionMap = useMemo(() => {
     const map = new Map<string, SessionInfo>();
@@ -375,7 +436,7 @@ export function KanbanTab({
 
   const persistBoardAutoProvider = useCallback(async (providerId: string | null | undefined) => {
     if (!board?.id) return;
-    await desktopAwareFetch(`/api/kanban/boards/${encodeURIComponent(board.id)}`, {
+    await desktopAwareFetch(resolveApiPath(`/api/kanban/boards/${encodeURIComponent(board.id)}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ autoProviderId: providerId ?? "" }),
@@ -454,7 +515,7 @@ export function KanbanTab({
           searchParams.set("boardId", selectedBoardId);
         }
         const response = await desktopAwareFetch(
-          `/api/github/access${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`,
+          resolveApiPath(`/api/github/access${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`),
           { cache: "no-store" },
         );
         const payload = await response.json().catch(() => ({}));
@@ -500,7 +561,7 @@ export function KanbanTab({
   }, [defaultBoardId, localBoards]);
 
   const patchTask = useCallback(async (taskId: string, payload: Record<string, unknown>) => {
-    const response = await desktopAwareFetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    const response = await desktopAwareFetch(resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -520,7 +581,7 @@ export function KanbanTab({
   }, []);
 
   const fetchTaskById = useCallback(async (taskId: string) => {
-    const response = await desktopAwareFetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    const response = await desktopAwareFetch(resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}`), {
       cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
@@ -547,43 +608,6 @@ export function KanbanTab({
       return changed ? next : current;
     });
   }, [sessions]);
-
-  useEffect(() => {
-    if (codebases.length === 0 || localTasks.length === 0) return;
-
-    const codebaseById = new Map(codebases.map((codebase) => [codebase.id, codebase]));
-
-    const pendingPatches: Array<{ taskId: string; codebaseId: string }> = [];
-
-    for (const task of localTasks) {
-      if (autoPatchedTasksRef.current.has(task.id)) continue;
-
-      const taskCodebaseIds = task.codebaseIds ?? [];
-      const hasValidCodebase = taskCodebaseIds.some((id) => codebaseById.has(id));
-      if (hasValidCodebase) continue;
-
-      let resolved: CodebaseData | null = null;
-      const session = task.triggerSessionId ? sessionMap.get(task.triggerSessionId) : null;
-      if (session?.cwd) {
-        resolved = codebases.find((codebase) => codebase.repoPath === session.cwd) ?? null;
-      }
-
-      if (!resolved && defaultCodebase) {
-        resolved = defaultCodebase;
-      }
-
-      if (resolved) {
-        pendingPatches.push({ taskId: task.id, codebaseId: resolved.id });
-      }
-    }
-
-    if (pendingPatches.length === 0) return;
-
-    for (const patch of pendingPatches) {
-      autoPatchedTasksRef.current.add(patch.taskId);
-      void patchTask(patch.taskId, { codebaseIds: [patch.codebaseId] });
-    }
-  }, [codebases, defaultCodebase, localTasks, patchTask, sessionMap]);
 
   const repoHealth = useMemo(() => {
     if (codebases.length === 0) {
@@ -624,6 +648,11 @@ export function KanbanTab({
     return getKanbanFileChangesSummary(repoChanges);
   }, [repoChanges]);
 
+  useEffect(() => {
+    if (!fileChangesOpen) return;
+    onRepoChangesRequest?.();
+  }, [fileChangesOpen, onRepoChangesRequest]);
+
   const selectedProviderInfo = useMemo(() => {
     return acp?.providers?.find((p) => p.id === acp.selectedProvider) ?? null;
   }, [acp]);
@@ -631,7 +660,7 @@ export function KanbanTab({
     workspaceId,
     codebaseId: defaultCodebase?.id ?? null,
     enabled: workspaceId !== "__placeholder__",
-    refreshSignal,
+    refreshSignal: fitnessRefreshSignal,
     isPageVisible,
   });
 
@@ -694,7 +723,7 @@ export function KanbanTab({
 
     void (async () => {
       try {
-        const response = await desktopAwareFetch(`/api/sessions/${encodeURIComponent(targetSessionId)}`, {
+        const response = await desktopAwareFetch(resolveApiPath(`/api/sessions/${encodeURIComponent(targetSessionId)}`), {
           cache: "no-store",
           signal: controller.signal,
         });
@@ -783,6 +812,14 @@ export function KanbanTab({
       .filter((task) => (task.boardId ?? defaultBoardId) === effectiveBoardId)
       .sort((left, right) => (left.position ?? 0) - (right.position ?? 0));
   }, [defaultBoardId, localTasks, selectedBoardId]);
+  const boardTaskCountByColumn = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const task of boardTasks) {
+      const columnId = task.columnId ?? "backlog";
+      counts.set(columnId, (counts.get(columnId) ?? 0) + 1);
+    }
+    return counts;
+  }, [boardTasks]);
 
   const availableProviders = useMemo(() => {
     const uniqueProviders = new Map<string, AcpProviderInfo>();
@@ -806,6 +843,11 @@ export function KanbanTab({
     }
     return Array.from(ids);
   }, [boardTasks, sessionMap]);
+  const polledLiveSessionIds = useMemo(
+    () => activeLiveSessionIds.slice(0, LIVE_SESSION_TAIL_MAX_POLLED_SESSIONS),
+    [activeLiveSessionIds],
+  );
+  const polledLiveSessionKey = polledLiveSessionIds.join("\u0000");
   const agentSession = agentSessionId ? sessionMap.get(agentSessionId) : undefined;
   const kanbanRepoSelection = useMemo<RepoSelection | null>(() => {
     if (!defaultCodebase) return null;
@@ -997,25 +1039,28 @@ export function KanbanTab({
   }, [agentPanelOpen, agentSessionId, onRefresh]);
 
   useEffect(() => {
-    if (activeLiveSessionIds.length === 0) {
+    if (polledLiveSessionIds.length === 0) {
       setLiveSessionTails((previous) => (Object.keys(previous).length > 0 ? {} : previous));
       return;
     }
     if (!isPageVisible) return;
 
-    const activeIdSet = new Set(activeLiveSessionIds);
+    const activeIdSet = new Set(polledLiveSessionIds);
     let disposed = false;
     let inFlight = false;
+    let activeController: AbortController | null = null;
 
     const pollLiveSessionTail = async () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       if (disposed || inFlight) return;
       inFlight = true;
+      const controller = new AbortController();
+      activeController = controller;
 
-      const updates = await Promise.all(activeLiveSessionIds.map(async (sessionId) => {
+      const updates = await Promise.all(polledLiveSessionIds.map(async (sessionId) => {
         try {
-          const response = await desktopAwareFetch(`/api/sessions/${encodeURIComponent(sessionId)}/history?consolidated=true`,
-            { cache: "no-store" },
+          const response = await desktopAwareFetch(resolveApiPath(`/api/sessions/${encodeURIComponent(sessionId)}/history?consolidated=true`),
+            { cache: "no-store", signal: controller.signal },
           );
           if (!response.ok) return [sessionId, null] as const;
           const payload = await response.json();
@@ -1025,9 +1070,12 @@ export function KanbanTab({
         }
       })).finally(() => {
         inFlight = false;
+        if (activeController === controller) {
+          activeController = null;
+        }
       });
 
-      if (disposed) return;
+      if (disposed || controller.signal.aborted) return;
 
       setLiveSessionTails((previous) => {
         const next: Record<string, string> = {};
@@ -1058,9 +1106,11 @@ export function KanbanTab({
 
     return () => {
       disposed = true;
+      activeController?.abort();
+      activeController = null;
       window.clearInterval(timerId);
     };
-  }, [activeLiveSessionIds, isPageVisible]);
+  }, [isPageVisible, polledLiveSessionIds, polledLiveSessionKey]);
 
   // Codebase edit handlers - use RepoPicker for re-selecting/cloning
   const handleStartEditCodebase = useCallback(() => {
@@ -1081,7 +1131,7 @@ export function KanbanTab({
     setEditSaving(true);
     setEditError(null);
     try {
-      const res = await desktopAwareFetch(`/api/codebases/${encodeURIComponent(selectedCodebase.id)}`, {
+      const res = await desktopAwareFetch(resolveApiPath(`/api/codebases/${encodeURIComponent(selectedCodebase.id)}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: selection.name, repoPath: selection.path, branch: selection.branch }),
@@ -1112,7 +1162,7 @@ export function KanbanTab({
     setRecloneError(null);
     setRecloneSuccess(null);
     try {
-      const res = await desktopAwareFetch("/api/clone", {
+      const res = await desktopAwareFetch(resolveApiPath("/api/clone"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: selectedCodebase.sourceUrl, force: true }),
@@ -1122,7 +1172,7 @@ export function KanbanTab({
 
       // Update the codebase with the new path if it changed
       if (data.path && data.path !== selectedCodebase.repoPath) {
-        await desktopAwareFetch(`/api/codebases/${encodeURIComponent(selectedCodebase.id)}`, {
+        await desktopAwareFetch(resolveApiPath(`/api/codebases/${encodeURIComponent(selectedCodebase.id)}`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ repoPath: data.path, branch: data.branch }),
@@ -1145,7 +1195,7 @@ export function KanbanTab({
     try {
       // Update all codebases in the workspace to use the new repo path
       const updatePromises = codebases.map(async (cb) => {
-        const res = await desktopAwareFetch(`/api/codebases/${encodeURIComponent(cb.id)}`, {
+        const res = await desktopAwareFetch(resolveApiPath(`/api/codebases/${encodeURIComponent(cb.id)}`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1178,7 +1228,7 @@ export function KanbanTab({
     setDeletingCodebase(true);
     setEditError(null);
     try {
-      const res = await desktopAwareFetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases/${encodeURIComponent(selectedCodebase.id)}`,
+      const res = await desktopAwareFetch(resolveApiPath(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases/${encodeURIComponent(selectedCodebase.id)}`),
         { method: "DELETE" }
       );
       if (!res.ok) {
@@ -1237,7 +1287,7 @@ export function KanbanTab({
       await Promise.allSettled(
         missing.map(async (id) => {
           try {
-            const res = await desktopAwareFetch(`/api/worktrees/${encodeURIComponent(id)}`, { cache: "no-store" });
+            const res = await desktopAwareFetch(resolveApiPath(`/api/worktrees/${encodeURIComponent(id)}`), { cache: "no-store" });
             if (res.ok) {
               const data = await res.json();
               if (data.worktree) results[id] = data.worktree as WorktreeInfo;
@@ -1285,7 +1335,7 @@ export function KanbanTab({
     setBranchActionError(null);
 
     try {
-      const res = await desktopAwareFetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases/${encodeURIComponent(codebase.id)}/worktrees`,
+      const res = await desktopAwareFetch(resolveApiPath(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases/${encodeURIComponent(codebase.id)}/worktrees`),
         { cache: "no-store" }
       );
       if (res.ok) {
@@ -1296,7 +1346,7 @@ export function KanbanTab({
 
     // Fetch live branch info from the repo
     try {
-      const branchRes = await desktopAwareFetch(`/api/clone/branches?repoPath=${encodeURIComponent(codebase.repoPath)}`, { cache: "no-store" });
+      const branchRes = await desktopAwareFetch(resolveApiPath(`/api/clone/branches?repoPath=${encodeURIComponent(codebase.repoPath)}`), { cache: "no-store" });
       if (branchRes.ok) {
         const branchData = await branchRes.json();
         setLiveBranchInfo({ current: branchData.current, branches: branchData.local || [] });
@@ -1353,7 +1403,7 @@ export function KanbanTab({
     setAddSaving(true);
     setAddError(null);
     try {
-      const res = await desktopAwareFetch(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases`, {
+      const res = await desktopAwareFetch(resolveApiPath(`/api/workspaces/${encodeURIComponent(workspaceId)}/codebases`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoPath: selection.path, branch: selection.branch, label: selection.name }),
@@ -1397,7 +1447,7 @@ export function KanbanTab({
     const failures: string[] = [];
     try {
       for (const branch of uniqueBranches) {
-        const response = await desktopAwareFetch("/api/clone/branches", {
+        const response = await desktopAwareFetch(resolveApiPath("/api/clone/branches"), {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1472,7 +1522,7 @@ export function KanbanTab({
         const linkedTasks = localTasks.filter((task) => task.worktreeId === worktree.id);
         await Promise.all(linkedTasks.map((task) => patchTask(task.id, { worktreeId: null })));
 
-        const response = await desktopAwareFetch(`/api/worktrees/${encodeURIComponent(worktree.id)}`, {
+        const response = await desktopAwareFetch(resolveApiPath(`/api/worktrees/${encodeURIComponent(worktree.id)}`), {
           method: "DELETE",
         });
         const data = await response.json().catch(() => ({}));
@@ -1504,7 +1554,7 @@ export function KanbanTab({
   async function createTaskCard() {
     await ensureBoardAutoProviderPersisted();
     const effectiveCodebaseIds = draft.codebaseIds.length > 0 ? draft.codebaseIds : allCodebaseIds;
-    const response = await desktopAwareFetch("/api/tasks", {
+    const response = await desktopAwareFetch(resolveApiPath("/api/tasks"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1662,7 +1712,7 @@ export function KanbanTab({
 
   async function runTaskPullRequest(taskId: string): Promise<string | null> {
     await ensureBoardAutoProviderPersisted();
-    const response = await desktopAwareFetch(`/api/tasks/${encodeURIComponent(taskId)}/pr-run`, {
+    const response = await desktopAwareFetch(resolveApiPath(`/api/tasks/${encodeURIComponent(taskId)}/pr-run`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ specialistLocale: specialistLanguage }),
@@ -1690,7 +1740,7 @@ export function KanbanTab({
 
     setIsDeleting(true);
     try {
-      const response = await desktopAwareFetch(`/api/tasks/${encodeURIComponent(deleteConfirmTask.id)}`, {
+      const response = await desktopAwareFetch(resolveApiPath(`/api/tasks/${encodeURIComponent(deleteConfirmTask.id)}`), {
         method: "DELETE",
       });
       const data = await response.json();
@@ -1723,12 +1773,10 @@ export function KanbanTab({
 
     let shouldCleanupWorktree = false;
     if (targetColumnId === "done" && movingTask.worktreeId) {
-      shouldCleanupWorktree = window.confirm(
-        "This issue has an attached worktree. Clean it up now?"
-      );
+      shouldCleanupWorktree = window.confirm(t.kanban.worktreeCleanupPrompt);
     }
 
-    const nextPosition = boardTasks.filter((task) => task.columnId === targetColumnId).length;
+    const nextPosition = boardTaskCountByColumn.get(targetColumnId) ?? 0;
     const optimistic = localTasks.map((task) =>
       task.id === taskId
         ? {
@@ -1748,12 +1796,12 @@ export function KanbanTab({
     try {
       let updated = await patchTask(taskId, { columnId: targetColumnId, position: nextPosition });
       if (shouldCleanupWorktree && movingTask.worktreeId) {
-        const response = await desktopAwareFetch(`/api/worktrees/${encodeURIComponent(movingTask.worktreeId)}`, {
+        const response = await desktopAwareFetch(resolveApiPath(`/api/worktrees/${encodeURIComponent(movingTask.worktreeId)}`), {
           method: "DELETE",
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(data.error ?? "Failed to remove worktree");
+          throw new Error(data.error ?? t.kanban.failedToRemoveWorktree);
         }
         updated = await patchTask(taskId, { worktreeId: null });
         setWorktreeCache((current) => {
@@ -1769,7 +1817,7 @@ export function KanbanTab({
       onRefresh();
     } catch (error) {
       console.error(error);
-      const message = error instanceof Error ? error.message : "Failed to move task";
+      const message = error instanceof Error ? error.message : t.kanban.failedToMoveTask;
       if (message.startsWith("Cannot move ")) {
         setMoveBlockedState({
           message,
@@ -1785,12 +1833,15 @@ export function KanbanTab({
       setLocalTasks(tasks);
     }
   }, [
-    boardTasks,
+    boardTaskCountByColumn,
     ensureBoardAutoProviderPersisted,
     localTasks,
     onRefresh,
     openSession,
     patchTask,
+    t.kanban.failedToMoveTask,
+    t.kanban.failedToRemoveWorktree,
+    t.kanban.worktreeCleanupPrompt,
     tasks,
   ]);
 
@@ -1882,7 +1933,7 @@ export function KanbanTab({
   async function _createBoard() {
     const name = window.prompt(t.kanban.boardName);
     if (!name?.trim()) return;
-    const response = await desktopAwareFetch("/api/kanban/boards", {
+    const response = await desktopAwareFetch(resolveApiPath("/api/kanban/boards"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId, name: name.trim() }),
@@ -1934,7 +1985,7 @@ export function KanbanTab({
     githubAccessSource,
     onClose: () => setShowSettings(false),
     onClearAll: async () => {
-      const response = await desktopAwareFetch(`/api/tasks?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      const response = await desktopAwareFetch(resolveApiPath(`/api/tasks?workspaceId=${encodeURIComponent(workspaceId)}`), {
         method: "DELETE",
       });
       const data = await response.json().catch(() => ({}));
@@ -1962,7 +2013,7 @@ export function KanbanTab({
           : undefined,
       }));
 
-      const response = await desktopAwareFetch(`/api/kanban/boards/${encodeURIComponent(board.id)}`, {
+      const response = await desktopAwareFetch(resolveApiPath(`/api/kanban/boards/${encodeURIComponent(board.id)}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2050,6 +2101,7 @@ export function KanbanTab({
     resolveSpecialist,
     acp,
     boardAutoProviderId,
+    currentAcpProviderId: acp?.selectedProvider ?? null,
     onBoardProviderChange: setKanbanBoardProvider,
     detailSplitContainerRef,
     detailSplitRatio,
@@ -2238,6 +2290,9 @@ export function KanbanTab({
       moveBlockedModalProps={moveBlockedModalProps}
       statusBarProps={statusBarProps}
       fitnessWorkbenchModalProps={fitnessWorkbenchModalProps}
+      loading={loading}
+      loadError={loadError}
+      onRetryLoad={onRefresh}
     />
   );
 }

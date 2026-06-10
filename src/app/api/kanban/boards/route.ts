@@ -56,11 +56,25 @@ export async function GET(request: NextRequest) {
   const queue = getKanbanSessionQueue(system);
   const sessionStore = getHttpSessionStore();
   const processManager = getAcpProcessManager();
-  await sessionStore.hydrateFromDb();
-  await Promise.all(boards.map((board) => reviveMissingEntryAutomations(system, workspaceId, board.id, {
-    sessionStore,
-    processManager,
-  })));
+  const recovery = (async () => {
+    try {
+      await sessionStore.hydrateFromDb();
+      const results = await Promise.allSettled(boards.map((board) => reviveMissingEntryAutomations(system, workspaceId, board.id, {
+        sessionStore,
+        processManager,
+      })));
+      for (const result of results) {
+        if (result.status === "rejected") {
+          console.error("[kanban/boards] Failed to revive board automation", result.reason);
+        }
+      }
+    } catch (error) {
+      console.error("[kanban/boards] Failed to hydrate sessions for automation recovery", error);
+    }
+  })();
+  if (process.env.NODE_ENV === "test") {
+    await recovery;
+  }
   return NextResponse.json({
     boards: await Promise.all(boards.map(async (board) => sanitizeBoard(board, {
       autoProviderId: getKanbanAutoProvider(workspace?.metadata, board.id),

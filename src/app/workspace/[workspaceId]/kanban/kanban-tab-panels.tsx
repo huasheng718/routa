@@ -17,6 +17,7 @@ import type { AcpProviderInfo, AcpTaskAdaptiveHarnessOptions } from "@/client/ac
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
 import type { UseAcpActions, UseAcpState } from "@/client/hooks/use-acp";
 import { ChatPanel } from "@/client/components/chat-panel";
+import { resolveApiPath } from "@/client/config/backend";
 import type { RepoSelection } from "@/client/components/repo-picker";
 import { resolveEffectiveTaskAutomation } from "@/core/kanban/effective-task-automation";
 import { KanbanCard, KanbanCardOverlay } from "./kanban-card";
@@ -186,7 +187,7 @@ async function startKanbanHistoryAnalysisSession(params: {
     throw new Error(params.fallbackErrorMessage);
   }
 
-  const response = await desktopAwareFetch("/api/acp", {
+  const response = await desktopAwareFetch(resolveApiPath("/api/acp"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -229,7 +230,7 @@ async function startKanbanHistoryAnalysisSession(params: {
 
   params.targetWindow.location.href = buildKanbanHistoryAnalysisSessionUrl(params.workspaceId, sessionId);
 
-  const promptResponse = await desktopAwareFetch("/api/acp", {
+  const promptResponse = await desktopAwareFetch(resolveApiPath("/api/acp"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -257,7 +258,7 @@ async function startKanbanHistoryAnalysisSession(params: {
 }
 
 async function fetchSessionTranscriptForRestore(sessionId: string): Promise<SessionRestoreTranscriptMessage[]> {
-  const response = await desktopAwareFetch(`/api/sessions/${encodeURIComponent(sessionId)}/transcript`, { cache: "no-store" });
+  const response = await desktopAwareFetch(resolveApiPath(`/api/sessions/${encodeURIComponent(sessionId)}/transcript`), { cache: "no-store" });
   if (!response.ok) return [];
   const data = await response.json().catch(() => null) as { messages?: unknown } | null;
   return Array.isArray(data?.messages) ? data.messages as SessionRestoreTranscriptMessage[] : [];
@@ -435,6 +436,19 @@ export function KanbanBoardSurface({
     () => activeDragTaskId ? boardTasks.find((task) => task.id === activeDragTaskId) ?? null : null,
     [activeDragTaskId, boardTasks],
   );
+  const boardTasksByColumn = useMemo(() => {
+    const grouped = new Map<string, TaskInfo[]>();
+    for (const task of boardTasks) {
+      const columnId = task.columnId ?? "backlog";
+      const columnTasks = grouped.get(columnId);
+      if (columnTasks) {
+        columnTasks.push(task);
+      } else {
+        grouped.set(columnId, [task]);
+      }
+    }
+    return grouped;
+  }, [boardTasks]);
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     setActiveDragTaskId(String(active.id));
@@ -515,7 +529,7 @@ export function KanbanBoardSurface({
                   .sort((left, right) => left.position - right.position)
                   .filter((column) => visibleColumns.includes(column.id))
                   .map((column) => {
-                    const columnTasks = boardTasks.filter((task) => (task.columnId ?? "backlog") === column.id);
+                    const columnTasks = boardTasksByColumn.get(column.id) ?? [];
                     const laneAutomation = columnAutomation[column.id] ?? column.automation;
                     const widthClass = column.width === "compact" ? "w-[14rem]" : column.width === "wide" ? "w-[24rem]" : "w-[18rem]";
 
@@ -719,16 +733,33 @@ function A2ASessionPane({
   onSelectSession: (sessionId: string) => void;
   onCloseSession: () => void;
 }) {
+  const { t } = useTranslation();
+  const formatRunStatus = (status: string | undefined): string => {
+    switch (status) {
+      case "running":
+        return t.kanban.taskRunStatusRunning;
+      case "completed":
+        return t.kanban.taskRunStatusCompleted;
+      case "failed":
+        return t.kanban.taskRunStatusFailed;
+      case "timed_out":
+        return t.kanban.taskRunStatusTimedOut;
+      case "transitioned":
+        return t.kanban.taskRunStatusTransitioned;
+      default:
+        return status ?? t.kanban.taskRunStatusUnknown;
+    }
+  };
   const metadata = [
-    { label: "Transport", value: (laneSession?.transport ?? "a2a").toUpperCase() },
-    { label: "Status", value: laneSession?.status ?? "running" },
-    { label: "Lane", value: laneSession?.columnName ?? laneSession?.columnId ?? task.columnId ?? "Unknown lane" },
-    { label: "Role", value: laneSession?.role ?? task.assignedRole ?? "Unknown role" },
-    { label: "Specialist", value: laneSession?.specialistName ?? laneSession?.specialistId ?? task.assignedSpecialistName ?? task.assignedSpecialistId ?? "Unknown specialist" },
-    { label: "Remote task", value: laneSession?.externalTaskId ?? "Unavailable" },
-    { label: "Context", value: laneSession?.contextId ?? "Unavailable" },
-    { label: "Started", value: formatSessionTimestamp(laneSession?.startedAt ?? task.createdAt) },
-    { label: "Completed", value: formatSessionTimestamp(laneSession?.completedAt) },
+    { label: t.kanban.transport, value: (laneSession?.transport ?? "a2a").toUpperCase() },
+    { label: t.kanbanDetail.status, value: formatRunStatus(laneSession?.status ?? "running") },
+    { label: t.kanbanDetail.column, value: laneSession?.columnName ?? laneSession?.columnId ?? task.columnId ?? t.kanbanDetail.unknownLane },
+    { label: t.kanban.role, value: laneSession?.role ?? task.assignedRole ?? t.kanban.unknownRole },
+    { label: t.kanban.specialist, value: laneSession?.specialistName ?? laneSession?.specialistId ?? task.assignedSpecialistName ?? task.assignedSpecialistId ?? t.kanbanDetail.unknownSpecialist },
+    { label: t.kanbanDetail.remoteTask, value: laneSession?.externalTaskId ?? t.kanban.unavailable },
+    { label: t.kanbanDetail.context, value: laneSession?.contextId ?? t.kanban.unavailable },
+    { label: t.kanbanDetail.startedLabel, value: formatSessionTimestamp(laneSession?.startedAt ?? task.createdAt) },
+    { label: t.kanbanDetail.completedLabel, value: formatSessionTimestamp(laneSession?.completedAt) },
   ];
 
   return (
@@ -746,12 +777,12 @@ function A2ASessionPane({
       <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-white via-sky-50/40 to-amber-50/30 p-5 dark:from-[#12141c] dark:via-[#101824] dark:to-[#17131c]">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
       <section className="border border-slate-200/80 p-5 dark:border-[#232736]">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-300">A2A Run</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-600 dark:text-sky-300">{t.kanbanDetail.a2aRunTitle}</div>
             <div className="mt-2 text-xl font-semibold text-slate-950 dark:text-slate-50">
-              {laneSession?.externalTaskId ?? laneSession?.contextId ?? currentSessionId ?? "A2A task"}
+              {laneSession?.externalTaskId ?? laneSession?.contextId ?? currentSessionId ?? t.kanbanDetail.a2aTaskFallback}
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              This lane run completed through A2A transport. ACP chat and trace are not available for synthetic A2A sessions, so this pane shows the recorded task metadata instead.
+              {t.kanbanDetail.a2aRunMetadataHint}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {metadata.map((entry) => (
@@ -793,6 +824,7 @@ export function KanbanTaskDetailOverlay({
   resolveSpecialist,
   acp,
   boardAutoProviderId,
+  currentAcpProviderId,
   onBoardProviderChange,
   detailSplitContainerRef,
   detailSplitRatio,
@@ -824,6 +856,7 @@ export function KanbanTaskDetailOverlay({
   resolveSpecialist: ReturnType<typeof import("./kanban-card-session-utils").createKanbanSpecialistResolver>;
   acp?: UseAcpState & UseAcpActions;
   boardAutoProviderId?: string;
+  currentAcpProviderId?: string | null;
   onBoardProviderChange: (providerId: string) => void;
   detailSplitContainerRef: RefObject<HTMLDivElement | null>;
   detailSplitRatio: number;
@@ -965,6 +998,7 @@ export function KanbanTaskDetailOverlay({
                   sessions={combinedSessions}
                   fullWidth={!hasSessionPane}
                   selectedProvider={resolveKanbanBoardAutoProviderId(board, boardAutoProviderId) ?? null}
+                  currentAcpProvider={currentAcpProviderId ?? null}
                   onPatchTask={patchTask}
                   onRetryTrigger={retryTaskTrigger}
                   onRunPullRequest={runTaskPullRequest}

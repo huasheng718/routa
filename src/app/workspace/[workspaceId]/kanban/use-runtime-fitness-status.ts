@@ -6,7 +6,8 @@ import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import type { RuntimeFitnessStatusResponse } from "@/core/fitness/runtime-status-types";
 
-const RUNTIME_FITNESS_POLL_MS = 5_000;
+const RUNTIME_FITNESS_ACTIVE_POLL_MS = 5_000;
+const RUNTIME_FITNESS_IDLE_POLL_MS = 60_000;
 
 type UseRuntimeFitnessStatusOptions = {
   workspaceId: string;
@@ -28,6 +29,19 @@ function toMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function hasRunningFitness(data: RuntimeFitnessStatusResponse | null): boolean {
+  return data?.hasRunning === true || data?.modes.some((mode) => mode.currentStatus === "running") === true;
+}
+
+function buildFitnessFingerprint(data: RuntimeFitnessStatusResponse): string {
+  return JSON.stringify({
+    repoRoot: data.repoRoot,
+    hasRunning: data.hasRunning,
+    latest: data.latest,
+    modes: data.modes,
+  });
+}
+
 export function useRuntimeFitnessStatus({
   workspaceId,
   codebaseId,
@@ -41,6 +55,7 @@ export function useRuntimeFitnessStatus({
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const inFlightRef = useRef(false);
+  const fingerprintRef = useRef<string | null>(null);
   const { t } = useTranslation();
   const loadErrorMessage = t.kanban.fitnessLoadError;
 
@@ -76,7 +91,12 @@ export function useRuntimeFitnessStatus({
       if (!response.ok) {
         throw new Error(typeof payload?.details === "string" ? payload.details : loadErrorMessage);
       }
-      setData(payload as RuntimeFitnessStatusResponse);
+      const nextData = payload as RuntimeFitnessStatusResponse;
+      const nextFingerprint = buildFitnessFingerprint(nextData);
+      if (fingerprintRef.current !== nextFingerprint) {
+        fingerprintRef.current = nextFingerprint;
+        setData(nextData);
+      }
       setError(null);
     } catch (fetchError) {
       if ((fetchError as Error).name === "AbortError") {
@@ -93,6 +113,7 @@ export function useRuntimeFitnessStatus({
 
   useEffect(() => {
     if (!enabled || !queryString) {
+      fingerprintRef.current = null;
       setData(null);
       setError(null);
       setLoading(false);
@@ -109,12 +130,16 @@ export function useRuntimeFitnessStatus({
       return;
     }
 
+    const intervalMs = hasRunningFitness(data)
+      ? RUNTIME_FITNESS_ACTIVE_POLL_MS
+      : RUNTIME_FITNESS_IDLE_POLL_MS;
+
     const timerId = window.setInterval(() => {
       void fetchStatus();
-    }, RUNTIME_FITNESS_POLL_MS);
+    }, intervalMs);
 
     return () => window.clearInterval(timerId);
-  }, [enabled, fetchStatus, isPageVisible, queryString]);
+  }, [data, enabled, fetchStatus, isPageVisible, queryString]);
 
   const refresh = useCallback(() => {
     setRefreshNonce((value) => value + 1);

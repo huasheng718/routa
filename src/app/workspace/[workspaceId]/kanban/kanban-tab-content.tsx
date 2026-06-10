@@ -20,6 +20,7 @@ import {
 import type { KanbanCodebaseModalProps } from "./kanban-tab-modals";
 import type { AcpProviderInfo } from "@/client/acp-client";
 import type { KanbanTaskAgentCopy } from "./i18n/kanban-task-agent";
+import { useTranslation } from "@/i18n";
 
 type KanbanTabHeaderProps = Omit<ComponentProps<typeof KanbanTabHeader>, "actionSlot">;
 type BoardSurfaceProps = ComponentProps<typeof KanbanBoardSurface>;
@@ -67,6 +68,9 @@ export interface KanbanTabContentProps {
   moveBlockedModalProps: MoveBlockedModalProps;
   statusBarProps: StatusBarProps;
   fitnessWorkbenchModalProps: FitnessWorkbenchModalProps;
+  loading?: boolean;
+  loadError?: string | null;
+  onRetryLoad?: () => void;
 }
 
 function KanbanTabHeaderActionSlot({
@@ -168,7 +172,11 @@ export function KanbanTabContent({
   moveBlockedModalProps,
   statusBarProps,
   fitnessWorkbenchModalProps,
+  loading = false,
+  loadError = null,
+  onRetryLoad,
 }: KanbanTabContentProps) {
+  const { t } = useTranslation();
   const { key: codebaseModalKey, ...codebaseModalRestProps } = codebaseModalProps as KanbanCodebaseModalProps & {
     key?: string;
   };
@@ -197,7 +205,22 @@ export function KanbanTabContent({
       <div className="flex h-full flex-col space-y-2">
         <KanbanTabHeader {...headerProps} actionSlot={headerActionSlot}/>
         <div className="rounded-2xl border border-gray-200/60 bg-white p-6 text-sm text-gray-500 dark:border-[#1c1f2e] dark:bg-[#12141c] dark:text-gray-400">
-          No board available yet.
+          {loadError ? (
+            <div className="space-y-3">
+              <div className="font-medium text-rose-700 dark:text-rose-300">
+                {loadError}
+              </div>
+              {onRetryLoad ? (
+                <button
+                  type="button"
+                  onClick={onRetryLoad}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  {t.common.retry}
+                </button>
+              ) : null}
+            </div>
+          ) : loading ? t.kanbanBoard.loadingBoard : t.kanbanBoard.noBoardAvailable}
         </div>
       </div>
     );

@@ -169,12 +169,12 @@ export const KANBAN_HAPPY_PATH_COLUMN_ORDER: Exclude<KanbanColumnStage, "blocked
 ];
 
 export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
-  { id: "backlog", name: "Backlog", color: "slate", position: 0, stage: "backlog" },
-  { id: "todo", name: "Todo", color: "sky", position: 1, stage: "todo" },
-  { id: "dev", name: "Dev", color: "amber", position: 2, stage: "dev" },
-  { id: "review", name: "Review", color: "slate", position: 3, stage: "review" },
-  { id: "done", name: "Done", color: "emerald", position: 4, stage: "done" },
-  { id: "blocked", name: "Blocked", color: "rose", position: 5, stage: "blocked" },
+  { id: "backlog", name: "待规划", color: "slate", position: 0, stage: "backlog" },
+  { id: "todo", name: "待处理", color: "sky", position: 1, stage: "todo" },
+  { id: "dev", name: "开发中", color: "amber", position: 2, stage: "dev" },
+  { id: "review", name: "评审中", color: "slate", position: 3, stage: "review" },
+  { id: "done", name: "已完成", color: "emerald", position: 4, stage: "done" },
+  { id: "blocked", name: "已阻塞", color: "rose", position: 5, stage: "blocked" },
 ];
 
 export function getDefaultKanbanColumnPosition(columnId?: string): number {
