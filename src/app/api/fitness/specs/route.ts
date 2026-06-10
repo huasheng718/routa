@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import { promises as fsp } from "fs";
 import matter from "gray-matter";
 import yaml from "js-yaml";
@@ -231,11 +232,22 @@ function parseNonMarkdownSpec(relativePath: string, raw: string): FitnessSpecSum
 export async function GET(request: NextRequest) {
   try {
     const context = parseContext(request.nextUrl.searchParams);
-    const repoRoot = await resolveFitnessRepoRoot(context);
+    const repoRoot = await resolveFitnessRepoRoot(context, {
+      preferCurrentRepoForDefaultWorkspace: true,
+    });
     const fitnessDir = path.join(repoRoot, "docs", "fitness");
     const files: FitnessSpecSummary[] = [];
     let manifestSpec: FitnessSpecSummary | null = null;
     const byPath = new Map<string, FitnessSpecSummary>();
+
+    if (!fs.existsSync(fitnessDir)) {
+      return NextResponse.json({
+        generatedAt: new Date().toISOString(),
+        repoRoot,
+        fitnessDir,
+        files: [],
+      } satisfies FitnessSpecsResponse);
+    }
 
     const fitnessFiles = await collectFitnessFiles(fitnessDir);
     for (const file of fitnessFiles) {

@@ -1,6 +1,11 @@
 import { execFileSync, spawnSync } from "node:child_process";
 
-const DEFAULT_BASE_REF_CANDIDATES = ["origin/main", "main", "origin/master", "master"] as const;
+const DEFAULT_BASE_REF_CANDIDATES = [
+  "origin/main",
+  "main",
+  "origin/master",
+  "master",
+] as const;
 const RELEVANT_PREFIXES = ["src/", "scripts/", "tests/"] as const;
 const RELEVANT_EXACT_FILES = new Set([
   "package.json",
@@ -9,8 +14,12 @@ const RELEVANT_EXACT_FILES = new Set([
   "tsconfig.json",
   "tsconfig.node.json",
 ]);
+const VITEST_OUTPUT_MAX_BUFFER = 64 * 1024 * 1024;
 
-export function pickBaseRef(upstreamRef: string | null, existingRefs: string[]): string | null {
+export function pickBaseRef(
+  upstreamRef: string | null,
+  existingRefs: string[],
+): string | null {
   const normalizedUpstream = upstreamRef?.trim();
   if (normalizedUpstream) {
     return normalizedUpstream;
@@ -67,7 +76,11 @@ function tryExecGit(repoRoot: string, args: string[]): string | null {
 }
 
 function resolveBaseRef(repoRoot: string): string | null {
-  const upstreamRef = tryExecGit(repoRoot, ["rev-parse", "--abbrev-ref", "@{upstream}"]);
+  const upstreamRef = tryExecGit(repoRoot, [
+    "rev-parse",
+    "--abbrev-ref",
+    "@{upstream}",
+  ]);
   const existingRefs = DEFAULT_BASE_REF_CANDIDATES.filter((candidate) =>
     Boolean(tryExecGit(repoRoot, ["rev-parse", "--verify", candidate])),
   );
@@ -75,7 +88,12 @@ function resolveBaseRef(repoRoot: string): string | null {
 }
 
 function listChangedFiles(repoRoot: string, baseRef: string): string[] {
-  const stdout = tryExecGit(repoRoot, ["diff", "--name-only", "--diff-filter=ACMR", baseRef]);
+  const stdout = tryExecGit(repoRoot, [
+    "diff",
+    "--name-only",
+    "--diff-filter=ACMR",
+    baseRef,
+  ]);
   if (!stdout) {
     return [];
   }
@@ -91,10 +109,13 @@ function run(): number {
   const baseRef = resolveBaseRef(repoRoot);
 
   if (!baseRef) {
-    console.log("No upstream/main ref found for incremental Vitest; falling back to full suite.");
+    console.log(
+      "No upstream/main ref found for incremental Vitest; falling back to full suite.",
+    );
     const fallback = spawnSync("npx", ["vitest", "run"], {
       cwd: repoRoot,
       encoding: "utf8",
+      maxBuffer: VITEST_OUTPUT_MAX_BUFFER,
       stdio: "inherit",
     });
     if (fallback.error) {
@@ -116,11 +137,16 @@ function run(): number {
     `Running incremental Vitest against ${baseRef} for ${relevantChanges.length} relevant changed files.`,
   );
 
-  const result = spawnSync("npx", ["vitest", "run", "--changed", baseRef, "--passWithNoTests"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    stdio: "pipe",
-  });
+  const result = spawnSync(
+    "npx",
+    ["vitest", "run", "--changed", baseRef, "--passWithNoTests"],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+      maxBuffer: VITEST_OUTPUT_MAX_BUFFER,
+      stdio: "pipe",
+    },
+  );
 
   if (result.stdout) {
     process.stdout.write(result.stdout);

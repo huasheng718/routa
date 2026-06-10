@@ -170,10 +170,27 @@ export async function GET(request: NextRequest) {
     const context = parseContext(request.nextUrl.searchParams);
     const tier = parseTier(request.nextUrl.searchParams.get("tier"));
     const scope = parseScope(request.nextUrl.searchParams.get("scope"));
-    const repoRoot = await resolveFitnessRepoRoot(context);
+    const repoRoot = await resolveFitnessRepoRoot(context, {
+      preferCurrentRepoForDefaultWorkspace: true,
+    });
     const fitnessDir = path.join(repoRoot, "docs", "fitness");
     const markdownByPath = new Map<string, { name: string; raw: string }>();
     let manifestEntries: string[] = [];
+    const emptyRunnerCounts: Record<RunnerKind, number> = { shell: 0, graph: 0, sarif: 0 };
+
+    if (!fs.existsSync(fitnessDir)) {
+      return NextResponse.json({
+        generatedAt: new Date().toISOString(),
+        tier,
+        scope,
+        repoRoot,
+        dimensionCount: 0,
+        metricCount: 0,
+        hardGateCount: 0,
+        runnerCounts: emptyRunnerCounts,
+        dimensions: [],
+      } satisfies FitnessPlanResponse);
+    }
 
     const manifestPath = path.join(fitnessDir, "manifest.yaml");
     if (fs.existsSync(manifestPath)) {
@@ -201,7 +218,7 @@ export async function GET(request: NextRequest) {
     }
 
     const dimensions: PlannedDimension[] = [];
-    const runnerCounts: Record<RunnerKind, number> = { shell: 0, graph: 0, sarif: 0 };
+    const runnerCounts: Record<RunnerKind, number> = { ...emptyRunnerCounts };
     let metricCount = 0;
     let hardGateCount = 0;
 

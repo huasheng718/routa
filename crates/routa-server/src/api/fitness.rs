@@ -398,7 +398,9 @@ async fn get_fitness_plan(
         query.codebase_id.as_deref(),
         query.repo_path.as_deref(),
         "缺少 fitness 上下文，请提供 workspaceId / codebaseId / repoPath 之一",
-        ResolveRepoRootOptions::default(),
+        ResolveRepoRootOptions {
+            prefer_current_repo_for_default_workspace: true,
+        },
     )
     .await
     .map_err(map_context_error(
@@ -424,17 +426,12 @@ async fn get_fitness_plan(
         })));
     }
 
-    let entries =
-        std::fs::read_dir(&fitness_dir).map_err(map_io_error("构建 Fitness plan 失败"))?;
-
     let mut markdown_by_path = BTreeMap::new();
     let mut manifest_entries = Vec::new();
 
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
+    for (relative_path, path) in collect_fitness_files(&fitness_dir, &fitness_dir)
+        .map_err(map_io_error("构建 Fitness plan 失败"))?
+    {
         let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
@@ -443,13 +440,13 @@ async fn get_fitness_plan(
             manifest_entries = parse_manifest_entries(&path);
             continue;
         }
-        if !name.ends_with(".md") || name == "README.md" || name == "REVIEW.md" {
+        if !relative_path.ends_with(".md") || name == "README.md" || name == "REVIEW.md" {
             continue;
         }
 
         let raw = read_to_string(&path).map_err(map_internal_error("构建 Fitness plan 失败"))?;
-        markdown_by_path.insert(name.to_string(), raw.clone());
-        markdown_by_path.insert(format!("docs/fitness/{name}"), raw);
+        markdown_by_path.insert(relative_path.clone(), raw.clone());
+        markdown_by_path.insert(format!("docs/fitness/{relative_path}"), raw);
     }
 
     let mut ordered = Vec::new();
@@ -536,7 +533,9 @@ async fn get_fitness_specs(
         query.codebase_id.as_deref(),
         query.repo_path.as_deref(),
         "缺少 fitness 上下文，请提供 workspaceId / codebaseId / repoPath 之一",
-        ResolveRepoRootOptions::default(),
+        ResolveRepoRootOptions {
+            prefer_current_repo_for_default_workspace: true,
+        },
     )
     .await
     .map_err(map_context_error(
@@ -556,37 +555,32 @@ async fn get_fitness_specs(
         })));
     }
 
-    let entries =
-        std::fs::read_dir(&fitness_dir).map_err(map_io_error("读取 Fitness specs 失败"))?;
-
     let mut files = Vec::new();
     let mut by_path = BTreeMap::<String, Value>::new();
     let mut manifest_spec: Option<Value> = None;
 
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
+    for (relative_path, path) in collect_fitness_files(&fitness_dir, &fitness_dir)
+        .map_err(map_io_error("读取 Fitness specs 失败"))?
+    {
         let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
-        if is_fluency_model_spec(name) {
+        if is_fluency_model_spec(&relative_path) {
             continue;
         }
         let raw = read_to_string(&path).map_err(map_internal_error("读取 Fitness specs 失败"))?;
-        let spec = if name.ends_with(".md") {
-            parse_markdown_spec(name, &raw)
+        let spec = if relative_path.ends_with(".md") {
+            parse_markdown_spec(&relative_path, &raw)
         } else if name == "manifest.yaml" {
-            parse_manifest_spec(name, &raw)
-        } else if name.ends_with(".yaml") || name.ends_with(".yml") {
-            parse_non_markdown_spec(name, &raw)
+            parse_manifest_spec(&relative_path, &raw)
+        } else if relative_path.ends_with(".yaml") || relative_path.ends_with(".yml") {
+            parse_non_markdown_spec(&relative_path, &raw)
         } else {
             continue;
         };
         files.push(spec.clone());
-        by_path.insert(name.to_string(), spec.clone());
-        by_path.insert(format!("docs/fitness/{name}"), spec.clone());
+        by_path.insert(relative_path.clone(), spec.clone());
+        by_path.insert(format!("docs/fitness/{relative_path}"), spec.clone());
         if name == "manifest.yaml" {
             manifest_spec = Some(spec);
         }
@@ -1000,6 +994,41 @@ fn parse_manifest_entries(path: &Path) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn collect_fitness_files(root: &Path, current: &Path) -> std::io::Result<Vec<(String, PathBuf)>> {
+    let mut files = Vec::new();
+    let mut entries = std::fs::read_dir(current)?.flatten().collect::<Vec<_>>();
+    entries.sort_by_key(|entry| entry.file_name());
+
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            files.extend(collect_fitness_files(root, &path)?);
+            continue;
+        }
+
+        if !path.is_file() {
+            continue;
+        }
+
+        let Ok(relative_path) = path.strip_prefix(root) else {
+            continue;
+        };
+        let relative_path = relative_path
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy())
+            .collect::<Vec<_>>()
+            .join("/");
+        if relative_path.ends_with(".md")
+            || relative_path.ends_with(".yaml")
+            || relative_path.ends_with(".yml")
+        {
+            files.push((relative_path, path));
+        }
+    }
+
+    Ok(files)
 }
 
 fn parse_markdown_frontmatter(raw: &str) -> Option<Value> {

@@ -1,4 +1,7 @@
 import { NextRequest } from "next/server";
+import { mkdtemp, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const system = {
@@ -56,6 +59,18 @@ describe("/api/fitness/plan route", () => {
     ]);
   });
 
+  it("uses the current Routa repo for the default workspace", async () => {
+    const response = await GET(new NextRequest(
+      "http://localhost/api/fitness/plan?workspaceId=default&tier=normal&scope=ci",
+    ));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(system.codebaseStore.listByWorkspace).not.toHaveBeenCalled();
+    expect(data.repoRoot).toBe(repoRoot);
+    expect(data.dimensions.map((dimension: { sourceFile: string }) => dimension.sourceFile)).toContain("runtime/observability.md");
+  });
+
   it("surfaces governance-only CI checks under engineering governance", async () => {
     const response = await GET(new NextRequest(
       `http://localhost/api/fitness/plan?repoPath=${encodeURIComponent(repoRoot)}&tier=normal&scope=ci`,
@@ -73,5 +88,29 @@ describe("/api/fitness/plan route", () => {
       "graph_blast_radius_probe",
       "markdown_external_links",
     ]);
+  });
+
+  it("returns an empty plan for repos without docs/fitness", async () => {
+    const tempRepo = await mkdtemp(join(tmpdir(), "routa-fitness-plan-missing-"));
+    try {
+      const response = await GET(new NextRequest(
+        `http://localhost/api/fitness/plan?repoPath=${encodeURIComponent(tempRepo)}&tier=normal&scope=local`,
+      ));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        tier: "normal",
+        scope: "local",
+        repoRoot: tempRepo,
+        dimensionCount: 0,
+        metricCount: 0,
+        hardGateCount: 0,
+        runnerCounts: { shell: 0, graph: 0, sarif: 0 },
+        dimensions: [],
+      });
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
   });
 });

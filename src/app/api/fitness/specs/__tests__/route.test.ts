@@ -1,4 +1,7 @@
 import { NextRequest } from "next/server";
+import { mkdtemp, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const system = {
@@ -65,5 +68,36 @@ describe("/api/fitness/specs route", () => {
       "markdown_external_links",
       "todo_fixme_count",
     ]);
+  });
+
+  it("uses the current Routa repo for the default workspace", async () => {
+    const response = await GET(new NextRequest(
+      "http://localhost/api/fitness/specs?workspaceId=default",
+    ));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(system.codebaseStore.listByWorkspace).not.toHaveBeenCalled();
+    expect(data.repoRoot).toBe(repoRoot);
+    expect(data.files.map((file: { relativePath: string }) => file.relativePath)).toContain("runtime/observability.md");
+  });
+
+  it("returns an empty file list for repos without docs/fitness", async () => {
+    const tempRepo = await mkdtemp(join(tmpdir(), "routa-fitness-specs-missing-"));
+    try {
+      const response = await GET(new NextRequest(
+        `http://localhost/api/fitness/specs?repoPath=${encodeURIComponent(tempRepo)}`,
+      ));
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toMatchObject({
+        repoRoot: tempRepo,
+        fitnessDir: join(tempRepo, "docs", "fitness"),
+        files: [],
+      });
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
   });
 });
