@@ -1,0 +1,19 @@
+{
+  "Routa server is running at {0}.": "Routa 服务器已在 {0} 运行。",
+  "Routa server stopped.": "Routa 服务器已停止。",
+  "Routa server URL is unavailable.": "Routa 服务器 URL 不可用。",
+  "Routa MCP endpoint copied.": "已复制 Routa MCP 端点。",
+  "Open in Browser": "在浏览器中打开",
+  "This VS Code host does not expose Webview Developer Tools. Open Routa in a browser instead.": "当前 VS Code 宿主未暴露 Webview 开发者工具。请改为在浏览器中打开 Routa。",
+  "Routa server: {0}": "Routa 服务器：{0}",
+  "Routa server is starting.": "Routa 服务器正在启动。",
+  "Routa server error.": "Routa 服务器错误。",
+  "Open Routa.": "打开 Routa。",
+  "Routa workspace: {0}": "Routa 工作区：{0}",
+  "Server": "服务器",
+  "Inspect": "检查",
+  "Open in browser": "在浏览器中打开",
+  "MCP": "MCP",
+  "Routa server did not start.": "Routa 服务器未启动。",
+  "Timed out while waiting for Routa server startup.": "等待 Routa 服务器启动超时。"
+}

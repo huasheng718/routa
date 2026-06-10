@@ -79,6 +79,7 @@ function renderPanelHtml(
   const inspectLabel = vscode.l10n.t("Inspect");
   const browserLabel = vscode.l10n.t("Open in browser");
   const mcpLabel = vscode.l10n.t("MCP");
+  const htmlLang = vscode.env.language || "en";
   const csp = [
     "default-src 'none'",
     `frame-src ${baseUrl}`,
@@ -88,7 +89,7 @@ function renderPanelHtml(
   ].join("; ");
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${escapeAttribute(htmlLang)}">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${escapeAttribute(csp)}">

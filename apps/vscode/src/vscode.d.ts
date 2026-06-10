@@ -104,6 +104,7 @@ declare module "vscode" {
   }
 
   export namespace env {
+    const language: string;
     function openExternal(target: Uri): Thenable<boolean>;
     const clipboard: {
       writeText(value: string): Thenable<void>;

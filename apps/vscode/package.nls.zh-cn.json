@@ -1,0 +1,13 @@
+{
+  "routa.command.open": "打开 Routa",
+  "routa.command.startServer": "启动 Routa 服务器",
+  "routa.command.stopServer": "停止 Routa 服务器",
+  "routa.command.openInBrowser": "在浏览器中打开 Routa",
+  "routa.command.openWebviewDeveloperTools": "打开 Routa Webview 开发者工具",
+  "routa.command.copyMcpEndpoint": "复制 Routa MCP 端点",
+  "routa.config.executablePath": "Routa CLI 可执行文件路径。留空时使用内置二进制、仓库构建产物，或 PATH 中的 routa。",
+  "routa.config.port": "本地 Routa 服务器端口。设为 0 时自动选择可用随机端口。",
+  "routa.config.staticDir": "Routa 静态前端导出目录。留空时使用打包前端或仓库 out 目录。",
+  "routa.config.extraArgs": "附加到 routa server 命令的额外参数。",
+  "routa.config.autoRegisterCurrentFolder": "自动为当前 VS Code 工作区文件夹创建 Routa 工作区和代码库。"
+}
