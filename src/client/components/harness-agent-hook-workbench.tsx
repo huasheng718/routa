@@ -14,16 +14,16 @@ import {
 } from "@xyflow/react";
 import { CodeViewer } from "@/client/components/codemirror/code-viewer";
 import { HarnessUnsupportedState } from "@/client/components/harness-support-state";
-import { useTranslation } from "@/i18n";
+import { useTranslation, type TranslationDictionary } from "@/i18n";
 import type { AgentHooksResponse } from "@/client/hooks/use-harness-settings-data";
 import {
   buildAgentHookFlow,
   buildAgentHookWorkbenchEntries,
-  buildAgentHookConfigSource,
   getDefaultAgentHookEntry,
   groupAgentHookEntries,
   type AgentHookFlowNodeSpec,
   type AgentHookFlowNodeTone,
+  type AgentHookLifecycleGroup,
   type AgentHookWorkbenchEntry,
 } from "./harness-agent-hook-workbench-model";
 
@@ -33,6 +33,8 @@ type AgentHookWorkbenchProps = {
   variant?: "full" | "compact";
   embedded?: boolean;
 };
+
+type AgentHookWorkbenchCopy = TranslationDictionary["harness"]["agentHookWorkbench"];
 
 type WorkbenchState = {
   contextKey: string;
@@ -51,7 +53,7 @@ type WorkbenchContextValue = {
   data: AgentHooksResponse;
   compactMode: boolean;
   embedded: boolean;
-  t: ReturnType<typeof useTranslation>["t"];
+  copy: AgentHookWorkbenchCopy;
 };
 
 const WorkbenchContext = createContext<WorkbenchContextValue | null>(null);
@@ -130,7 +132,187 @@ function useWorkbenchContext() {
   return context;
 }
 
-type FlowNodeData = AgentHookFlowNodeSpec;
+function formatTemplate(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (formatted, [key, value]) => formatted.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
+
+function formatCount(template: string, count: number) {
+  return formatTemplate(template, { count });
+}
+
+function getRecordValue(record: Record<string, string>, key: string, fallback: string) {
+  return record[key] ?? fallback;
+}
+
+function formatLifecycleGroupLabel(group: AgentHookLifecycleGroup, copy: AgentHookWorkbenchCopy) {
+  return getRecordValue(copy.lifecycleGroups, group, group);
+}
+
+function formatLifecycleLabel(entry: AgentHookWorkbenchEntry, copy: AgentHookWorkbenchCopy) {
+  return formatLifecycleGroupLabel(entry.lifecycleGroup, copy);
+}
+
+function formatLifecycleDescription(entry: AgentHookWorkbenchEntry, copy: AgentHookWorkbenchCopy) {
+  return copy.eventDescriptions[entry.event] ?? formatTemplate(copy.customEventDescription, { event: entry.event });
+}
+
+function formatEventHint(entry: AgentHookWorkbenchEntry, copy: AgentHookWorkbenchCopy) {
+  return copy.eventHints[entry.event] ?? copy.providerSpecificEvent;
+}
+
+function formatHookType(type: string, copy: AgentHookWorkbenchCopy) {
+  return getRecordValue(copy.hookTypes, type, type);
+}
+
+function formatFlowKind(kind: string, copy: AgentHookWorkbenchCopy) {
+  return getRecordValue(copy.flowKinds, kind, kind);
+}
+
+function formatFlowTitle(value: string, copy: AgentHookWorkbenchCopy) {
+  if (value === "Passthrough") return copy.passthrough;
+  if (value === "Allow") return copy.allow;
+  if (value === "Block") return copy.block;
+  if (value === "Signal") return copy.signal;
+  if (value.endsWith(" hook")) {
+    const type = value.slice(0, -" hook".length);
+    return `${formatHookType(type, copy)} ${copy.hook}`;
+  }
+  return value;
+}
+
+function formatFlowSubtitle(value: string | undefined, copy: AgentHookWorkbenchCopy) {
+  if (!value) return value;
+  if (value === "No hooks configured for this event") return copy.noHooksConfigured;
+  if (value === "Hook exits 0 — action proceeds") return copy.hookExitZero;
+  if (value === "Hook exits non-zero — action denied") return copy.hookExitNonZero;
+  if (value === "Non-blocking — hook output recorded") return copy.nonBlockingOutputRecorded;
+  if (value.includes(" · Can block")) return value.replace("Can block", copy.canBlock);
+  if (value.includes(" · Non-blocking")) return value.replace("Non-blocking", copy.nonBlocking);
+  return value;
+}
+
+function formatFlowChip(value: string, copy: AgentHookWorkbenchCopy) {
+  if (value === "no hooks configured") return copy.noHooksConfiguredChip;
+  if (value === "signal only") return copy.signalOnly;
+  if (value === "blocking") return copy.blocking;
+  if (value === "async") return copy.async;
+  if (value.endsWith(" hooks")) {
+    const count = Number(value.replace(" hooks", ""));
+    return Number.isFinite(count) ? formatCount(copy.hooksCount, count) : value;
+  }
+  if (value.endsWith(" blocking")) {
+    const count = Number(value.replace(" blocking", ""));
+    return Number.isFinite(count) ? formatCount(copy.blockingCount, count) : value;
+  }
+  if (value.startsWith("matcher: ")) {
+    return `${copy.labelMatcher}: ${value.slice("matcher: ".length)}`;
+  }
+  const knownHookType = copy.hookTypes[value];
+  return knownHookType ?? value;
+}
+
+type FlowNodeData = AgentHookFlowNodeSpec & {
+  displayKind?: string;
+};
+
+function formatFlowNode(node: Node<FlowNodeData>, copy: AgentHookWorkbenchCopy): Node<FlowNodeData> {
+  return {
+    ...node,
+    data: {
+      ...node.data,
+      displayKind: formatFlowKind(node.data.kind, copy),
+      title: formatFlowTitle(node.data.title, copy),
+      subtitle: formatFlowSubtitle(node.data.subtitle, copy),
+      chips: node.data.chips?.map((chip) => formatFlowChip(chip, copy)),
+    },
+  };
+}
+
+function formatAgentHookWarning(warning: string, copy: AgentHookWorkbenchCopy) {
+  if (warning.startsWith("No agent hook configuration found. Checked: ")) {
+    return formatTemplate(copy.warningsCopy.noConfigFound, {
+      paths: warning.slice("No agent hook configuration found. Checked: ".length),
+    });
+  }
+  if (warning === "Failed to read docs/fitness/runtime/agent-hooks.yaml.") {
+    return copy.warningsCopy.failedReadRuntimeConfig;
+  }
+  const parseMatch = warning.match(/^Failed to parse (.+) as JSON\.$/);
+  if (parseMatch?.[1]) {
+    return formatTemplate(copy.warningsCopy.failedParseJson, { path: parseMatch[1] });
+  }
+  const invalidYamlMatch = warning.match(/^Invalid YAML in agent-hooks\.yaml: (.+)$/);
+  if (invalidYamlMatch?.[1]) {
+    return formatTemplate(copy.warningsCopy.invalidYaml, { details: invalidYamlMatch[1] });
+  }
+  if (warning === "Skipped hook entry with missing event field.") {
+    return copy.warningsCopy.missingEventField;
+  }
+  const unknownEventMatch = warning.match(/^Unknown agent hook event: "(.+)"\.$/);
+  if (unknownEventMatch?.[1]) {
+    return formatTemplate(copy.warningsCopy.unknownEvent, { event: unknownEventMatch[1] });
+  }
+  const unknownTypeMatch = warning.match(/^Unknown hook type "(.+)" for event "(.+)"\.$/);
+  if (unknownTypeMatch?.[1] && unknownTypeMatch[2]) {
+    return formatTemplate(copy.warningsCopy.unknownHookType, {
+      type: unknownTypeMatch[1],
+      event: unknownTypeMatch[2],
+    });
+  }
+  const unsupportedBlockingMatch = warning.match(/^Event "(.+)" does not support blocking\. Setting blocking to false\.$/);
+  if (unsupportedBlockingMatch?.[1]) {
+    return formatTemplate(copy.warningsCopy.unsupportedBlocking, { event: unsupportedBlockingMatch[1] });
+  }
+  return warning;
+}
+
+function buildLocalizedAgentHookConfigSource(entry: AgentHookWorkbenchEntry, copy: AgentHookWorkbenchCopy): string {
+  if (entry.hooks.length === 0) {
+    return [
+      formatTemplate(copy.noHooksConfiguredForEventComment, { event: entry.event }),
+      copy.exampleComment,
+      "# hooks:",
+      `#   - event: ${entry.event}`,
+      "#     type: command",
+      "#     command: \"echo hello\"",
+      "#     timeout: 10",
+      `#     blocking: ${entry.canBlock}`,
+      "",
+    ].join("\n");
+  }
+
+  const lines = ["hooks:"];
+  for (const hook of entry.hooks) {
+    lines.push(`  - event: ${hook.event}`);
+    if (hook.matcher) {
+      lines.push(`    matcher: "${hook.matcher}"`);
+    }
+    lines.push(`    type: ${hook.type}`);
+    if (hook.command) {
+      lines.push(`    command: "${hook.command}"`);
+    }
+    if (hook.url) {
+      lines.push(`    url: "${hook.url}"`);
+    }
+    if ((hook.type === "prompt" || hook.type === "agent") && hook.prompt) {
+      lines.push(`    prompt: "${hook.prompt}"`);
+    }
+    lines.push(`    timeout: ${hook.timeout}`);
+    lines.push(`    blocking: ${hook.blocking}`);
+    if (hook.description) {
+      lines.push(`    description: "${hook.description}"`);
+    }
+    if (hook.source) {
+      lines.push(`    # ${copy.labelSource}: ${hook.source}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
 
 function FlowNodeView({ data }: NodeProps<Node<FlowNodeData>>) {
   const tone = toneStyles(data.tone);
@@ -142,7 +324,7 @@ function FlowNodeView({ data }: NodeProps<Node<FlowNodeData>>) {
       <Handle id="left" type="target" position={Position.Left} className="!h-2.5 !w-2.5 !border-0 !bg-desktop-border" />
       <Handle id="right" type="source" position={Position.Right} className="!h-2.5 !w-2.5 !border-0 !bg-desktop-border" />
       <div className={`${widthClass} ${heightClass} rounded-sm border bg-desktop-bg-primary px-4 py-3 ${tone.border} ${tone.glow}`}>
-        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">{data.kind}</div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">{data.displayKind ?? "—"}</div>
         <div className="mt-1 text-[15px] font-semibold leading-6 text-desktop-text-primary">{data.title}</div>
         {data.subtitle ? (
           <div className="mt-1 text-[12px] leading-5 text-desktop-text-secondary">{data.subtitle}</div>
@@ -166,14 +348,17 @@ const flowNodeTypes = {
 };
 
 function AgentHookLifecycleRail() {
-  const { t, activeEntry, dispatch, groupedEntries } = useWorkbenchContext();
+  const { copy, activeEntry, dispatch, groupedEntries } = useWorkbenchContext();
 
   return (
     <aside className="rounded-sm border border-desktop-border bg-desktop-bg-primary p-3">
       <div className="flex items-center justify-between gap-3 border-b border-desktop-border pb-2">
-        <div className="text-[12px] font-semibold text-desktop-text-primary">Agent hooks</div>
+        <div className="text-[12px] font-semibold text-desktop-text-primary">{copy.agentHooksTitle}</div>
         <div className="rounded-full border border-desktop-border bg-white/80 px-2.5 py-1 text-[10px] text-desktop-text-secondary">
-          {groupedEntries.reduce((sum, group) => sum + group.entries.length, 0)} {t.harness.agentHookWorkbench.events}
+          {formatTemplate(copy.configuredEventsCount, {
+            configured: groupedEntries.reduce((sum, group) => sum + group.entries.length, 0),
+            total: groupedEntries.reduce((sum, group) => sum + group.entries.length, 0),
+          })}
         </div>
       </div>
 
@@ -181,7 +366,7 @@ function AgentHookLifecycleRail() {
         {groupedEntries.map((group) => (
           <section key={group.group}>
             <div className="flex items-center justify-between gap-3">
-              <div className="text-[11px] font-semibold text-desktop-text-primary">{group.label}</div>
+              <div className="text-[11px] font-semibold text-desktop-text-primary">{formatLifecycleGroupLabel(group.group, copy)}</div>
               <div className="rounded-full border border-desktop-border bg-desktop-bg-primary px-2 py-0.5 text-[10px] text-desktop-text-secondary">
                 {group.entries.length}
               </div>
@@ -214,7 +399,7 @@ function AgentHookLifecycleRail() {
                     {entry.stats.hookCount > 0 && entry.stats.blockingCount > 0 ? (
                       <div className="mt-1 flex gap-1">
                         <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-800">
-                          {entry.stats.blockingCount} {t.harness.agentHookWorkbench.blocking}
+                          {formatCount(copy.blockingCount, entry.stats.blockingCount)}
                         </span>
                       </div>
                     ) : null}
@@ -230,7 +415,7 @@ function AgentHookLifecycleRail() {
 }
 
 function AgentHookFlowCanvas() {
-  const { t, activeEntry, compactMode } = useWorkbenchContext();
+  const { copy, activeEntry, compactMode } = useWorkbenchContext();
   const flowHeight = compactMode ? 440 : 680;
 
   const flow = useMemo(() => {
@@ -239,7 +424,7 @@ function AgentHookFlowCanvas() {
     }
 
     const { nodes, edges } = buildAgentHookFlow(activeEntry);
-    const positionedNodes: Node[] = nodes.map((node) => ({
+    const positionedNodes: Node[] = nodes.map((node) => formatFlowNode({
       id: node.id,
       type: "workbench",
       position: {
@@ -251,7 +436,7 @@ function AgentHookFlowCanvas() {
       data: node,
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
-    }));
+    }, copy));
     const positionedEdges = edges.map<Edge>((edge) => ({
       id: edge.id,
       source: edge.source,
@@ -287,29 +472,29 @@ function AgentHookFlowCanvas() {
     }
 
     return { nodes: positionedNodes, edges: positionedEdges };
-  }, [activeEntry, flowHeight]);
+  }, [activeEntry, copy, flowHeight]);
 
   return (
     <section className="rounded-sm border border-desktop-border bg-desktop-bg-primary p-3">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-desktop-border pb-2">
         <div className="min-w-0">
-          <div className="text-[12px] font-semibold text-desktop-text-primary">{t.harness.agentHookWorkbench.eventHookOutcome}</div>
+          <div className="text-[12px] font-semibold text-desktop-text-primary">{copy.eventHookOutcome}</div>
           <div className="mt-1 text-[11px] text-desktop-text-secondary">
             {activeEntry
-              ? `${activeEntry.lifecycleLabel} lifecycle · ${activeEntry.hint}`
-              : t.harness.agentHookWorkbench.selectEventToInspect}
+              ? `${formatLifecycleLabel(activeEntry, copy)} ${copy.lifecycleSuffix} · ${formatEventHint(activeEntry, copy)}`
+              : copy.selectEventToInspect}
           </div>
         </div>
         {activeEntry ? (
           <div className="flex flex-wrap gap-2 text-[10px]">
             <span className="rounded-full border border-desktop-border bg-white/80 px-2.5 py-1 text-desktop-text-secondary">
-              {activeEntry.lifecycleLabel}
+              {formatLifecycleLabel(activeEntry, copy)}
             </span>
             <span className="rounded-full border border-desktop-border bg-white/80 px-2.5 py-1 text-desktop-text-secondary">
-              {activeEntry.stats.hookCount} hooks
+              {formatCount(copy.hooksCount, activeEntry.stats.hookCount)}
             </span>
             <span className="rounded-full border border-desktop-border bg-white/80 px-2.5 py-1 text-desktop-text-secondary">
-              {activeEntry.stats.blockingCount} {t.harness.agentHookWorkbench.blocking}
+              {formatCount(copy.blockingCount, activeEntry.stats.blockingCount)}
             </span>
           </div>
         ) : null}
@@ -338,7 +523,7 @@ function AgentHookFlowCanvas() {
         </div>
       ) : (
         <div className="mt-4 rounded-sm border border-desktop-border bg-desktop-bg-primary/80 px-4 py-8 text-[12px] text-desktop-text-secondary">
-          {t.harness.agentHookWorkbench.noEventSelected}
+          {copy.noEventSelected}
         </div>
       )}
     </section>
@@ -346,28 +531,28 @@ function AgentHookFlowCanvas() {
 }
 
 function AgentHookInspector() {
-  const { t, activeEntry, data } = useWorkbenchContext();
+  const { copy, activeEntry, data } = useWorkbenchContext();
   const [activeTab, setActiveTab] = useState<"basic" | "source">("basic");
 
   const configSource = useMemo(() => {
     if (!activeEntry) return "";
-    return buildAgentHookConfigSource(activeEntry);
-  }, [activeEntry]);
+    return buildLocalizedAgentHookConfigSource(activeEntry, copy);
+  }, [activeEntry, copy]);
   const warnings = data.warnings ?? [];
 
   return (
     <aside className="rounded-sm border border-desktop-border bg-desktop-bg-primary p-3">
       <div className="border-b border-desktop-border pb-2">
         <h3 className="text-[12px] font-semibold text-desktop-text-primary">
-          {activeEntry?.event ?? t.harness.agentHookWorkbench.eventDetails}
+          {activeEntry?.event ?? copy.eventDetails}
         </h3>
       </div>
 
       <div className="mt-4 space-y-2">
         <div className="flex flex-wrap gap-1 rounded-sm border border-desktop-border bg-desktop-bg-primary/80 p-1">
           {[
-            { id: "basic", label: "Basic" },
-            { id: "source", label: "Source" },
+            { id: "basic", label: copy.tabBasic },
+            { id: "source", label: copy.tabSource },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -386,10 +571,10 @@ function AgentHookInspector() {
 
         {warnings.length > 0 ? (
           <div className="rounded-sm border border-amber-200 bg-amber-50 p-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-800">{t.harness.agentHookWorkbench.warnings}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-800">{copy.warnings}</div>
             <ul className="mt-1 space-y-1">
               {warnings.map((warning) => (
-                <li key={warning} className="text-[11px] text-amber-700">• {warning}</li>
+                <li key={warning} className="text-[11px] text-amber-700">• {formatAgentHookWarning(warning, copy)}</li>
               ))}
             </ul>
           </div>
@@ -398,17 +583,17 @@ function AgentHookInspector() {
         {activeTab === "basic" && activeEntry ? (
           <div className="space-y-2">
             <div className="rounded-sm border border-desktop-border bg-desktop-bg-primary/80 p-3 text-[11px] text-desktop-text-secondary">
-              <div>Lifecycle: <span className="font-medium text-desktop-text-primary">{activeEntry.lifecycleLabel}</span></div>
-              <div className="mt-1">Can block: <span className="font-medium text-desktop-text-primary">{activeEntry.canBlock ? "yes" : "no"}</span></div>
-              <div className="mt-1">Hint: {activeEntry.hint}</div>
-              <div className="mt-1">Description: {activeEntry.lifecycleDescription}</div>
+              <div>{copy.labelLifecycle}: <span className="font-medium text-desktop-text-primary">{formatLifecycleLabel(activeEntry, copy)}</span></div>
+              <div className="mt-1">{copy.labelCanBlock}: <span className="font-medium text-desktop-text-primary">{activeEntry.canBlock ? copy.yes : copy.no}</span></div>
+              <div className="mt-1">{copy.labelHint}: {formatEventHint(activeEntry, copy)}</div>
+              <div className="mt-1">{copy.labelDescription}: {formatLifecycleDescription(activeEntry, copy)}</div>
             </div>
 
             <div>
-              <div className="text-[12px] font-semibold text-desktop-text-primary">Hooks</div>
+              <div className="text-[12px] font-semibold text-desktop-text-primary">{copy.hookListTitle}</div>
               {activeEntry.hooks.length === 0 ? (
                 <div className="mt-2 rounded-sm border border-desktop-border bg-desktop-bg-primary/70 p-2.5 text-[11px] text-desktop-text-secondary">
-                  {t.harness.agentHookWorkbench.noHooksConfigured}
+                  {copy.noHooksConfigured}
                 </div>
               ) : (
                 <ul className="mt-2 divide-y divide-desktop-border rounded-sm border border-desktop-border bg-desktop-bg-primary/80">
@@ -417,30 +602,30 @@ function AgentHookInspector() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-[12px] font-semibold text-desktop-text-primary">
-                            {hook.description || `${hook.type} ${t.harness.agentHookWorkbench.hook}`}
+                            {hook.description || `${formatHookType(hook.type, copy)} ${copy.hook}`}
                           </div>
                           {hook.matcher ? (
                             <div className="mt-0.5 text-[10px] text-desktop-text-secondary">
-                              matcher: <code className="rounded bg-slate-100 px-1 py-0.5 text-[10px]">{hook.matcher}</code>
+                              {copy.labelMatcher}: <code className="rounded bg-slate-100 px-1 py-0.5 text-[10px]">{hook.matcher}</code>
                             </div>
                           ) : null}
                         </div>
                         <div className="flex shrink-0 flex-wrap justify-end gap-1">
                           {hook.blocking ? (
-                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">{t.harness.agentHookWorkbench.blocking}</span>
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">{copy.blocking}</span>
                           ) : null}
                           <span className="rounded-full border border-desktop-border bg-desktop-bg-secondary px-2 py-0.5 text-[10px] text-desktop-text-secondary">
-                            {hook.type}
+                            {formatHookType(hook.type, copy)}
                           </span>
                         </div>
                       </div>
                       <div className="mt-2 space-y-0.5 text-[10px] text-desktop-text-secondary">
-                        {hook.command ? <div>command: <code className="break-all rounded bg-slate-100 px-1 py-0.5">{hook.command}</code></div> : null}
-                        {hook.url ? <div>url: <code className="rounded bg-slate-100 px-1 py-0.5">{hook.url}</code></div> : null}
-                        {hook.prompt ? <div>prompt: <code className="rounded bg-slate-100 px-1 py-0.5">{hook.prompt}</code></div> : null}
-                        <div>timeout: {hook.timeout}s</div>
+                        {hook.command ? <div>{copy.labelCommand}: <code className="break-all rounded bg-slate-100 px-1 py-0.5">{hook.command}</code></div> : null}
+                        {hook.url ? <div>{copy.labelUrl}: <code className="rounded bg-slate-100 px-1 py-0.5">{hook.url}</code></div> : null}
+                        {hook.prompt ? <div>{copy.labelPrompt}: <code className="rounded bg-slate-100 px-1 py-0.5">{hook.prompt}</code></div> : null}
+                        <div>{copy.labelTimeout}: {hook.timeout}{copy.secondsSuffix}</div>
                         {hook.source ? (
-                          <div>source: <span className="font-medium text-sky-600">{hook.source}</span></div>
+                          <div>{copy.labelSource}: <span className="font-medium text-sky-600">{hook.source}</span></div>
                         ) : null}
                       </div>
                     </li>
@@ -473,6 +658,7 @@ export function HarnessAgentHookWorkbench({
   embedded = false,
 }: AgentHookWorkbenchProps) {
   const { t } = useTranslation();
+  const copy = t.harness.agentHookWorkbench;
   const compactMode = variant === "compact";
   const entries = useMemo(() => buildAgentHookWorkbenchEntries(data), [data]);
   const groupedEntries = useMemo(() => groupAgentHookEntries(entries), [entries]);
@@ -506,8 +692,8 @@ export function HarnessAgentHookWorkbench({
     data,
     compactMode,
     embedded,
-    t,
-  }), [activeEntry, compactMode, data, embedded, groupedEntries, state, t]);
+    copy,
+  }), [activeEntry, compactMode, copy, data, embedded, groupedEntries, state]);
 
   if (unsupportedMessage) {
     return <HarnessUnsupportedState />;
@@ -519,15 +705,18 @@ export function HarnessAgentHookWorkbench({
         {!embedded ? (
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">{t.harness.agentHookWorkbench.hookSystems}</div>
-              <h3 className="mt-0.5 text-sm font-semibold text-desktop-text-primary">{t.harness.agentHookWorkbench.workbenchTitle}</h3>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">{copy.hookSystems}</div>
+              <h3 className="mt-0.5 text-sm font-semibold text-desktop-text-primary">{copy.workbenchTitle}</h3>
             </div>
             <div className="flex gap-2">
               <span className="rounded-full border border-desktop-border bg-desktop-bg-primary px-2.5 py-1 text-[10px] text-desktop-text-secondary">
-                {entries.reduce((sum, entry) => sum + entry.stats.hookCount, 0)} hooks
+                {formatCount(copy.hooksCount, entries.reduce((sum, entry) => sum + entry.stats.hookCount, 0))}
               </span>
               <span className="rounded-full border border-desktop-border bg-desktop-bg-primary px-2.5 py-1 text-[10px] text-desktop-text-secondary">
-                {entries.filter((entry) => entry.stats.hookCount > 0).length} / {entries.length} {t.harness.agentHookWorkbench.events}
+                {formatTemplate(copy.configuredEventsCount, {
+                  configured: entries.filter((entry) => entry.stats.hookCount > 0).length,
+                  total: entries.length,
+                })}
               </span>
             </div>
           </div>

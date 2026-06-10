@@ -8,6 +8,9 @@ import type {
   HooksResponse,
   ReleaseTriggerRuleSummary,
 } from "@/client/hooks/use-harness-settings-data";
+import { useTranslation, type TranslationDictionary } from "@/i18n";
+
+type ReleaseTriggersCopy = TranslationDictionary["harness"]["releaseTriggers"];
 
 type ReleaseTriggersPanel = {
   repoLabel: string;
@@ -95,8 +98,15 @@ function formatTokenLabel(value: string): string {
     .join(" ");
 }
 
-function formatCount(value: number, singular: string, plural = `${singular}s`): string {
-  return `${value} ${value === 1 ? singular : plural}`;
+function formatTemplate(template: string, values: Record<string, string>) {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
+function formatRuleCount(value: number, copy: ReleaseTriggersCopy): string {
+  return formatTemplate(value === 1 ? copy.ruleCount : copy.rulesCount, { count: String(value) });
 }
 
 function formatBytes(bytes: number): string {
@@ -144,7 +154,7 @@ function calculateDimensionScore(rules: ReleaseTriggerRuleSummary[], maxSeverity
     : 0;
 }
 
-function buildReleaseDimensionCards(rules: ReleaseTriggerRuleSummary[]): ReleaseDimensionCard[] {
+function buildReleaseDimensionCards(rules: ReleaseTriggerRuleSummary[], copy: ReleaseTriggersCopy): ReleaseDimensionCard[] {
   const exposureRules = rules.filter(isExposureRule);
   const driftRules = rules.filter(isDriftRule);
   const boundaryRules = rules.filter(isBoundaryRule);
@@ -158,22 +168,18 @@ function buildReleaseDimensionCards(rules: ReleaseTriggerRuleSummary[]): Release
   return [
     {
       key: "exposure",
-      title: "Layer 1: Exposure",
-      value: exposureRules.length ? formatCount(exposureRules.length, "rule") : "No rules",
-      subtitle: exposureRules.length
-        ? "Blocks forbidden files (e.g. *.map) from appearing in release artifacts."
-        : "No release exposure rules are configured.",
+      title: copy.layerExposureTitle,
+      value: exposureRules.length ? formatRuleCount(exposureRules.length, copy) : copy.noRules,
+      subtitle: exposureRules.length ? copy.layerExposureActive : copy.layerExposureEmpty,
       barValue: exposureScore,
       tone: exposureRules.length ? toneFromScore(exposureScore) : "info",
       rules: exposureRules,
     },
     {
       key: "drift",
-      title: "Layer 2: Artifact Drift",
-      value: driftRules.length ? formatCount(driftRules.length, "rule") : "No rules",
-      subtitle: driftRules.length
-        ? "Detects abnormal binary, tarball, or bundle size growth against the baseline."
-        : "No artifact size-delta rules are configured.",
+      title: copy.layerArtifactDriftTitle,
+      value: driftRules.length ? formatRuleCount(driftRules.length, copy) : copy.noRules,
+      subtitle: driftRules.length ? copy.layerArtifactDriftActive : copy.layerArtifactDriftEmpty,
       barValue: driftScore,
       tone: driftRules.length ? toneFromScore(driftScore) : "info",
       rules: driftRules,
@@ -181,22 +187,18 @@ function buildReleaseDimensionCards(rules: ReleaseTriggerRuleSummary[]): Release
     },
     {
       key: "boundary",
-      title: "Layer 3: Boundary Drift",
-      value: boundaryRules.length ? formatCount(boundaryRules.length, "rule") : "No rules",
-      subtitle: boundaryRules.length
-        ? "Flags packaging config changes that may silently widen the release surface."
-        : "No packaging boundary rules are configured.",
+      title: copy.layerBoundaryDriftTitle,
+      value: boundaryRules.length ? formatRuleCount(boundaryRules.length, copy) : copy.noRules,
+      subtitle: boundaryRules.length ? copy.layerBoundaryDriftActive : copy.layerBoundaryDriftEmpty,
       barValue: boundaryScore,
       tone: boundaryRules.length ? toneFromScore(boundaryScore) : "info",
       rules: boundaryRules,
     },
     {
       key: "capability",
-      title: "Layer 4: Capability Drift",
-      value: capabilityRules.length ? formatCount(capabilityRules.length, "rule") : "No rules",
-      subtitle: capabilityRules.length
-        ? "Monitors supply-chain, Tauri capabilities, and workflow permission changes."
-        : "No supply-chain or capability rules are configured.",
+      title: copy.layerCapabilityDriftTitle,
+      value: capabilityRules.length ? formatRuleCount(capabilityRules.length, copy) : copy.noRules,
+      subtitle: capabilityRules.length ? copy.layerCapabilityDriftActive : copy.layerCapabilityDriftEmpty,
       barValue: capabilityScore,
       tone: capabilityRules.length ? toneFromScore(capabilityScore) : "info",
       rules: capabilityRules,
@@ -204,11 +206,35 @@ function buildReleaseDimensionCards(rules: ReleaseTriggerRuleSummary[]): Release
   ];
 }
 
-function ActionBadge({ action }: { action: string }) {
+function formatActionLabel(action: string, copy: ReleaseTriggersCopy) {
+  if (action === "block_release") return copy.actionBlockRelease;
+  if (action === "require_human_review") return copy.actionRequireHumanReview;
+  if (action === "warn") return copy.actionWarn;
+  return formatTokenLabel(action);
+}
+
+function formatRuleTypeLabel(type: string, copy: ReleaseTriggersCopy) {
+  if (type === "unexpected_file") return copy.typeUnexpectedFile;
+  if (type === "artifact_size_delta") return copy.typeArtifactSizeDelta;
+  if (type === "release_boundary_change") return copy.typeReleaseBoundaryChange;
+  if (type === "capability_change") return copy.typeCapabilityChange;
+  return formatTokenLabel(type);
+}
+
+function formatSeverityLabel(severity: string, copy: ReleaseTriggersCopy) {
+  if (severity === "critical") return copy.severityCritical;
+  if (severity === "high") return copy.severityHigh;
+  if (severity === "medium") return copy.severityMedium;
+  if (severity === "low") return copy.severityLow;
+  if (severity === "info") return copy.severityInfo;
+  return severity;
+}
+
+function ActionBadge({ action, copy }: { action: string; copy: ReleaseTriggersCopy }) {
   const style = ACTION_STYLES[action] ?? "border-desktop-border text-desktop-text-secondary";
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${style}`}>
-      {formatTokenLabel(action)}
+      {formatActionLabel(action, copy)}
     </span>
   );
 }
@@ -271,9 +297,11 @@ function DetailGroup({
 function RuleDetailCard({
   rule,
   tone,
+  copy,
 }: {
   rule: ReleaseTriggerRuleSummary;
   tone: ReleaseDimensionTone;
+  copy: ReleaseTriggersCopy;
 }) {
   const styles = TONE_STYLES[tone];
 
@@ -283,48 +311,48 @@ function RuleDetailCard({
         <div className="text-[11px] font-semibold text-desktop-text-primary">{formatTokenLabel(rule.name)}</div>
         <div className="flex flex-wrap gap-1">
           <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${styles.pill}`}>
-            {rule.severity}
+            {formatSeverityLabel(rule.severity, copy)}
           </span>
           <span className="rounded-full border border-desktop-border bg-desktop-bg-primary px-2 py-0.5 text-[9px] text-desktop-text-secondary">
-            {formatTokenLabel(rule.type)}
+            {formatRuleTypeLabel(rule.type, copy)}
           </span>
-          <ActionBadge action={rule.action} />
+          <ActionBadge action={rule.action} copy={copy} />
         </div>
       </div>
 
       {rule.patterns.length > 0 && (
-        <DetailGroup label="Patterns" items={rule.patterns} tone={tone} />
+        <DetailGroup label={copy.detailPatterns} items={rule.patterns} tone={tone} />
       )}
       {rule.applyTo.length > 0 && (
-        <DetailGroup label="Apply to" items={rule.applyTo} tone={tone} />
+        <DetailGroup label={copy.detailApplyTo} items={rule.applyTo} tone={tone} />
       )}
       {rule.paths.length > 0 && (
-        <DetailGroup label="Watch paths" items={rule.paths} tone={tone} />
+        <DetailGroup label={copy.detailWatchPaths} items={rule.paths} tone={tone} />
       )}
       {(rule.maxGrowthPercent !== null || rule.minGrowthBytes !== null || rule.baseline) && (
         <div className="mt-2">
-          <DetailLabel>Thresholds</DetailLabel>
+          <DetailLabel>{copy.detailThresholds}</DetailLabel>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {rule.maxGrowthPercent !== null && (
               <span className={`rounded-md border px-2 py-1 font-mono text-[10px] leading-4 ${styles.tag}`}>
-                {`max +${rule.maxGrowthPercent}%`}
+                {formatTemplate(copy.thresholdMaxGrowth, { value: String(rule.maxGrowthPercent) })}
               </span>
             )}
             {rule.minGrowthBytes !== null && (
               <span className={`rounded-md border px-2 py-1 font-mono text-[10px] leading-4 ${styles.tag}`}>
-                {`>${formatBytes(rule.minGrowthBytes)}`}
+                {formatTemplate(copy.thresholdMinGrowth, { value: formatBytes(rule.minGrowthBytes) })}
               </span>
             )}
             {rule.baseline && (
               <span className={`rounded-md border px-2 py-1 font-mono text-[10px] leading-4 ${styles.tag}`}>
-                {`baseline: ${rule.baseline}`}
+                {formatTemplate(copy.thresholdBaseline, { value: rule.baseline })}
               </span>
             )}
           </div>
         </div>
       )}
       {rule.groupBy.length > 0 && (
-        <DetailGroup label="Group by" items={rule.groupBy} tone={tone} />
+        <DetailGroup label={copy.detailGroupBy} items={rule.groupBy} tone={tone} />
       )}
     </div>
   );
@@ -333,9 +361,11 @@ function RuleDetailCard({
 function DimensionCard({
   card,
   showDetails,
+  copy,
 }: {
   card: ReleaseDimensionCard;
   showDetails: boolean;
+  copy: ReleaseTriggersCopy;
 }) {
   const styles = TONE_STYLES[card.tone];
   const isDriftLayer = card.key === "drift";
@@ -370,7 +400,7 @@ function DimensionCard({
       {showDetails && card.rules.length > 0 && (
         <div className="mt-2.5 space-y-2">
           {visibleRules.map((rule) => (
-            <RuleDetailCard key={rule.name} rule={rule} tone={card.tone} />
+            <RuleDetailCard key={rule.name} rule={rule} tone={card.tone} copy={copy} />
           ))}
         </div>
       )}
@@ -382,7 +412,7 @@ function DimensionCard({
             className="rounded-sm border border-desktop-border bg-desktop-bg-primary/65 px-2.5 py-1 text-[10px] font-semibold text-desktop-text-primary"
             onClick={() => setShowAllDriftRules(true)}
           >
-            Show all {card.rules.length} rules
+            {formatTemplate(copy.showAllRules, { count: String(card.rules.length) })}
           </button>
         </div>
       ) : null}
@@ -394,7 +424,7 @@ function DimensionCard({
             className="rounded-sm border border-desktop-border bg-desktop-bg-primary/65 px-2.5 py-1 text-[10px] font-semibold text-desktop-text-primary"
             onClick={() => setShowAllDriftRules(false)}
           >
-            Collapse to preview
+            {copy.collapseToPreview}
           </button>
         </div>
       ) : null}
@@ -411,7 +441,7 @@ function DimensionCard({
           ))}
           {card.rules.length > 3 && (
             <span className="rounded-md border border-desktop-border px-2 py-1 text-[10px] text-desktop-text-secondary">
-              +{card.rules.length - 3} more
+              {formatTemplate(copy.moreRules, { count: String(card.rules.length - 3) })}
             </span>
           )}
         </div>
@@ -429,21 +459,23 @@ export function HarnessReleaseTriggersPanel({
   variant = "full",
   hideHeader = false,
 }: ReleaseTriggersPanel) {
+  const { t } = useTranslation();
+  const copy = t.harness.releaseTriggers;
   const releaseTriggerFile = data?.releaseTriggerFile ?? null;
   const showDetails = variant === "full";
 
   const cards = releaseTriggerFile
-    ? buildReleaseDimensionCards(releaseTriggerFile.rules)
+    ? buildReleaseDimensionCards(releaseTriggerFile.rules, copy)
     : [];
 
   return (
     <HarnessSectionCard
-      title="Release Surface Governance"
+      title={copy.title}
       hideHeader={hideHeader}
       variant={variant}
     >
       {loading ? (
-        <HarnessSectionStateFrame tone="warning">Loading release trigger policies...</HarnessSectionStateFrame>
+        <HarnessSectionStateFrame tone="warning">{copy.loadingPolicies}</HarnessSectionStateFrame>
       ) : null}
 
       {unsupportedMessage ? (
@@ -456,20 +488,20 @@ export function HarnessReleaseTriggersPanel({
 
       {!loading && !error && !unsupportedMessage && !releaseTriggerFile ? (
         <HarnessSectionStateFrame tone="warning">
-          No <code className="font-mono">docs/fitness/release-triggers.yaml</code> found for this repository.
+          {copy.noYamlFile}
         </HarnessSectionStateFrame>
       ) : null}
 
       {!loading && !error && !unsupportedMessage && releaseTriggerFile && !releaseTriggerFile.rules.length ? (
         <HarnessSectionStateFrame tone="warning">
-          <code className="font-mono">release-triggers.yaml</code> exists but defines no rules.
+          {copy.yamlLoadedNoRules}
         </HarnessSectionStateFrame>
       ) : null}
 
       {!loading && !error && !unsupportedMessage && releaseTriggerFile && releaseTriggerFile.rules.length ? (
         <div className="mt-3 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
           {cards.map((card) => (
-            <DimensionCard key={card.key} card={card} showDetails={showDetails} />
+            <DimensionCard key={card.key} card={card} showDetails={showDetails} copy={copy} />
           ))}
         </div>
       ) : null}

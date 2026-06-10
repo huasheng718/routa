@@ -12,6 +12,7 @@ import { HarnessSectionCard, HarnessSectionStateFrame } from "@/client/component
 import { HarnessUnsupportedState } from "@/client/components/harness-support-state";
 import type { InstructionsResponse } from "@/client/hooks/use-harness-settings-data";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation, type TranslationDictionary } from "@/i18n";
 import { RefreshCw } from "lucide-react";
 
 
@@ -34,6 +35,8 @@ type LocalRefreshState = {
   token: number;
 };
 
+type AgentInstructionsTranslations = TranslationDictionary["harness"]["agentInstructions"];
+
 type HarnessAgentInstructionsPanelProps = {
   workspaceId: string;
   codebaseId?: string;
@@ -48,28 +51,6 @@ type HarnessAgentInstructionsPanelProps = {
   hideHeader?: boolean;
 };
 
-const AUDIT_PRINCIPLE_META = {
-  routing: {
-    label: "渐进式暴露",
-    description: "按任务阶段按需加载最小上下文，先定位，再展开，避免一次性灌入全部背景。",
-  },
-  protection: {
-    label: "负面约束优先",
-    description: "先定义禁止项、权限边界和升级条件，再定义可执行动作，降低越权和漂移风险。",
-  },
-  reflection: {
-    label: "反重复机制",
-    description: "出现失败信号后先分析原因并切换策略，避免机械重试同一路径。",
-  },
-  verification: {
-    label: "确定性验证",
-    description: "完成前必须经过客观、可复现的检查，并以明确结果或证据作为收口条件。",
-  },
-} satisfies Record<
-  "routing" | "protection" | "reflection" | "verification",
-  { label: string; description: string }
->;
-
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -78,7 +59,14 @@ function slugify(value: string) {
     || "section";
 }
 
-function parseInstructionSections(source: string) {
+function formatTemplate(template: string, values: Record<string, string>) {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
+function parseInstructionSections(source: string, copy: AgentInstructionsTranslations) {
   const matches = [...source.matchAll(/^(#{1,6})\s+(.+)$/gm)];
   const sections: InstructionSection[] = [];
 
@@ -86,7 +74,7 @@ function parseInstructionSections(source: string) {
     return {
       sections: [{
         id: "overview",
-        title: "Overview",
+        title: copy.overviewFallbackTitle,
         level: 1,
         content: source.trim(),
         children: [],
@@ -98,7 +86,7 @@ function parseInstructionSections(source: string) {
   const stack: InstructionSection[] = [];
   matches.forEach((match, index) => {
     const level = match[1]?.length ?? 1;
-    const title = match[2]?.trim() ?? `Section ${index + 1}`;
+    const title = match[2]?.trim() ?? formatTemplate(copy.sectionFallbackTitle, { index: String(index + 1) });
     const start = match.index ?? 0;
     const end = index + 1 < matches.length ? (matches[index + 1]?.index ?? source.length) : source.length;
     const section: InstructionSection = {
@@ -158,11 +146,13 @@ function AuditScoreCard({
   description,
   value,
   maxScore,
+  copy,
 }: {
   label: string;
   description?: string;
   value: number | null;
   maxScore: number;
+  copy: AgentInstructionsTranslations;
 }) {
   return (
     <div className={`group relative rounded-sm border px-2.5 py-2 ${getScoreCardClass(value, maxScore)}`}>
@@ -171,7 +161,7 @@ function AuditScoreCard({
         {description ? (
           <>
             <span
-              aria-label={`${label} 说明`}
+              aria-label={formatTemplate(copy.scoreDescriptionAriaLabel, { label })}
               className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-current/20 text-[9px] font-semibold text-current/70"
             >
               ?
@@ -202,6 +192,8 @@ export function HarnessAgentInstructionsPanel({
   onAuditRerun,
   hideHeader = false,
 }: HarnessAgentInstructionsPanelProps) {
+  const { t } = useTranslation();
+  const copy = t.harness.agentInstructions;
   const hasExternalState = loading !== undefined || error !== undefined || data !== undefined;
   const [instructionsState, setInstructionsState] = useState<InstructionsState>({
     loading: false,
@@ -254,7 +246,7 @@ export function HarnessAgentInstructionsPanel({
         const response = await desktopAwareFetch(`/api/harness/instructions?${query.toString()}`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(typeof payload?.details === "string" ? payload.details : "Failed to load guidance document");
+          throw new Error(typeof payload?.details === "string" ? payload.details : copy.loadError);
         }
 
         if (cancelled) {
@@ -284,7 +276,7 @@ export function HarnessAgentInstructionsPanel({
     return () => {
       cancelled = true;
     };
-  }, [codebaseId, hasExternalState, localContextKey, localRefreshState, repoPath, workspaceId]);
+  }, [codebaseId, copy.loadError, hasExternalState, localContextKey, localRefreshState, repoPath, workspaceId]);
 
   const resolvedInstructionsState = hasExternalState
     ? {
@@ -295,8 +287,8 @@ export function HarnessAgentInstructionsPanel({
     : instructionsState;
 
   const parsedDocument = useMemo(
-    () => parseInstructionSections(resolvedInstructionsState.data?.source ?? ""),
-    [resolvedInstructionsState.data?.source],
+    () => parseInstructionSections(resolvedInstructionsState.data?.source ?? "", copy),
+    [copy, resolvedInstructionsState.data?.source],
   );
 
   useEffect(() => {
@@ -320,7 +312,7 @@ export function HarnessAgentInstructionsPanel({
         children: parsedDocument.rootChildren,
         data: {
           id: "root",
-          title: resolvedInstructionsState.data?.fileName ?? "Guide",
+          title: resolvedInstructionsState.data?.fileName ?? copy.guideFallbackTitle,
           level: 0,
           content: resolvedInstructionsState.data?.source ?? "",
           children: parsedDocument.rootChildren,
@@ -338,7 +330,7 @@ export function HarnessAgentInstructionsPanel({
     });
 
     return items;
-  }, [parsedDocument.rootChildren, parsedDocument.sections, resolvedInstructionsState.data?.fileName, resolvedInstructionsState.data?.source]);
+  }, [copy.guideFallbackTitle, parsedDocument.rootChildren, parsedDocument.sections, resolvedInstructionsState.data?.fileName, resolvedInstructionsState.data?.source]);
 
   const selectedSection = useMemo(
     () => parsedDocument.sections.find((section) => section.id === selectedSectionId) ?? parsedDocument.sections[0] ?? null,
@@ -383,9 +375,9 @@ export function HarnessAgentInstructionsPanel({
   };
 
   const rerunUnavailableReason = resolvedInstructionsState.loading
-    ? "Audit is currently running."
+    ? copy.auditRunningUnavailable
     : unsupportedMessage
-      ? "Current repository is marked unsupported."
+      ? copy.unsupportedUnavailable
       : null;
   const rerunButtonDisabled = Boolean(rerunUnavailableReason) || !canRerunAudit;
   const treeId = compactMode ? "instructions-tree-compact" : "instructions-tree-full";
@@ -393,7 +385,7 @@ export function HarnessAgentInstructionsPanel({
 
   return (
     <HarnessSectionCard
-      title="Instruction file - CLAUDE.md"
+      title={copy.title}
       hideHeader={hideHeader}
       variant={variant}
     >
@@ -402,7 +394,7 @@ export function HarnessAgentInstructionsPanel({
         <div className="mt-3 rounded-sm border border-desktop-border bg-desktop-bg-secondary/50 px-3 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-desktop-text-secondary">
-              Instruction audit
+              {copy.auditHeading}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {canRerunAudit ? (
@@ -411,11 +403,11 @@ export function HarnessAgentInstructionsPanel({
                   onClick={handleRerunAudit}
                   disabled={rerunButtonDisabled}
                   aria-busy={resolvedInstructionsState.loading}
-                  title={rerunUnavailableReason ?? "Re-run specialist audit"}
+                  title={rerunUnavailableReason ?? copy.rerunAuditTitle}
                   className="inline-flex items-center gap-1 rounded-full border border-desktop-accent/40 bg-desktop-accent/12 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-desktop-accent transition-colors hover:bg-desktop-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <RefreshCw className="h-3 w-3" viewBox="0 0 20 20" fill="none" aria-hidden="true"/>
-                  {resolvedInstructionsState.loading ? "Running..." : "Re-run audit"}
+                  {resolvedInstructionsState.loading ? copy.running : copy.rerunAudit}
                 </button>
               ) : null}
               {rerunUnavailableReason ? (
@@ -426,10 +418,10 @@ export function HarnessAgentInstructionsPanel({
               {auditSummary ? (
                 <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${getAuditStatusClass(auditSummary.status)}`}>
                   {auditSummary.status === "ok"
-                    ? "specialist"
+                    ? copy.auditStatusSpecialist
                     : auditSummary.status === "heuristic"
-                      ? "heuristic fallback"
-                      : "error"}
+                      ? copy.auditStatusHeuristicFallback
+                      : copy.auditStatusError}
                 </span>
               ) : null}
               {auditSummary ? (
@@ -439,7 +431,7 @@ export function HarnessAgentInstructionsPanel({
               ) : null}
               {resolvedInstructionsState.loading ? (
                 <span className="rounded-full border border-desktop-accent/30 bg-desktop-accent/10 px-2 py-1 text-[10px] font-medium text-desktop-accent">
-                  Running specialist audit...
+                  {copy.runningAudit}
                 </span>
               ) : null}
             </div>
@@ -447,48 +439,56 @@ export function HarnessAgentInstructionsPanel({
 
           {!auditSummary ? (
             <div className="mt-2 text-[11px] text-desktop-text-secondary">
-              Audit has not been run yet in this view. Click Re-run audit to generate a fresh summary.
+              {copy.auditNotRun}
             </div>
           ) : auditSummary.status === "error" ? (
             <div className="mt-2 rounded-sm border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] text-red-700">
-              {auditSummary.error ?? "Audit execution failed."}
+              {auditSummary.error ?? copy.auditExecutionFailed}
             </div>
           ) : compactMode ? (
             <div className="mt-2 text-[11px] text-desktop-text-secondary">
-              {auditSummary.totalScore == null ? "总分：—" : `总分：${auditSummary.totalScore}/20`}
-              {auditSummary.overall ? ` · 结论：${auditSummary.overall}` : ""}
+              {formatTemplate(copy.totalScoreSummary, {
+                score: auditSummary.totalScore == null ? "—" : `${auditSummary.totalScore}/20`,
+              })}
+              {auditSummary.overall
+                ? ` · ${formatTemplate(copy.conclusionSummary, { summary: auditSummary.overall })}`
+                : ""}
             </div>
           ) : (
             <>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-                <AuditScoreCard label="总分" value={auditSummary.totalScore} maxScore={20} />
+                <AuditScoreCard label={copy.totalScoreLabel} value={auditSummary.totalScore} maxScore={20} copy={copy} />
                 <AuditScoreCard
-                  label={AUDIT_PRINCIPLE_META.routing.label}
-                  description={AUDIT_PRINCIPLE_META.routing.description}
+                  label={copy.principles.routing.label}
+                  description={copy.principles.routing.description}
                   value={auditSummary.principles.routing}
                   maxScore={5}
+                  copy={copy}
                 />
                 <AuditScoreCard
-                  label={AUDIT_PRINCIPLE_META.protection.label}
-                  description={AUDIT_PRINCIPLE_META.protection.description}
+                  label={copy.principles.protection.label}
+                  description={copy.principles.protection.description}
                   value={auditSummary.principles.protection}
                   maxScore={5}
+                  copy={copy}
                 />
                 <AuditScoreCard
-                  label={AUDIT_PRINCIPLE_META.reflection.label}
-                  description={AUDIT_PRINCIPLE_META.reflection.description}
+                  label={copy.principles.reflection.label}
+                  description={copy.principles.reflection.description}
                   value={auditSummary.principles.reflection}
                   maxScore={5}
+                  copy={copy}
                 />
                 <AuditScoreCard
-                  label={AUDIT_PRINCIPLE_META.verification.label}
-                  description={AUDIT_PRINCIPLE_META.verification.description}
+                  label={copy.principles.verification.label}
+                  description={copy.principles.verification.description}
                   value={auditSummary.principles.verification}
                   maxScore={5}
+                  copy={copy}
                 />
               </div>
               <div className="mt-2 text-[11px] text-desktop-text-secondary">
-                {auditSummary.overall ? `结论：${auditSummary.overall}` : "结论：—"}
+                {formatTemplate(copy.conclusionSummary, { summary: auditSummary.overall ?? "—" })}
                 {auditSummary.oneSentence ? ` · ${auditSummary.oneSentence}` : ""}
               </div>
               {auditSummary.error ? (
@@ -503,7 +503,7 @@ export function HarnessAgentInstructionsPanel({
 
       {resolvedInstructionsState.loading ? (
         <HarnessSectionStateFrame tone="neutral">
-          Loading guidance document...
+          {copy.loadingDocument}
         </HarnessSectionStateFrame>
       ) : null}
 
@@ -554,7 +554,7 @@ export function HarnessAgentInstructionsPanel({
                   </div>
                 )}
               >
-                <Tree treeId={treeId} rootItem="root" treeLabel="Repository instruction headings" />
+                <Tree treeId={treeId} rootItem="root" treeLabel={copy.treeLabel} />
               </UncontrolledTreeEnvironment>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "@/i18n";
+import type { TranslationDictionary } from "@/i18n/types";
 import { DesktopAppShell } from "@/client/components/desktop-app-shell";
 import { CodeViewer } from "@/client/components/codemirror/code-viewer";
 import { RepoPicker, type RepoSelection } from "@/client/components/repo-picker";
@@ -89,6 +90,46 @@ const MAX_BOTTOM_PANEL_HEIGHT = 520;
 const HARNESS_SECTION_QUERY_KEY = "section";
 const DEFAULT_SECTION: SectionId = "overview";
 
+type HarnessExecutionPlanCopy = TranslationDictionary["harness"]["executionPlan"];
+
+function formatFitnessRunnerLabel(runner: string, copy: HarnessExecutionPlanCopy): string {
+  switch (runner) {
+    case "shell":
+      return copy.runnerShell;
+    case "graph":
+      return copy.runnerGraph;
+    case "sarif":
+      return copy.runnerSarif;
+    default:
+      return copy.runnerShell;
+  }
+}
+
+function formatFitnessTierLabel(tier: string, copy: HarnessExecutionPlanCopy): string {
+  switch (tier) {
+    case "fast":
+      return copy.tierFast;
+    case "deep":
+      return copy.tierDeep;
+    case "normal":
+    default:
+      return copy.tierNormal;
+  }
+}
+
+function formatFitnessGateLabel(gate: string, copy: HarnessExecutionPlanCopy): string {
+  switch (gate) {
+    case "hard":
+      return copy.gateHard;
+    case "soft":
+      return copy.gateSoft;
+    case "advisory":
+      return copy.gateAdvisory;
+    default:
+      return copy.gateUnknown;
+  }
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -122,6 +163,13 @@ function extractMarkdownCodeBlocks(source: string) {
     language: match[1] || "text",
     code: match[2]?.trim() ?? "",
   })).filter((block) => block.code.length > 0);
+}
+
+function formatTemplate(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.split(`{${key}}`).join(String(value)),
+    template,
+  );
 }
 
 function sectionStatusClass(tone: SectionStatusTone = "neutral") {
@@ -264,7 +312,7 @@ export default function HarnessConsolePage() {
   const dimensionSpecs = specFiles.filter((file) => file.kind === "dimension");
   const primaryFiles = specFiles.filter((file) => file.kind === "rulebook" || file.kind === "manifest" || file.kind === "dimension");
   const auxiliaryFiles = specFiles.filter((file) => !primaryFiles.includes(file));
-  const selectedRepoLabel = activeRepoSelection?.name ?? "None";
+  const selectedRepoLabel = activeRepoSelection?.name ?? t.common.none;
   const unsupportedRepoMessage = getHarnessUnsupportedRepoMessage(
     specsState.error,
     planState.error,
@@ -391,25 +439,25 @@ export default function HarnessConsolePage() {
     const map = new Map<SectionId, SectionStatus | null>();
     map.set("architecture-quality", architectureState.data
       ? {
-          label: `${architectureState.data.failedRuleCount}/${architectureState.data.ruleCount} rules`,
+          label: formatTemplate(t.harness.console.rulesCount, { count: `${architectureState.data.failedRuleCount}/${architectureState.data.ruleCount}` }),
           tone: architectureState.data.summaryStatus === "fail" ? "warning" : "success",
         }
       : null);
-    map.set("spec-sources", specSourcesState.data ? { label: `${specSourcesState.data.sources?.length ?? 0} sources` } : null);
+    map.set("spec-sources", specSourcesState.data ? { label: formatTemplate(t.harness.console.sourcesCount, { count: specSourcesState.data.sources?.length ?? 0 }) } : null);
     map.set("agent-instructions", instructionsState.data ? { label: instructionsState.data.fileName, tone: instructionsState.data.fallbackUsed ? "warning" : "success" } : null);
-    map.set("design-decisions", designDecisionsState.data ? { label: `${designDecisionsState.data.sources?.length ?? 0} docs` } : null);
-    map.set("automations", automationsState.data ? { label: `${automationRuleCount} rules` } : null);
-    map.set("hook-systems", hookCount > 0 ? { label: `${hookCount} hooks` } : null);
-    map.set("review-triggers", hooksState.data?.reviewTriggerFile ? { label: `${hooksState.data.reviewTriggerFile.ruleCount} rules` } : null);
-    map.set("release-triggers", hooksState.data?.releaseTriggerFile ? { label: `${hooksState.data.releaseTriggerFile.ruleCount} rules` } : null);
+    map.set("design-decisions", designDecisionsState.data ? { label: formatTemplate(t.harness.console.docsCount, { count: designDecisionsState.data.sources?.length ?? 0 }) } : null);
+    map.set("automations", automationsState.data ? { label: formatTemplate(t.harness.console.rulesCount, { count: automationRuleCount }) } : null);
+    map.set("hook-systems", hookCount > 0 ? { label: formatTemplate(t.harness.console.hooksCount, { count: hookCount }) } : null);
+    map.set("review-triggers", hooksState.data?.reviewTriggerFile ? { label: formatTemplate(t.harness.console.rulesCount, { count: hooksState.data.reviewTriggerFile.ruleCount }) } : null);
+    map.set("release-triggers", hooksState.data?.releaseTriggerFile ? { label: formatTemplate(t.harness.console.rulesCount, { count: hooksState.data.releaseTriggerFile.ruleCount }) } : null);
     map.set("codeowners", resolvedCodeownersState.data
       ? {
-          label: resolvedCodeownersState.data.codeownersFile ? "ready" : "missing",
+          label: resolvedCodeownersState.data.codeownersFile ? t.harness.console.ready : t.harness.console.missing,
           tone: resolvedCodeownersState.data.codeownersFile ? "success" : "warning",
         }
       : null);
-    map.set("entrix-fitness", specFiles.length > 0 ? { label: `${dimensionSpecs.length}d / ${planState.data?.metricCount ?? 0}m` } : null);
-    map.set("ci-cd", workflowCount > 0 ? { label: `${workflowCount} flows` } : null);
+    map.set("entrix-fitness", specFiles.length > 0 ? { label: formatTemplate(t.harness.console.fitnessStatus, { dimensions: dimensionSpecs.length, metrics: planState.data?.metricCount ?? 0 }) } : null);
+    map.set("ci-cd", workflowCount > 0 ? { label: formatTemplate(t.harness.console.flowsCount, { count: workflowCount }) } : null);
     return map;
   }, [
     automationsState.data,
@@ -424,11 +472,12 @@ export default function HarnessConsolePage() {
     resolvedCodeownersState.data,
     specFiles.length,
     specSourcesState.data,
+    t,
     workflowCount,
   ]);
 
   const sections = useMemo((): SectionDef[] => [
-    { id: "overview", label: t.settings.harness.overview, shortLabel: "Overview", code: "OV" },
+    { id: "overview", label: t.settings.harness.overview, shortLabel: t.harness.console.shortLabels.overview, code: "OV" },
     { id: "spec", label: t.nav.spec, shortLabel: t.nav.spec, code: "IB", group: "intent" },
     {
       id: "architecture-quality",
@@ -437,16 +486,16 @@ export default function HarnessConsolePage() {
       code: "AQ",
       group: "signal",
     },
-    { id: "spec-sources", label: t.settings.harness.specSources, shortLabel: "Specs", code: "SP", group: "intent" },
-    { id: "agent-instructions", label: t.settings.harness.agentInstructions, shortLabel: "Instructions", code: "AI", group: "intent" },
-    { id: "design-decisions", label: t.settings.harness.designDecisions, shortLabel: "ADR", code: "DD", group: "intent" },
-    { id: "repo-signals", label: t.settings.harness.repositorySignals, shortLabel: "Feedback", code: "RS", group: "signal" },
-    { id: "automations", label: t.settings.harness.automations, shortLabel: "Cleanup", code: "CC", group: "flow" },
-    { id: "hook-systems", label: t.settings.harness.hookSystems, shortLabel: "Hooks", code: "HK", group: "control" },
-    { id: "review-triggers", label: t.settings.harness.reviewTriggers, shortLabel: "Review", code: "RV", group: "control" },
-    { id: "release-triggers", label: t.settings.harness.releaseTriggers, shortLabel: "Release", code: "RL", group: "control" },
-    { id: "codeowners", label: t.settings.harness.codeowners, shortLabel: "Owners", code: "CO", group: "control" },
-    { id: "entrix-fitness", label: t.settings.harness.entrixFitness, shortLabel: "Fitness", code: "FT", group: "signal" },
+    { id: "spec-sources", label: t.settings.harness.specSources, shortLabel: t.harness.console.shortLabels.specs, code: "SP", group: "intent" },
+    { id: "agent-instructions", label: t.settings.harness.agentInstructions, shortLabel: t.harness.console.shortLabels.instructions, code: "AI", group: "intent" },
+    { id: "design-decisions", label: t.settings.harness.designDecisions, shortLabel: t.harness.console.shortLabels.adr, code: "DD", group: "intent" },
+    { id: "repo-signals", label: t.settings.harness.repositorySignals, shortLabel: t.harness.console.shortLabels.feedback, code: "RS", group: "signal" },
+    { id: "automations", label: t.settings.harness.automations, shortLabel: t.harness.console.shortLabels.cleanup, code: "CC", group: "flow" },
+    { id: "hook-systems", label: t.settings.harness.hookSystems, shortLabel: t.harness.console.shortLabels.hooks, code: "HK", group: "control" },
+    { id: "review-triggers", label: t.settings.harness.reviewTriggers, shortLabel: t.harness.console.shortLabels.review, code: "RV", group: "control" },
+    { id: "release-triggers", label: t.settings.harness.releaseTriggers, shortLabel: t.harness.console.shortLabels.release, code: "RL", group: "control" },
+    { id: "codeowners", label: t.settings.harness.codeowners, shortLabel: t.harness.console.shortLabels.owners, code: "CO", group: "control" },
+    { id: "entrix-fitness", label: t.settings.harness.entrixFitness, shortLabel: t.harness.console.shortLabels.fitness, code: "FT", group: "signal" },
     { id: "ci-cd", label: t.settings.harness.ciCd, shortLabel: "CI/CD", code: "CI", group: "flow" },
   ], [t]);
 
@@ -500,7 +549,7 @@ export default function HarnessConsolePage() {
       case "post-commit":
         return <HarnessGitHubActionsFlowPanel workspaceId={workspaceId} codebaseId={activeRepoCodebaseId} repoPath={activeRepoPath} {...props} data={githubActionsState.data} loading={githubActionsState.loading} error={githubActionsState.error} variant="compact" />;
       default:
-        return <div className="p-3 text-[11px] text-desktop-text-secondary">选择 Lifecycle 节点查看对应组件的上下文视图。</div>;
+        return <div className="p-3 text-[11px] text-desktop-text-secondary">{t.harness.console.selectLifecycleNode}</div>;
     }
   }, [
     designDecisionsState.data,
@@ -530,6 +579,7 @@ export default function HarnessConsolePage() {
     specSourcesState.data,
     specSourcesState.error,
     specSourcesState.loading,
+    t.harness.console.selectLifecycleNode,
     unsupportedRepoMessage,
     workspaceId,
   ]);
@@ -540,14 +590,14 @@ export default function HarnessConsolePage() {
         <div className="grid gap-0 xl:grid-cols-[280px_minmax(0,1fr)]">
           <div className="min-w-0 border-r border-desktop-border bg-desktop-bg-secondary/40 p-3">
             <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
-              <div className="font-semibold text-desktop-text-primary">Sources</div>
+              <div className="font-semibold text-desktop-text-primary">{t.harness.console.sources}</div>
               <div className="text-desktop-text-secondary">{specFiles.length}</div>
             </div>
             <div className="space-y-1.5">
-              {specsState.loading ? <div className="text-[10px] text-desktop-text-secondary">Loading fitness files...</div> : null}
+              {specsState.loading ? <div className="text-[10px] text-desktop-text-secondary">{t.harness.fitnessFiles.loadingFiles}</div> : null}
               {unsupportedRepoMessage ? <HarnessUnsupportedState className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300" /> : null}
               {specsState.error && !unsupportedRepoMessage ? <div className="text-[10px] text-red-600 dark:text-red-400">{specsState.error}</div> : null}
-              {!specsState.loading && !specsState.error && !unsupportedRepoMessage && specFiles.length === 0 ? <div className="text-[10px] text-desktop-text-secondary">No fitness files found.</div> : null}
+              {!specsState.loading && !specsState.error && !unsupportedRepoMessage && specFiles.length === 0 ? <div className="text-[10px] text-desktop-text-secondary">{t.harness.console.noFitnessFilesFound}</div> : null}
               {!unsupportedRepoMessage ? primaryFiles.map((file) => (
                 <button
                   key={file.name}
@@ -561,15 +611,15 @@ export default function HarnessConsolePage() {
                 >
                   <div className="text-[11px] font-medium">{file.name}</div>
                   <div className="mt-0.5 flex items-center gap-1.5 text-[9px] text-current/75">
-                    <span>{file.kind === "dimension" ? (file.dimension ?? "dimension") : file.kind}</span>
+                    <span>{file.kind === "dimension" ? (file.dimension ?? t.harness.console.dimension) : file.kind}</span>
                     <span className="font-mono">{file.language}</span>
-                    {file.metricCount > 0 ? <span className="ml-auto">{file.metricCount} metrics</span> : null}
+                    {file.metricCount > 0 ? <span className="ml-auto">{formatTemplate(t.harness.console.metricsCount, { count: file.metricCount })}</span> : null}
                   </div>
                 </button>
               )) : null}
               {!unsupportedRepoMessage && auxiliaryFiles.length > 0 ? (
                 <details className="rounded-md border border-desktop-border bg-desktop-bg-primary/60 px-2.5 py-2">
-                  <summary className="cursor-pointer text-[9px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">Auxiliary ({auxiliaryFiles.length})</summary>
+                  <summary className="cursor-pointer text-[9px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">{formatTemplate(t.harness.console.auxiliary, { count: auxiliaryFiles.length })}</summary>
                   <div className="mt-2 space-y-1">
                     {auxiliaryFiles.map((file) => (
                       <button
@@ -593,12 +643,12 @@ export default function HarnessConsolePage() {
 
           <div className="min-w-0 p-3">
             <div className="flex items-start justify-between gap-3">
-              <div className="text-sm font-semibold text-desktop-text-primary">{visibleSpec?.name ?? "Select a file"}</div>
+              <div className="text-sm font-semibold text-desktop-text-primary">{visibleSpec?.name ?? t.harness.console.selectFile}</div>
               {visibleSpec?.kind === "dimension" ? (
                 <div className="flex flex-wrap gap-1.5 text-[9px]">
-                  <span className="desktop-badge">w:{visibleSpec.weight ?? 0}</span>
-                  <span className="desktop-badge desktop-badge-success">pass:{visibleSpec.thresholdPass ?? 90}</span>
-                  <span className="desktop-badge desktop-badge-warning">warn:{visibleSpec.thresholdWarn ?? 80}</span>
+                  <span className="desktop-badge">{formatTemplate(t.harness.console.weightLabel, { value: visibleSpec.weight ?? 0 })}</span>
+                  <span className="desktop-badge desktop-badge-success">{formatTemplate(t.harness.console.passThresholdLabel, { value: visibleSpec.thresholdPass ?? 90 })}</span>
+                  <span className="desktop-badge desktop-badge-warning">{formatTemplate(t.harness.console.warnThresholdLabel, { value: visibleSpec.thresholdWarn ?? 80 })}</span>
                 </div>
               ) : null}
             </div>
@@ -617,7 +667,7 @@ export default function HarnessConsolePage() {
 
                 {visibleSpec.kind === "dimension" && visibleSpec.frontmatterSource ? (
                   <details className="rounded-md border border-desktop-border bg-desktop-bg-secondary/50 p-2.5">
-                    <summary className="cursor-pointer text-[9px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">Frontmatter</summary>
+                    <summary className="cursor-pointer text-[9px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">{t.harness.console.frontmatter}</summary>
                     <div className="mt-2">
                       <CodeViewer
                         code={visibleSpec.frontmatterSource}
@@ -657,28 +707,28 @@ export default function HarnessConsolePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-[11px] text-desktop-text-secondary">No command blocks found in this markdown file.</div>
+                    <div className="text-[11px] text-desktop-text-secondary">{t.harness.console.noCommandBlocks}</div>
                   )
                 ) : null}
 
                 {visibleSpec.kind === "dimension" ? (
                   <div className="overflow-hidden rounded-md border border-desktop-border">
                     <div className="grid grid-cols-[minmax(0,1.5fr)_auto] gap-2 border-b border-desktop-border bg-desktop-bg-secondary px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-desktop-text-secondary">
-                      <div>Metric</div>
-                      <div>Dispatch</div>
+                      <div>{t.harness.console.metricColumn}</div>
+                      <div>{t.harness.console.dispatchColumn}</div>
                     </div>
                     {visibleSpec.metrics.map((metric) => (
                       <div key={metric.name} className="grid grid-cols-[minmax(0,1.5fr)_auto] gap-2 border-t border-desktop-border px-3 py-2.5 first:border-t-0">
                         <div className="min-w-0">
                           <div className="text-[11px] font-semibold text-desktop-text-primary">{metric.name}</div>
-                          <div className="mt-1 break-all font-mono text-[9px] text-desktop-text-secondary">{metric.command || "No command"}</div>
+                          <div className="mt-1 break-all font-mono text-[9px] text-desktop-text-secondary">{metric.command || t.harness.console.noCommand}</div>
                           {metric.description ? <div className="mt-1 text-[10px] text-desktop-text-secondary">{metric.description}</div> : null}
                         </div>
                         <div className="flex flex-wrap content-start justify-end gap-1 text-[9px]">
-                          <span className="rounded-full border border-desktop-border bg-desktop-bg-secondary px-2 py-0.5 text-desktop-text-secondary">{metric.runner}</span>
-                          <span className="rounded-full border border-desktop-border bg-desktop-bg-secondary px-2 py-0.5 text-desktop-text-secondary">{metric.tier}</span>
+                          <span className="rounded-full border border-desktop-border bg-desktop-bg-secondary px-2 py-0.5 text-desktop-text-secondary">{formatFitnessRunnerLabel(metric.runner, t.harness.executionPlan)}</span>
+                          <span className="rounded-full border border-desktop-border bg-desktop-bg-secondary px-2 py-0.5 text-desktop-text-secondary">{formatFitnessTierLabel(metric.tier, t.harness.executionPlan)}</span>
                           <span className={`rounded-full border px-2 py-0.5 ${metric.hardGate ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" : "border-desktop-border bg-desktop-bg-secondary text-desktop-text-secondary"}`}>
-                            {metric.gate}
+                            {formatFitnessGateLabel(metric.gate, t.harness.executionPlan)}
                           </span>
                         </div>
                       </div>
@@ -687,7 +737,7 @@ export default function HarnessConsolePage() {
                 ) : null}
               </div>
             ) : (
-              <div className="mt-3 text-[11px] text-desktop-text-secondary">Select a fitness file to inspect.</div>
+              <div className="mt-3 text-[11px] text-desktop-text-secondary">{t.harness.console.selectFitnessFile}</div>
             )}
           </div>
         </div>
@@ -711,7 +761,7 @@ export default function HarnessConsolePage() {
                     : "text-desktop-text-secondary hover:bg-desktop-bg-active hover:text-desktop-text-primary"
                 }`}
               >
-                {view === "lifecycle" ? "Lifecycle" : "Loop"}
+                {view === "lifecycle" ? t.harness.console.governanceViewLifecycle : t.harness.console.governanceViewLoop}
               </button>
             ))}
           </div>
@@ -767,7 +817,7 @@ export default function HarnessConsolePage() {
         {inlineOverviewPanel ? null : (
           <div
             role="separator"
-            aria-label="Resize bottom panel"
+            aria-label={t.harness.console.resizeBottomPanel}
             data-testid="harness-console-bottom-resizer"
             className="h-1 shrink-0 cursor-row-resize bg-desktop-border/60 transition-colors hover:bg-desktop-accent"
             onMouseDown={handleBottomPanelResizeStart}
@@ -791,20 +841,20 @@ export default function HarnessConsolePage() {
                       : "text-desktop-text-secondary hover:bg-desktop-bg-active hover:text-desktop-text-primary"
                   }`}
                 >
-                  {tab === "context" ? "Context" : tab === "plan" ? "Execution Plan" : "Fitness"}
+                  {t.harness.console.bottomTabs[tab]}
                 </button>
               ))}
             </div>
 
             <div className="flex items-center gap-2 text-[10px] text-desktop-text-secondary">
-              {selectedGovernanceNodeId ? <span>node: {selectedGovernanceNodeId}</span> : null}
+              {selectedGovernanceNodeId ? <span>{formatTemplate(t.harness.console.nodePrefix, { nodeId: selectedGovernanceNodeId })}</span> : null}
               {selectedGovernanceSection ? (
                 <button
                   type="button"
                   className="desktop-btn desktop-btn-secondary"
                   onClick={() => openSection(selectedGovernanceSection)}
                 >
-                  Open full view
+                  {t.harness.console.openFullView}
                 </button>
               ) : null}
               <button
@@ -812,7 +862,7 @@ export default function HarnessConsolePage() {
                 className="desktop-btn desktop-btn-secondary"
                 onClick={() => setShowBottomPanel(false)}
               >
-                Close
+                {t.common.close}
               </button>
             </div>
           </div>
@@ -976,8 +1026,8 @@ export default function HarnessConsolePage() {
             branch: codebase.branch ?? "",
           }))}
         />
-        <button type="button" className="desktop-btn desktop-btn-secondary" onClick={() => openBottomPanel("plan")}>Plan</button>
-        <button type="button" className="desktop-btn desktop-btn-secondary" onClick={() => openBottomPanel("fitness")}>Fitness</button>
+        <button type="button" className="desktop-btn desktop-btn-secondary" onClick={() => openBottomPanel("plan")}>{t.harness.console.planButton}</button>
+        <button type="button" className="desktop-btn desktop-btn-secondary" onClick={() => openBottomPanel("fitness")}>{t.harness.console.fitnessButton}</button>
       </div>
     );
 
@@ -1035,7 +1085,7 @@ export default function HarnessConsolePage() {
 
         <div
           role="separator"
-          aria-label="Resize explorer"
+          aria-label={t.harness.console.resizeExplorer}
           data-testid="harness-console-explorer-resizer"
           className="w-1 shrink-0 cursor-col-resize bg-desktop-border/60 transition-colors hover:bg-desktop-accent"
           onMouseDown={handleExplorerResizeStart}
@@ -1090,9 +1140,9 @@ export default function HarnessConsolePage() {
               <span>{activeWorkspaceTitle ?? "-"}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span>{automationRuleCount} cleanup rules</span>
-              <span>{hookCount} hooks</span>
-              <span>{workflowCount} workflows</span>
+              <span>{formatTemplate(t.harness.console.cleanupRulesCount, { count: automationRuleCount })}</span>
+              <span>{formatTemplate(t.harness.console.hookCount, { count: hookCount })}</span>
+              <span>{formatTemplate(t.harness.console.workflowCount, { count: workflowCount })}</span>
             </div>
           </div>
         </div>
