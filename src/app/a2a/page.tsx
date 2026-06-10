@@ -50,27 +50,36 @@ interface A2ATask {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const STATE_STYLES: Record<string, { label: string; dot: string; badge: string }> = {
-  submitted: { label: "Submitted", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  working:   { label: "Working",   dot: "bg-amber-400 animate-pulse", badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
-  completed: { label: "Completed", dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  failed:    { label: "Failed",    dot: "bg-red-400", badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
-  canceled:  { label: "Canceled",  dot: "bg-slate-400", badge: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" },
+type A2AStatusLabelKey =
+  | "statusSubmitted"
+  | "statusWorking"
+  | "statusCompleted"
+  | "statusFailed"
+  | "statusCanceled";
+
+const STATE_STYLES: Record<string, { labelKey: A2AStatusLabelKey; dot: string; badge: string }> = {
+  submitted: { labelKey: "statusSubmitted", dot: "bg-slate-400", badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  working:   { labelKey: "statusWorking",   dot: "bg-amber-400 animate-pulse", badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+  completed: { labelKey: "statusCompleted", dot: "bg-emerald-400", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  failed:    { labelKey: "statusFailed",    dot: "bg-red-400", badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
+  canceled:  { labelKey: "statusCanceled",  dot: "bg-slate-400", badge: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400" },
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function StatusBadge({ state }: { state: string }) {
+  const { t } = useTranslation();
   const s = STATE_STYLES[state] ?? STATE_STYLES.submitted;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${s.badge}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {s.label}
+      {t.a2aPage[s.labelKey]}
     </span>
   );
 }
 
 function SkillCard({ skill }: { skill: AgentSkill }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="rounded-lg border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/50 p-4 transition-shadow hover:shadow-md">
@@ -96,7 +105,7 @@ function SkillCard({ skill }: { skill: AgentSkill }) {
             onClick={() => setExpanded(!expanded)}
             className="text-xs text-blue-500 dark:text-blue-400 hover:underline"
           >
-            {expanded ? "Hide examples" : `${skill.examples.length} example${skill.examples.length > 1 ? "s" : ""}`}
+            {expanded ? t.a2aPage.hideExamples : t.a2aPage.examplesCount.replace("{count}", String(skill.examples.length))}
           </button>
           {expanded && (
             <ul className="mt-2 space-y-1">
@@ -215,7 +224,7 @@ export default function A2APage() {
       });
       const data = await r.json();
       if (data.error) {
-        setSendError(data.error.message ?? "Failed to send message");
+        setSendError(data.error.message ?? t.a2aPage.statusFailed);
       } else {
         setPrompt("");
         // Refresh tasks immediately
@@ -227,7 +236,7 @@ export default function A2APage() {
         }
       }
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : "Network error");
+      setSendError(err instanceof Error ? err.message : t.a2aPage.networkError);
     } finally {
       setSending(false);
     }
@@ -246,15 +255,15 @@ export default function A2APage() {
             </div>
             <div>
               <h1 className="font-semibold text-slate-900 dark:text-slate-50 leading-none">
-                {agentCard?.name ?? "A2A Protocol"}
+                {agentCard?.name ?? t.a2aPage.protocolTitle}
               </h1>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Agent-to-Agent API</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{t.a2aPage.agentToAgentApi}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live
+              {t.a2aPage.live}
             </span>
             {agentCard?.version && (
               <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">v{agentCard.version}</span>
@@ -269,7 +278,7 @@ export default function A2APage() {
           {/* Send message */}
           <section className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900 shadow-sm p-6">
             <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
-              Send Message
+              {t.a2aPage.sendMessage}
             </h2>
             <form onSubmit={handleSend} className="space-y-3">
               <input
@@ -293,7 +302,7 @@ export default function A2APage() {
                 <p className="text-xs text-red-500 dark:text-red-400">{sendError}</p>
               )}
               <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-400 dark:text-slate-500">⌘↵ to send</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{t.a2aPage.sendShortcut}</p>
                 <button
                   type="submit"
                   disabled={sending || !prompt.trim()}
@@ -302,9 +311,9 @@ export default function A2APage() {
                   {sending ? (
                     <>
                       <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                      Sending…
+                      {t.a2aPage.sending}
                     </>
-                  ) : "Send →"}
+                  ) : t.a2aPage.send}
                 </button>
               </div>
             </form>
@@ -322,7 +331,7 @@ export default function A2APage() {
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}
               >
-                {tab === "tasks" ? `Tasks${tasks.length > 0 ? ` (${tasks.length})` : ""}` : tab === "card" ? "Agent Card" : "Skills"}
+                {tab === "tasks" ? `${t.a2aPage.tabTasks}${tasks.length > 0 ? ` (${tasks.length})` : ""}` : tab === "card" ? t.a2aPage.tabAgentCard : t.a2aPage.tabSkills}
               </button>
             ))}
           </div>
@@ -332,19 +341,19 @@ export default function A2APage() {
             <section>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  {loadingTasks ? "Refreshing…" : `${tasks.length} task${tasks.length !== 1 ? "s" : ""}`}
+                  {loadingTasks ? t.a2aPage.refreshing : t.a2aPage.tasksCount.replace("{count}", String(tasks.length))}
                 </p>
                 <button
                   onClick={fetchTasks}
                   disabled={loadingTasks}
                   className="text-xs text-blue-500 dark:text-blue-400 hover:underline disabled:opacity-50"
                 >
-                  Refresh
+                  {t.a2aPage.refresh}
                 </button>
               </div>
               {tasks.length === 0 && !loadingTasks ? (
                 <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 p-10 text-center">
-                  <p className="text-sm text-slate-400 dark:text-slate-500">No tasks yet. Send a message to create one.</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">{t.a2aPage.noTasksYet}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -371,7 +380,7 @@ export default function A2APage() {
                   rel="noreferrer"
                   className="text-xs text-blue-500 dark:text-blue-400 hover:underline"
                 >
-                  Open ↗
+                  {t.a2aPage.open}
                 </a>
               </div>
               {agentCard ? (
@@ -379,7 +388,7 @@ export default function A2APage() {
                   {JSON.stringify(agentCard, null, 2)}
                 </pre>
               ) : (
-                <p className="text-sm text-slate-400 dark:text-slate-500">Loading…</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">{t.a2aPage.loading}</p>
               )}
             </section>
           )}
@@ -391,7 +400,7 @@ export default function A2APage() {
                 <SkillCard key={skill.id} skill={skill} />
               ))}
               {!agentCard && (
-                <p className="text-sm text-slate-400 dark:text-slate-500 col-span-2">Loading skills…</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 col-span-2">{t.a2aPage.loadingSkills}</p>
               )}
             </section>
           )}
@@ -403,24 +412,24 @@ export default function A2APage() {
           {agentCard && (
             <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900 p-4">
               <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                Capabilities
+                {t.a2aPage.capabilities}
               </h2>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600 dark:text-slate-300">Streaming</span>
+                  <span className="text-slate-600 dark:text-slate-300">{t.a2aPage.streaming}</span>
                   <span className={agentCard.capabilities?.streaming ? "text-emerald-500" : "text-slate-400"}>
                     {agentCard.capabilities?.streaming ? "✓" : "✗"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-600 dark:text-slate-300">Push Notifications</span>
+                  <span className="text-slate-600 dark:text-slate-300">{t.a2aPage.pushNotifications}</span>
                   <span className={agentCard.capabilities?.pushNotifications ? "text-emerald-500" : "text-slate-400"}>
                     {agentCard.capabilities?.pushNotifications ? "✓" : "✗"}
                   </span>
                 </div>
                 {agentCard.defaultInputModes && (
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Input modes</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">{t.a2aPage.inputModes}</p>
                     <div className="flex flex-wrap gap-1">
                       {agentCard.defaultInputModes.map((m) => (
                         <span key={m} className="font-mono text-[11px] bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-slate-500 dark:text-slate-400">
@@ -432,7 +441,7 @@ export default function A2APage() {
                 )}
                 {agentCard.defaultOutputModes && (
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Output modes</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">{t.a2aPage.outputModes}</p>
                     <div className="flex flex-wrap gap-1">
                       {agentCard.defaultOutputModes.map((m) => (
                         <span key={m} className="font-mono text-[11px] bg-slate-100 dark:bg-slate-800 rounded px-1.5 py-0.5 text-slate-500 dark:text-slate-400">
@@ -449,7 +458,7 @@ export default function A2APage() {
           {/* Task detail panel */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900 p-4">
             <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-              Task Detail
+              {t.a2aPage.taskDetail}
             </h2>
             {selectedTask ? (
               <div className="space-y-3 text-sm">
@@ -463,30 +472,30 @@ export default function A2APage() {
                   </button>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Task ID</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{t.a2aPage.taskId}</p>
                   <p className="font-mono text-xs text-slate-600 dark:text-slate-300 break-all">{selectedTask.id}</p>
                 </div>
                 {selectedTask.contextId && (
                   <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Context ID</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{t.a2aPage.contextId}</p>
                     <p className="font-mono text-xs text-slate-600 dark:text-slate-300 break-all">{selectedTask.contextId}</p>
                   </div>
                 )}
                 {selectedTask.metadata?.workspaceId && (
                   <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Workspace</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{t.a2aPage.workspace}</p>
                     <p className="font-mono text-xs text-slate-600 dark:text-slate-300">{selectedTask.metadata.workspaceId}</p>
                   </div>
                 )}
                 {selectedTask.metadata?.userPrompt && (
                   <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Prompt</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{t.a2aPage.prompt}</p>
                     <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">{selectedTask.metadata.userPrompt}</p>
                   </div>
                 )}
                 {selectedTask.status.message && (
                   <div>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">Status Message</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{t.a2aPage.statusMessage}</p>
                     <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                       {selectedTask.status.message.parts.map((p) => p.text).join("")}
                     </p>
@@ -495,7 +504,7 @@ export default function A2APage() {
                 {/* Raw JSON toggle */}
                 <details className="group">
                   <summary className="cursor-pointer text-xs text-blue-500 dark:text-blue-400 hover:underline list-none">
-                    Raw JSON
+                    {t.a2aPage.rawJson}
                   </summary>
                   <pre className="mt-2 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 overflow-x-auto whitespace-pre-wrap break-words">
                     {JSON.stringify(selectedTask, null, 2)}
@@ -504,7 +513,7 @@ export default function A2APage() {
               </div>
             ) : (
               <p className="text-sm text-slate-400 dark:text-slate-500">
-                Select a task to see details.
+                {t.a2aPage.selectTask}
               </p>
             )}
           </div>
@@ -512,7 +521,7 @@ export default function A2APage() {
           {/* Quick API reference */}
           <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900 p-4">
             <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-              API Endpoints
+              {t.a2aPage.apiEndpoints}
             </h2>
             <ul className="space-y-1.5 text-xs font-mono">
               {[

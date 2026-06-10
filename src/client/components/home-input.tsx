@@ -21,6 +21,7 @@ import { storePendingPrompt } from "../utils/pending-prompt";
 import { loadProviderConnectionConfig, getModelDefinitionByAlias, DockerConfigModal } from "./settings-panel";
 import { desktopAwareFetch } from "../utils/diagnostics";
 import { collectAccessibleRepoPaths } from "@/client/utils/repo-validation";
+import { buildSpecialistsApiPath } from "@/client/utils/specialist-locale";
 import { useTranslation } from "@/i18n";
 import { Check, ChevronDown, Folder, CircleUser, Sun, Zap } from "lucide-react";
 
@@ -134,7 +135,7 @@ export function HomeInput({
   const acp = useAcp();
   const skillsHook = useSkills();
   const workspacesHook = useWorkspaces();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const normalizedLaunchModes = React.useMemo<LaunchModeConfig[]>(() => {
     if (launchModes && launchModes.length > 0) {
@@ -263,11 +264,11 @@ export function HomeInput({
 
   // Load specialists
   useEffect(() => {
-    desktopAwareFetch("/api/specialists")
+    desktopAwareFetch(buildSpecialistsApiPath(locale))
       .then((r) => r.ok ? r.json() : { specialists: [] })
       .then((data) => setSpecialists(data.specialists ?? []))
       .catch(() => {});
-  }, []);
+  }, [locale]);
 
   // Close specialist dropdown on outside click
   useEffect(() => {
@@ -549,7 +550,7 @@ export function HomeInput({
                       type="button"
                       onClick={() => setSelectedSpecialistId(null)}
                       className="ml-0.5 text-amber-400 transition-colors hover:text-amber-700 dark:hover:text-amber-200"
-                      title="Switch to built-in role"
+                      title={t.home.switchBuiltInRole}
                       aria-label={t.common.clearSpecialist}
                     >
                       ×
@@ -562,7 +563,7 @@ export function HomeInput({
                       type="button"
                       onClick={() => setShowSpecialistDropdown((v) => !v)}
                       className="flex items-center gap-1 rounded-lg border border-transparent px-1.5 py-1 text-xs text-slate-500 transition-all hover:border-slate-200 hover:bg-slate-100 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800"
-                      title="Switch specialist"
+                      title={t.home.switchSpecialist}
                     >
                       <ChevronDown className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
                     </button>
@@ -595,7 +596,7 @@ export function HomeInput({
               <>
                 <div className="flex items-center gap-0.5 rounded-[18px] border border-blue-100 bg-white/88 p-1 shadow-[0_10px_28px_-22px_rgba(37,99,235,0.42)] dark:border-slate-800 dark:bg-slate-900" role="group" aria-label={t.common.agentMode}>
                   <button type="button" onClick={() => setSelectedRole("ROUTA")}
-                    title="Multi-agent orchestration — spawns specialized agents for complex multi-step tasks (Routa)"
+                    title={t.home.multiAgentTitle}
                     className={`flex items-center gap-1.5 rounded-[14px] px-3 py-1.5 text-xs font-medium transition-all ${
                       selectedRole === "ROUTA"
                         ? "bg-blue-600 text-white shadow-[0_14px_26px_-18px_rgba(37,99,235,0.68)] dark:bg-blue-500 dark:text-white"
@@ -605,7 +606,7 @@ export function HomeInput({
                     {t.home.multiAgent}
                   </button>
                   <button type="button" onClick={() => setSelectedRole("CRAFTER")}
-                    title="Single-agent implementation — best for focused coding tasks (Crafter)"
+                    title={t.home.crafterTitle}
                     className={`flex items-center gap-1.5 rounded-[14px] px-3 py-1.5 text-xs font-medium transition-all ${
                       selectedRole === "CRAFTER"
                         ? "bg-amber-500 text-white shadow-[0_14px_26px_-18px_rgba(245,158,11,0.65)] dark:bg-amber-500 dark:text-white"
@@ -623,9 +624,9 @@ export function HomeInput({
                     <div className="relative" ref={specialistDropdownRef}>
                       <button type="button" onClick={() => setShowSpecialistDropdown((v) => !v)}
                         className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-500 transition-all hover:border-amber-300 hover:bg-slate-100 hover:text-amber-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-amber-700 dark:hover:bg-slate-800 dark:hover:text-amber-300"
-                        title="Use a custom specialist instead">
+                        title={t.home.useCustomSpecialist}>
                         <CircleUser className="w-3.5 h-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}/>
-                        Custom
+                        {t.home.customSpecialistShort}
                         <ChevronDown className="w-2.5 h-2.5 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
                       </button>
                       {showSpecialistDropdown && (

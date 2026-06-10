@@ -15,6 +15,7 @@ import Image from "next/image";
 import { useWorkspaces } from "@/client/hooks/use-workspaces";
 import { WorkspaceSwitcher } from "@/client/components/workspace-switcher";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation } from "@/i18n";
 
 
 interface BackgroundTask {
@@ -41,6 +42,7 @@ interface TriggerLog {
 }
 
 export default function MessagesPage() {
+  const { t } = useTranslation();
   const { workspaces, loading: workspacesLoading, createWorkspace } = useWorkspaces();
   const [tab, setTab] = useState<"tasks" | "logs">("tasks");
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
@@ -71,6 +73,19 @@ export default function MessagesPage() {
 
   const formatTime = (ts: string) => new Date(ts).toLocaleString();
 
+  const statusLabels: Record<BackgroundTask["status"], string> = {
+    pending: t.messagesPage.statusPending,
+    running: t.messagesPage.statusRunning,
+    completed: t.messagesPage.statusCompleted,
+    failed: t.messagesPage.statusFailed,
+    cancelled: t.messagesPage.statusCancelled,
+  };
+  const outcomeLabels: Record<TriggerLog["outcome"], string> = {
+    triggered: t.messagesPage.outcomeTriggered,
+    skipped: t.messagesPage.outcomeSkipped,
+    error: t.messagesPage.outcomeError,
+  };
+
   const getStatusBadge = (status: BackgroundTask["status"]) => {
     const colors: Record<string, string> = {
       pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
@@ -79,7 +94,7 @@ export default function MessagesPage() {
       failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
       cancelled: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400",
     };
-    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[status] ?? colors.pending}`}>{status}</span>;
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[status] ?? colors.pending}`}>{statusLabels[status] ?? status}</span>;
   };
 
   const getOutcomeBadge = (outcome: TriggerLog["outcome"]) => {
@@ -88,7 +103,7 @@ export default function MessagesPage() {
       skipped: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
       error: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
     };
-    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[outcome] ?? ""}`}>{outcome}</span>;
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[outcome] ?? ""}`}>{outcomeLabels[outcome] ?? outcome}</span>;
   };
 
   return (
@@ -97,7 +112,7 @@ export default function MessagesPage() {
       <header className="h-12 border-b border-slate-100 dark:border-[#151720] flex items-center px-5 sticky top-0 bg-[#fafafa]/90 dark:bg-[#0a0c12]/90 backdrop-blur-sm z-10">
         <Link href="/" className="flex items-center gap-2.5 mr-6">
           <Image src="/logo.svg" alt="Routa" width={22} height={22} className="rounded-md" />
-          <span className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">Messages</span>
+          <span className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">{t.messagesPage.title}</span>
         </Link>
         <div className="flex gap-1">
           <WorkspaceSwitcher
@@ -116,13 +131,13 @@ export default function MessagesPage() {
             onClick={() => setTab("tasks")}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === "tasks" ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
           >
-            Background Tasks
+            {t.messagesPage.backgroundTasks}
           </button>
           <button
             onClick={() => setTab("logs")}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${tab === "logs" ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
           >
-            Webhook Logs
+            {t.messagesPage.webhookLogs}
           </button>
         </div>
       </header>
@@ -130,34 +145,34 @@ export default function MessagesPage() {
       {/* Content */}
       <main className="max-w-5xl mx-auto p-6">
         {loading ? (
-          <div className="text-center py-12 text-slate-400">Loading...</div>
+          <div className="text-center py-12 text-slate-400">{t.messagesPage.loading}</div>
         ) : tab === "tasks" ? (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">PR Agent & Background Tasks</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">{t.messagesPage.prAgentBackgroundTasks}</h2>
             {tasks.length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No background tasks yet</p>
+              <p className="text-sm text-slate-400 py-8 text-center">{t.messagesPage.noBackgroundTasks}</p>
             ) : (
-              tasks.map((t) => (
-                <div key={t.id} className="p-4 bg-white dark:bg-[#12141c] border border-slate-100 dark:border-[#1c1f2e] rounded-xl">
+              tasks.map((task) => (
+                <div key={task.id} className="p-4 bg-white dark:bg-[#12141c] border border-slate-100 dark:border-[#1c1f2e] rounded-xl">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{t.name}</span>
-                    {getStatusBadge(t.status)}
+                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{task.name}</span>
+                    {getStatusBadge(task.status)}
                   </div>
                   <div className="flex items-center gap-4 text-[11px] text-slate-500">
-                    <span>Type: {t.type}</span>
-                    <span>Created: {formatTime(t.createdAt)}</span>
-                    {t.completedAt && <span>Completed: {formatTime(t.completedAt)}</span>}
+                    <span>{t.messagesPage.typeLabel} {task.type}</span>
+                    <span>{t.messagesPage.createdLabel} {formatTime(task.createdAt)}</span>
+                    {task.completedAt && <span>{t.messagesPage.completedLabel} {formatTime(task.completedAt)}</span>}
                   </div>
-                  {t.error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{t.error}</p>}
+                  {task.error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{task.error}</p>}
                 </div>
               ))
             )}
           </div>
         ) : (
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Webhook Trigger Logs</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">{t.messagesPage.webhookTriggerLogs}</h2>
             {logs.length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No webhook logs yet</p>
+              <p className="text-sm text-slate-400 py-8 text-center">{t.messagesPage.noWebhookLogs}</p>
             ) : (
               logs.map((l) => (
                 <div key={l.id} className="p-4 bg-white dark:bg-[#12141c] border border-slate-100 dark:border-[#1c1f2e] rounded-xl">
@@ -166,8 +181,8 @@ export default function MessagesPage() {
                     {getOutcomeBadge(l.outcome)}
                   </div>
                   <div className="flex items-center gap-4 text-[11px] text-slate-500">
-                    <span>Config: {l.configId.slice(0, 8)}</span>
-                    <span>Signature: {l.signatureValid ? "✓" : "✗"}</span>
+                    <span>{t.messagesPage.configLabel} {l.configId.slice(0, 8)}</span>
+                    <span>{t.messagesPage.signatureLabel} {l.signatureValid ? "✓" : "✗"}</span>
                     <span>{formatTime(l.createdAt)}</span>
                   </div>
                   {l.errorMessage && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{l.errorMessage}</p>}

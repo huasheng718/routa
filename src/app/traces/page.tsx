@@ -470,12 +470,14 @@ function TracePageContent() {
 
 // Default export with Suspense boundary for useSearchParams()
 export default function TracePage() {
+  const { t } = useTranslation();
+
   return (
     <Suspense fallback={
       <div className="desktop-theme flex h-screen items-center justify-center bg-desktop-bg-primary">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-desktop-accent border-t-transparent" />
-          <p className="text-sm text-desktop-text-secondary">Loading...</p>
+          <p className="text-sm text-desktop-text-secondary">{t.common.loading}</p>
         </div>
       </div>
     }>

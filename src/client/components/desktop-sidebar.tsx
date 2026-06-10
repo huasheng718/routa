@@ -86,6 +86,14 @@ export function DesktopSidebar({
       ),
     },
     {
+      id: "spec",
+      label: t.nav.spec,
+      href: workspaceBaseHref ? `${workspaceBaseHref}/spec` : "/",
+      icon: (
+        <ClipboardList className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}/>
+      ),
+    },
+    {
       id: "team",
       label: t.nav.team,
       href: workspaceBaseHref ? `${workspaceBaseHref}/team` : "/",
@@ -95,14 +103,6 @@ export function DesktopSidebar({
     },
   ];
   const secondaryItems: NavItem[] = [
-    {
-      id: "spec",
-      label: t.nav.spec,
-      href: workspaceBaseHref ? `${workspaceBaseHref}/spec` : "/",
-      icon: (
-        <ClipboardList className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}/>
-      ),
-    },
     {
       id: "feature-explorer",
       label: t.nav.featureExplorer,

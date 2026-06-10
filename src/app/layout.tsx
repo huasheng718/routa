@@ -4,9 +4,9 @@ import { I18nProvider } from "@/i18n";
 import { ThemeInitializer } from "@/client/components/theme-initializer";
 
 export const metadata: Metadata = {
-  title: "Routa - Multi-Agent Coordinator",
+  title: "Routa - 多智能体协作平台",
   description:
-    "Browser-based multi-agent coordination with MCP, ACP, and A2A protocol support",
+    "基于浏览器的多智能体协作平台，支持 MCP、ACP 和 A2A 协议",
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
@@ -37,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="zh" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

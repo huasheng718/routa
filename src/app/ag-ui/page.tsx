@@ -18,6 +18,7 @@ import { useWorkspaces } from "@/client/hooks/use-workspaces";
 import { WorkspaceSwitcher } from "@/client/components/workspace-switcher";
 import { ChevronLeft, X, MessageSquare, RefreshCw } from "lucide-react";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
+import { useTranslation } from "@/i18n";
 
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -172,6 +173,8 @@ function EventCard({ event, index }: { event: AGUIEvent; index: number }) {
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {
+  const { t } = useTranslation();
+
   if (message.role === "user") {
     return (
       <div className="flex justify-end mb-3">
@@ -186,7 +189,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     return (
       <div className="flex justify-start mb-3">
         <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm leading-relaxed italic text-slate-700 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-300">
-          <span className="mb-1 block text-[10px] font-bold tracking-wider text-slate-500 dark:text-slate-400">REASONING</span>
+          <span className="mb-1 block text-[10px] font-bold tracking-wider text-slate-500 dark:text-slate-400">{t.agUi.reasoningLabel}</span>
           {message.content}
           {message.isStreaming && <span className="ml-0.5 inline-block h-4 w-1.5 rounded-sm bg-slate-400 animate-pulse dark:bg-slate-500" />}
         </div>
@@ -199,7 +202,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       <div className="flex justify-start mb-3">
         <div className="max-w-[90%] rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-2.5 text-sm leading-relaxed">
           <span className="text-[10px] font-bold tracking-wider text-amber-600 dark:text-amber-400 block mb-1">
-            TOOL: {message.toolName ?? message.toolCallId ?? "unknown"}
+            {t.agUi.toolLabel}: {message.toolName ?? message.toolCallId ?? t.agUi.unknownTool}
           </span>
           <pre className="text-xs text-slate-600 dark:text-slate-300 font-mono whitespace-pre-wrap break-words">
             {message.content.length > 500 ? message.content.slice(0, 500) + "…" : message.content}
@@ -223,6 +226,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function AGUIPage() {
+  const { t } = useTranslation();
   const workspacesHook = useWorkspaces();
   const [protocolMode, setProtocolMode] = useState<ProtocolMode>("ag-ui");
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
@@ -261,7 +265,7 @@ export default function AGUIPage() {
   const sendViaAGUI = useCallback(
     async (text: string) => {
       if (!selectedWorkspaceId) {
-        throw new Error("Select a workspace before using AG-UI mode");
+        throw new Error(t.agUi.selectWorkspaceForAgui);
       }
 
       const runId = uuidv4();
@@ -303,7 +307,7 @@ export default function AGUIPage() {
       });
 
       if (!response.ok || !response.body) {
-        throw new Error(`AG-UI request failed: ${response.status}`);
+        throw new Error(t.agUi.requestFailed.replace("{status}", String(response.status)));
       }
 
       const reader = response.body.getReader();
@@ -477,7 +481,7 @@ export default function AGUIPage() {
                 break;
 
               case "RUN_ERROR":
-                setError(event.message ?? "Unknown error");
+                setError(event.message ?? t.agUi.unknownError);
                 break;
             }
           } catch {
@@ -486,14 +490,14 @@ export default function AGUIPage() {
         }
       }
     },
-    [selectedWorkspaceId, threadId],
+    [selectedWorkspaceId, t.agUi.requestFailed, t.agUi.selectWorkspaceForAgui, t.agUi.unknownError, threadId],
   );
 
   // ── ACP Protocol send (for comparison) ──
   const sendViaACP = useCallback(
     async (text: string) => {
       if (!selectedWorkspaceId) {
-        throw new Error("Select a workspace before using ACP mode");
+        throw new Error(t.agUi.selectWorkspaceForAcp);
       }
       // Use existing ACP endpoint in JSON-RPC format
       const controller = new AbortController();
@@ -526,7 +530,7 @@ export default function AGUIPage() {
       });
       const sessionData = await sessionRes.json();
       const sessionId = sessionData?.result?.sessionId;
-      if (!sessionId) throw new Error("Failed to create ACP session");
+      if (!sessionId) throw new Error(t.agUi.failedCreateAcpSession);
 
       // 3. Send prompt (streaming SSE response)
       const promptRes = await desktopAwareFetch("/api/acp", {
@@ -542,7 +546,7 @@ export default function AGUIPage() {
       });
 
       if (!promptRes.body) {
-        throw new Error("ACP prompt: no response body");
+        throw new Error(t.agUi.noPromptResponseBody);
       }
 
       // Read SSE stream
@@ -652,7 +656,7 @@ export default function AGUIPage() {
         }
       }
     },
-    [selectedWorkspaceId],
+    [selectedWorkspaceId, t.agUi.failedCreateAcpSession, t.agUi.noPromptResponseBody, t.agUi.selectWorkspaceForAcp],
   );
 
   // ── Send handler ──
@@ -718,10 +722,10 @@ export default function AGUIPage() {
                 data-testid="ag-ui-page-title"
                 className="text-lg font-bold tracking-tight"
               >
-                AG-UI Protocol
+                {t.agUi.title}
               </h1>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
-                Agent-User Interaction Protocol Test
+                {t.agUi.subtitle}
               </p>
             </div>
           </div>
@@ -754,14 +758,14 @@ export default function AGUIPage() {
               data-testid="event-counter"
               className="font-mono text-xs text-slate-400 dark:text-slate-500 tabular-nums"
             >
-              {eventCount} events
+              {t.agUi.eventCount.replace("{count}", String(eventCount))}
             </span>
 
             <button
               onClick={handleClear}
               className="text-xs text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 transition-colors"
             >
-              Clear
+              {t.agUi.clear}
             </button>
           </div>
         </div>
@@ -780,10 +784,10 @@ export default function AGUIPage() {
               <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-600">
                 <MessageSquare viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 mb-3 opacity-50"/>
                 <p className="text-sm font-medium">
-                  Send a message to test the {protocolMode === "ag-ui" ? "AG-UI" : "ACP"} protocol
+                  {t.agUi.emptyTitle.replace("{protocol}", protocolMode === "ag-ui" ? "AG-UI" : "ACP")}
                 </p>
                 <p className="text-xs mt-1 text-slate-400 dark:text-slate-600">
-                  Switch between protocols using the toggle above
+                  {t.agUi.emptySubtitle}
                 </p>
               </div>
             )}
@@ -811,7 +815,7 @@ export default function AGUIPage() {
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={`Send via ${protocolMode === "ag-ui" ? "AG-UI" : "ACP"} protocol…`}
+              placeholder={t.agUi.inputPlaceholder.replace("{protocol}", protocolMode === "ag-ui" ? "AG-UI" : "ACP")}
               className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 dark:focus:border-blue-600 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
               disabled={sending}
             />
@@ -822,7 +826,7 @@ export default function AGUIPage() {
                 data-testid="cancel-button"
                 className="rounded-xl bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 text-sm font-medium transition-colors"
               >
-                Cancel
+                {t.common.cancel}
               </button>
             ) : (
               <button
@@ -831,7 +835,7 @@ export default function AGUIPage() {
                 disabled={!prompt.trim()}
                 className="rounded-xl bg-blue-500 hover:bg-blue-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white px-5 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed"
               >
-                Send
+                {t.common.send}
               </button>
             )}
           </form>
@@ -845,7 +849,7 @@ export default function AGUIPage() {
             <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase">
-                  Event Inspector
+                  {t.agUi.eventInspector}
                 </h2>
                 <span className="text-[10px] font-mono text-slate-400 dark:text-slate-600 tabular-nums">
                   ({eventCount})
@@ -865,7 +869,7 @@ export default function AGUIPage() {
             >
               {events.length === 0 && (
                 <p className="text-xs text-slate-400 dark:text-slate-600 text-center py-8">
-                  No events yet. Send a message to see AG-UI events stream here.
+                  {t.agUi.noEventsYet}
                 </p>
               )}
               {events.map((event, i) => (
@@ -880,6 +884,7 @@ export default function AGUIPage() {
         {!showEvents && (
           <button
             onClick={() => setShowEvents(true)}
+            title={t.agUi.showEvents}
             className="fixed bottom-6 right-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white p-3 shadow-lg transition-all hover:scale-105"
           >
             <RefreshCw viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"/>

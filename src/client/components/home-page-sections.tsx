@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useWorkspaces } from "@/client/hooks/use-workspaces";
 import { RepoPicker, type RepoSelection } from "@/client/components/repo-picker";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
@@ -30,38 +30,34 @@ const storySteps = [
   {
     id: "brief",
     index: "01",
-    label: "Intent Capture",
-    title: "Start with the requirement, not a dashboard.",
-    body:
-      "The composer stays first. Repo scope, workspace context, and agent selection stay attached to the prompt so the task begins where the thinking happens.",
-    note: "This is the entry surface. Everything else should feel downstream of it.",
+    labelKey: "intentCapture",
+    titleKey: "intentCaptureTitle",
+    bodyKey: "intentCaptureBody",
+    noteKey: "intentCaptureNote",
   },
   {
     id: "route",
     index: "02",
-    label: "Parallel Routing",
-    title: "Let orchestration fan out without changing surfaces.",
-    body:
-      "Routa can spin specialized agents, keep the execution graph visible, and turn a single brief into coordinated work without forcing the user into setup screens.",
-    note: "The moment after send should feel like controlled expansion, not a context switch.",
+    labelKey: "parallelRouting",
+    titleKey: "parallelRoutingTitle",
+    bodyKey: "parallelRoutingBody",
+    noteKey: "parallelRoutingNote",
   },
   {
     id: "operate",
     index: "03",
-    label: "Operational View",
-    title: "Boards become live operations, not the homepage.",
-    body:
-      "Once the run is moving, Kanban and workspace views act like telemetry layers. They show pressure, ownership, and throughput after launch instead of before it.",
-    note: "This is where active tasks, priorities, and recent sessions come back into view.",
+    labelKey: "operationalView",
+    titleKey: "operationalViewTitle",
+    bodyKey: "operationalViewBody",
+    noteKey: "operationalViewNote",
   },
   {
     id: "inspect",
     index: "04",
-    label: "Trace Review",
-    title: "End in evidence: logs, artifacts, and verification.",
-    body:
-      "The deepest layer is traceability. Session history, execution output, and artifacts should read like a clean audit trail rather than raw terminal noise.",
-    note: "Users should always be able to answer what happened, who did it, and what changed.",
+    labelKey: "traceReview",
+    titleKey: "traceReviewTitle",
+    bodyKey: "traceReviewBody",
+    noteKey: "traceReviewNote",
   },
 ] as const;
 
@@ -86,6 +82,7 @@ export function StoryGuideRail({
   skillCount,
   workspaceCounter,
 }: StoryGuideRailProps) {
+  const { t } = useTranslation();
   const [activeStep, setActiveStep] = useState(0);
   const stepRefs = useRef<Array<HTMLElement | null>>([]);
 
@@ -127,27 +124,25 @@ export function StoryGuideRail({
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#3868aa] dark:text-sky-300/80">
-              Product Flow
+              {t.story.productFlow}
             </div>
             <h2 className="mt-3 font-['Avenir_Next_Condensed','Avenir_Next','Segoe_UI','Helvetica_Neue',sans-serif] text-[2.25rem] font-semibold leading-[0.92] tracking-[-0.05em] text-[#081120] dark:text-white sm:text-[3rem]">
-              Scroll the surfaces in order.
+              {t.story.scrollSurfaces}
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-7 text-[#4d6689] dark:text-slate-300">
-              This section is the homepage narrative layer: sticky preview on the left, long-form explanation on the right. It borrows the rhythm from
-              {" "}
-              factory-style product sites without turning Routa into a marketing-only page.
+              {t.story.productFlowDescription}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.18em] text-[#54729b] dark:text-slate-400">
             <span className="rounded-full border border-sky-200/70 bg-white/65 px-3 py-1.5 dark:border-white/10 dark:bg-white/5">
-              Sticky preview
+              {t.story.stickyPreview}
             </span>
             <span className="rounded-full border border-sky-200/70 bg-white/65 px-3 py-1.5 dark:border-white/10 dark:bg-white/5">
-              Step-by-step scroll
+              {t.story.stepByStepScroll}
             </span>
             <span className="rounded-full border border-sky-200/70 bg-white/65 px-3 py-1.5 dark:border-white/10 dark:bg-white/5">
-              Live product framing
+              {t.story.liveProductFraming}
             </span>
           </div>
         </div>
@@ -193,16 +188,16 @@ export function StoryGuideRail({
                       </div>
                       <div className="min-w-0">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#4f74a1] dark:text-slate-400">
-                          {step.label}
+                          {t.story[step.labelKey]}
                         </div>
                         <h3 className="mt-3 text-[1.7rem] font-semibold leading-[1.02] tracking-[-0.04em] text-[#081120] dark:text-white sm:text-[2.2rem]">
-                          {step.title}
+                          {t.story[step.titleKey]}
                         </h3>
                         <p className="mt-4 text-sm leading-8 text-[#4d6689] dark:text-slate-300 sm:text-[15px]">
-                          {step.body}
+                          {t.story[step.bodyKey]}
                         </p>
                         <div className="mt-6 rounded-[24px] border border-dashed border-sky-200/80 bg-white/55 px-4 py-3 text-sm leading-6 text-[#5d79a1] dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-400">
-                          {step.note}
+                          {t.story[step.noteKey]}
                         </div>
                       </div>
                     </div>
@@ -227,6 +222,7 @@ function StoryPreview({
   skillCount,
   workspaceCounter,
 }: StoryGuideRailProps & { currentStep: (typeof storySteps)[number] }) {
+  const { t } = useTranslation();
   return (
     <div className="relative overflow-hidden rounded-[32px] border border-[#1f3354] bg-[linear-gradient(180deg,#07111f,#0b1630)] p-4 text-white shadow-[0_50px_120px_-80px_rgba(2,8,23,0.9)] sm:p-5">
       <div className="pointer-events-none absolute inset-0">
@@ -239,17 +235,17 @@ function StoryPreview({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-200/70">
-              Live Surface
+              {t.story.liveSurface}
             </div>
             <div className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-white">
-              {currentStep.index}. {currentStep.label}
+              {currentStep.index}. {t.story[currentStep.labelKey]}
             </div>
           </div>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] ${
             connected ? "bg-emerald-500/12 text-emerald-200" : "bg-amber-500/12 text-amber-200"
           }`}>
             <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-400" : "bg-amber-300"}`} />
-            {connected ? "Runtime Online" : "Runtime Offline"}
+            {connected ? t.story.runtimeOnline : t.story.runtimeOffline}
           </span>
         </div>
 
@@ -277,23 +273,23 @@ function StoryPreview({
             href={activeWorkspaceHref}
             className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/[0.04] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-200 transition-colors hover:bg-white/[0.08]"
           >
-            Open Workspace
+            {t.story.openWorkspace}
           </Link>
           <Link
             href={activeKanbanHref}
             className="inline-flex items-center justify-center rounded-full bg-[#5ee5ff] px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#04111d] transition-colors hover:bg-[#87edff]"
           >
-            Open Kanban
+            {t.story.openKanban}
           </Link>
         </div>
 
         <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.035] p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Active Modules
+              {t.story.activeModules}
             </div>
             <div className="font-mono text-xs text-slate-500">
-              {String(skillCount).padStart(2, "0")} skills
+              {String(skillCount).padStart(2, "0")} {t.story.skills}
             </div>
           </div>
           <div className="mt-3 space-y-2">
@@ -317,7 +313,7 @@ function StoryPreview({
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-white/10 px-3 py-4 text-sm leading-6 text-slate-400">
-                Connect skills to make the routing layer context-aware.
+                {t.story.noSkillsConnected}
               </div>
             )}
           </div>
@@ -336,22 +332,23 @@ function ComposerSurface({
   skillCount: number;
   workspaceCounter: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-[28px] border border-white/10 bg-[#071223]/80 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-400">
         <span className="h-2 w-2 rounded-full bg-sky-300" />
-        Mission composer
+        {t.story.missionComposer}
       </div>
       <div className="mt-4 rounded-[22px] border border-sky-400/16 bg-[linear-gradient(180deg,rgba(14,25,45,0.94),rgba(8,17,32,0.98))] p-4">
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full border border-sky-400/18 bg-sky-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-sky-200">
-            Multi-agent
+            {t.story.multiAgent}
           </span>
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-300">
-            {activeWorkspaceTitle ?? "Workspace"} scoped
+            {t.story.workspaceScoped.replace("{workspace}", activeWorkspaceTitle ?? t.common.workspace)}
           </span>
           <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-300">
-            {String(skillCount).padStart(2, "0")} inline skills
+            {t.story.inlineSkills.replace("{count}", String(skillCount).padStart(2, "0"))}
           </span>
         </div>
         <div className="mt-4 space-y-2.5">
@@ -361,9 +358,9 @@ function ComposerSurface({
           <div className="h-2.5 w-[48%] rounded-full bg-sky-300/55" />
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
-          <SurfaceMetric label="Workspaces" value={workspaceCounter} />
-          <SurfaceMetric label="Context" value="Repo bound" />
-          <SurfaceMetric label="Launch" value="Ready" />
+          <SurfaceMetric label={t.story.metricWorkspaces} value={workspaceCounter} />
+          <SurfaceMetric label={t.story.metricContext} value={t.story.metricContextValue} />
+          <SurfaceMetric label={t.story.metricLaunch} value={t.story.metricLaunchValue} />
         </div>
       </div>
     </div>
@@ -371,26 +368,29 @@ function ComposerSurface({
 }
 
 function RoutingSurface({ activeWorkspaceTitle }: { activeWorkspaceTitle: string | null }) {
+  const { t } = useTranslation();
+  const routingLanes = [
+    { title: t.story.lanePlanner, detail: t.story.lanePlannerDetail, state: t.story.stateQueued, tone: "queued" },
+    { title: t.story.laneCrafter, detail: t.story.laneCrafterDetail, state: t.story.stateRunning, tone: "running" },
+    { title: t.story.laneGate, detail: t.story.laneGateDetail, state: t.story.stateReady, tone: "ready" },
+  ];
+
   return (
     <div className="rounded-[28px] border border-white/10 bg-[#071223]/80 p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-          Agent fan-out
+          {t.story.agentFanOut}
         </div>
         <div className="rounded-full border border-emerald-400/16 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-emerald-200">
-          3 lanes active
+          {t.story.lanesActive}
         </div>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {[
-          { title: "Planner", detail: "Breaks task graph", state: "Queued" },
-          { title: "Crafter", detail: "Applies code changes", state: "Running" },
-          { title: "Gate", detail: "Verifies outputs", state: "Ready" },
-        ].map((lane, index) => (
+        {routingLanes.map((lane, index) => (
           <div key={lane.title} className="rounded-[22px] border border-white/8 bg-white/[0.04] p-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400">0{index + 1}</span>
-              <span className={`h-2 w-2 rounded-full ${lane.state === "Running" ? "bg-sky-300" : lane.state === "Queued" ? "bg-amber-300" : "bg-emerald-300"}`} />
+              <span className={`h-2 w-2 rounded-full ${lane.tone === "running" ? "bg-sky-300" : lane.tone === "queued" ? "bg-amber-300" : "bg-emerald-300"}`} />
             </div>
             <div className="mt-4 text-sm font-medium text-white">
               {lane.title}
@@ -399,53 +399,56 @@ function RoutingSurface({ activeWorkspaceTitle }: { activeWorkspaceTitle: string
               {lane.detail}
             </div>
             <div className="mt-5 h-1.5 rounded-full bg-white/6">
-              <div className={`h-full rounded-full ${lane.state === "Running" ? "w-[68%] bg-sky-300" : lane.state === "Queued" ? "w-[34%] bg-amber-300" : "w-[88%] bg-emerald-300"}`} />
+              <div className={`h-full rounded-full ${lane.tone === "running" ? "w-[68%] bg-sky-300" : lane.tone === "queued" ? "w-[34%] bg-amber-300" : "w-[88%] bg-emerald-300"}`} />
             </div>
           </div>
         ))}
       </div>
       <div className="mt-4 rounded-[20px] border border-dashed border-white/10 px-3 py-3 text-[11px] leading-6 text-slate-400">
-        Routing remains anchored to
+        {t.story.routingAnchoredPrefix}
         {" "}
-        <span className="text-sky-200">{activeWorkspaceTitle ?? "the selected workspace"}</span>
+        <span className="text-sky-200">{activeWorkspaceTitle ?? t.story.selectedWorkspaceFallback}</span>
         {" "}
-        so branching work still resolves back into one operating lane.
+        {t.story.routingAnchoredSuffix}
       </div>
     </div>
   );
 }
 
 function BoardSurface({ activeWorkspaceTitle }: { activeWorkspaceTitle: string | null }) {
+  const { t } = useTranslation();
+  const columns = [
+    {
+      title: t.story.boardBacklog,
+      cards: [t.story.cardIssueDrafting, t.story.cardSpecHandoff],
+    },
+    {
+      title: t.story.boardDev,
+      cards: [t.story.cardHomeRedesign, t.story.cardSessionUxPass],
+    },
+    {
+      title: t.story.boardReview,
+      cards: [t.story.cardApiContractCheck, t.story.cardVisualQa],
+    },
+  ];
+
   return (
     <div className="rounded-[28px] border border-white/10 bg-[#071223]/80 p-4">
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-            Work in motion
+            {t.story.workInMotion}
           </div>
           <div className="mt-1 text-sm font-medium text-white">
-            {activeWorkspaceTitle ?? "Current workspace"}
+            {activeWorkspaceTitle ?? t.story.currentWorkspace}
           </div>
         </div>
         <div className="rounded-full border border-sky-400/16 bg-sky-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-sky-200">
-          Kanban telemetry
+          {t.story.kanbanTelemetry}
         </div>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {[
-          {
-            title: "Backlog",
-            cards: ["Issue drafting", "Spec handoff"],
-          },
-          {
-            title: "Dev",
-            cards: ["Home redesign", "Session UX pass"],
-          },
-          {
-            title: "Review",
-            cards: ["API contract check", "Visual QA"],
-          },
-        ].map((column) => (
+        {columns.map((column) => (
           <div key={column.title} className="rounded-[22px] border border-white/8 bg-white/[0.04] p-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
               {column.title}
@@ -467,31 +470,32 @@ function BoardSurface({ activeWorkspaceTitle }: { activeWorkspaceTitle: string |
 }
 
 function TraceSurface({ activeWorkspaceTitle }: { activeWorkspaceTitle: string | null }) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
       <div className="rounded-[28px] border border-white/10 bg-[#071223]/80 p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-            Session trace
+            {t.story.sessionTrace}
           </div>
           <div className="font-mono text-[11px] text-slate-500">
-            {activeWorkspaceTitle ?? "workspace"} / latest
+            {activeWorkspaceTitle ?? t.common.workspace} / {t.story.latest}
           </div>
         </div>
         <div className="mt-4 rounded-[22px] border border-white/8 bg-[#030814] px-3 py-3 font-mono text-[11px] leading-6 text-slate-300">
           <div className="text-sky-200">$ routa launch --verify</div>
-          <div className="mt-2 text-slate-500">[planner] build task graph from homepage brief</div>
-          <div className="text-slate-500">[crafter] apply UI composition changes</div>
-          <div className="text-slate-500">[gate] lint, test, contract parity</div>
-          <div className="mt-3 text-emerald-300">[done] evidence bundle attached to session timeline</div>
+          <div className="mt-2 text-slate-500">{t.story.tracePlanner}</div>
+          <div className="text-slate-500">{t.story.traceCrafter}</div>
+          <div className="text-slate-500">{t.story.traceGate}</div>
+          <div className="mt-3 text-emerald-300">{t.story.traceDone}</div>
         </div>
       </div>
       <div className="rounded-[28px] border border-white/10 bg-[#071223]/80 p-4">
         <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-          Evidence
+          {t.story.evidence}
         </div>
         <div className="mt-4 space-y-2">
-          {["Logs", "Artifacts", "Checks"].map((item) => (
+          {[t.story.logs, t.story.artifacts, t.story.checks].map((item) => (
             <div key={item} className="rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-3 text-[11px] uppercase tracking-[0.16em] text-slate-200">
               {item}
             </div>
@@ -524,6 +528,7 @@ export function HomeTodoPreview({
   workspaceTitle: string | null;
   refreshKey: number;
 }) {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<HomeTaskInfo[]>([]);
 
   useEffect(() => {
@@ -568,20 +573,20 @@ export function HomeTodoPreview({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#45678f] dark:text-slate-400">
             <Columns2 className="h-4 w-4 text-[#1d6fd6] dark:text-sky-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
-            Live Tasks
+            {t.story.liveTasks}
           </div>
           <div className="mt-2 font-['Avenir_Next_Condensed','Avenir_Next','Segoe_UI','Helvetica_Neue',sans-serif] text-[2.2rem] font-semibold tracking-[-0.05em] text-[#081120] dark:text-white">
-            {workspaceTitle ?? "Current workspace"}
+            {workspaceTitle ?? t.story.currentWorkspace}
           </div>
           <div className="mt-1 max-w-xl text-sm leading-7 text-[#577090] dark:text-slate-300">
-            Once the story above explains the product flow, this card brings you back to the real queue that is already moving.
+            {t.story.liveTasksDescription}
           </div>
         </div>
         <Link
           href={`/workspace/${workspaceId}/kanban`}
           className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#0f62d6] px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-[#2a77e4] sm:w-auto dark:bg-[#5ee5ff] dark:text-[#04111d] dark:hover:bg-[#87edff]"
         >
-          Open Kanban
+          {t.story.openKanban}
         </Link>
       </div>
 
@@ -589,10 +594,10 @@ export function HomeTodoPreview({
         <div className="rounded-[24px] border border-dashed border-sky-200/80 bg-white/52 p-6 dark:border-[#223049] dark:bg-white/[0.03]">
           <div className="max-w-md">
             <div className="text-sm font-medium text-[#081120] dark:text-white">
-              No active tasks yet
+              {t.story.noActiveTasks}
             </div>
             <div className="mt-2 text-sm leading-6 text-[#577090] dark:text-slate-400">
-              Start a new session from the composer above, or open the full board to inspect the current workflow.
+              {t.story.noActiveTasksDescription}
             </div>
           </div>
         </div>
@@ -615,16 +620,16 @@ export function HomeTodoPreview({
                       {(task.columnId ?? "backlog").toUpperCase()}
                     </span>
                     <span>·</span>
-                    <span>{task.assignedProvider ?? "unassigned"}</span>
+                    <span>{task.assignedProvider ?? t.story.unassigned}</span>
                   </div>
                 </div>
                 <span className="shrink-0 rounded-full bg-sky-50 px-2.5 py-1 text-[10px] uppercase tracking-wide text-[#45678f] dark:bg-[#1c2233] dark:text-slate-300">
-                  {task.priority ?? "medium"}
+                  {task.priority ?? t.story.mediumPriority}
                 </span>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-sky-100 pt-3 text-[10px] uppercase tracking-[0.2em] text-[#6d87ad] dark:border-white/6 dark:text-slate-500">
-                <span>Live task</span>
-                <span>Open in board</span>
+                <span>{t.story.liveTask}</span>
+                <span>{t.story.openInBoard}</span>
               </div>
             </Link>
           ))}
@@ -660,7 +665,7 @@ export function OnboardingCard({
   onDismiss?: () => void;
 }) {
   const { t } = useTranslation();
-  const [workspaceName, setWorkspaceName] = useState("My Workspace");
+  const [workspaceName, setWorkspaceName] = useState(t.onboarding.workspaceNamePlaceholder);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [repoSelection, setRepoSelection] = useState<RepoSelection | null>(null);
@@ -979,6 +984,7 @@ export function WorkspaceCards({
   setShowWorkspacesMenu: (v: boolean) => void;
   workspacesMenuRef: RefObject<HTMLDivElement | null>;
 }) {
+  const { t } = useTranslation();
   const workspacesHook = useWorkspaces();
   const [cardData, setCardData] = useState<WorkspaceCardData[]>([]);
   const [renderTimestamp] = useState(() => Date.now());
@@ -986,19 +992,19 @@ export function WorkspaceCards({
   const formatTime = (dateStr: string) => {
     const diffMs = renderTimestamp - new Date(dateStr).getTime();
     const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return "now";
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 1) return t.story.timeNow;
+    if (mins < 60) return t.story.minutesAgo.replace("{count}", String(mins));
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    if (hrs < 24) return t.story.hoursAgo.replace("{count}", String(hrs));
+    return t.story.daysAgo.replace("{count}", String(Math.floor(hrs / 24)));
   };
 
-  const getDisplayName = (session: SessionInfo) => {
+  const getDisplayName = useCallback((session: SessionInfo) => {
     if (session.name) return session.name;
     if (session.provider && session.role) return `${session.provider} · ${session.role.toLowerCase()}`;
     if (session.provider) return session.provider;
-    return `Session ${session.sessionId.slice(0, 6)}`;
-  };
+    return t.story.sessionFallback.replace("{id}", session.sessionId.slice(0, 6));
+  }, [t.story.sessionFallback]);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -1045,12 +1051,12 @@ export function WorkspaceCards({
     };
 
     void fetchAll();
-  }, [refreshKey, workspacesHook.workspaces]);
+  }, [getDisplayName, refreshKey, workspacesHook.workspaces]);
 
   if (workspacesHook.loading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-[30px] border border-sky-200/75 bg-white/90 dark:border-[#223049] dark:bg-[#10131b]/95">
-        <span className="text-sm text-slate-400 dark:text-slate-500">Loading…</span>
+        <span className="text-sm text-slate-400 dark:text-slate-500">{t.common.loading}</span>
       </div>
     );
   }
@@ -1068,10 +1074,10 @@ export function WorkspaceCards({
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-[#45678f] dark:text-slate-400">
-            Workspaces
+            {t.story.workspaces}
           </h2>
           <p className="mt-2 max-w-sm text-sm leading-7 text-[#577090] dark:text-slate-300">
-            Keep each workspace close by, with overview access and recent session recovery visible but secondary to the main launcher flow.
+            {t.story.workspacesDescription}
           </p>
         </div>
         <div className="relative" ref={workspacesMenuRef}>
@@ -1079,7 +1085,7 @@ export function WorkspaceCards({
             onClick={() => setShowWorkspacesMenu(!showWorkspacesMenu)}
             className="inline-flex items-center gap-1 rounded-full border border-sky-200/70 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[#45678f] transition-colors hover:border-sky-300 hover:text-[#081120] dark:border-[#2a3042] dark:text-slate-400 dark:hover:border-[#39415a] dark:hover:text-slate-200"
           >
-            View all
+            {t.common.viewAll}
             <ChevronDown className={`h-2.5 w-2.5 transition-transform ${showWorkspacesMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
           </button>
           {showWorkspacesMenu && (
@@ -1090,7 +1096,7 @@ export function WorkspaceCards({
                 className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-[#1a1d2c]"
               >
                 <Folder className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}/>
-                All Workspaces
+                {t.story.allWorkspaces}
               </Link>
               <Link
                 href="/traces"
@@ -1098,7 +1104,7 @@ export function WorkspaceCards({
                 className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-[#1a1d2c]"
               >
                 <MessageSquareMore className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}/>
-                All Sessions
+                {t.story.allSessions}
               </Link>
             </div>
           )}
@@ -1124,7 +1130,7 @@ export function WorkspaceCards({
                     <span className={`h-2 w-2 shrink-0 rounded-full transition-colors ${isActive ? "bg-sky-500" : "bg-emerald-500 group-hover:bg-sky-400"}`} />
                     {isActive && (
                       <span className="inline-flex rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-sky-700 dark:bg-sky-950/70 dark:text-sky-200">
-                        Current
+                        {t.story.current}
                       </span>
                     )}
                   </div>
@@ -1132,7 +1138,7 @@ export function WorkspaceCards({
                     {workspace.title}
                   </div>
                   <div className="mt-1 text-[11px] text-[#577090] dark:text-slate-500">
-                    {workspace.recentSessions.length > 0 ? "Recent session activity" : "No recent sessions yet"}
+                    {workspace.recentSessions.length > 0 ? t.story.recentSessionActivity : t.story.noRecentSessionsYet}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -1140,7 +1146,7 @@ export function WorkspaceCards({
                     href={`/workspace/${workspace.id}/kanban`}
                     onClick={(event) => event.stopPropagation()}
                     className="rounded-full border border-transparent p-1 text-[#1d6fd6] opacity-0 transition-opacity hover:border-sky-100 hover:text-[#38bdf8] group-hover:opacity-100 dark:text-sky-500 dark:hover:border-sky-900/30 dark:hover:text-sky-300"
-                    title="Open Kanban board"
+                    title={t.story.openKanbanBoard}
                   >
                     <Columns2 className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
                   </Link>
@@ -1148,7 +1154,7 @@ export function WorkspaceCards({
                     href={`/workspace/${workspace.id}/overview`}
                     onClick={(event) => event.stopPropagation()}
                     className="rounded-full border border-transparent p-1 text-slate-400 opacity-0 transition-opacity hover:border-slate-200 hover:text-slate-600 group-hover:opacity-100 dark:hover:border-[#2a3042] dark:hover:text-slate-300"
-                    title="Open overview"
+                    title={t.story.openOverview}
                   >
                     <SquareArrowOutUpRight className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}/>
                   </Link>
@@ -1177,14 +1183,14 @@ export function WorkspaceCards({
                   ))}
                 </div>
               ) : (
-                <span className="text-[11px] italic text-slate-300 dark:text-slate-600">No sessions yet</span>
+                <span className="text-[11px] italic text-slate-300 dark:text-slate-600">{t.story.noSessionsYet}</span>
               )}
             </button>
           );
         })}
 
         <button
-          onClick={() => onWorkspaceCreate("New Workspace")}
+          onClick={() => onWorkspaceCreate(t.story.newWorkspace)}
           className="group rounded-[22px] border border-dashed border-sky-200/70 p-4 text-left transition-all hover:border-[#38bdf8] hover:bg-white/70 dark:border-[#1c1f2e] dark:hover:border-sky-700/50 dark:hover:bg-sky-900/5"
         >
           <div className="flex items-center gap-2">
@@ -1193,10 +1199,10 @@ export function WorkspaceCards({
             </span>
             <div>
               <div className="text-sm font-medium text-[#081120] transition-colors group-hover:text-[#1d6fd6] dark:text-slate-300 dark:group-hover:text-sky-300">
-                New workspace
+                {t.story.newWorkspace}
               </div>
               <div className="mt-1 text-[11px] text-[#577090] dark:text-slate-500">
-                Add another lane without leaving the homepage.
+                {t.story.addWorkspaceLane}
               </div>
             </div>
           </div>
