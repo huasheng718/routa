@@ -1,7 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KanbanSettingsModal } from "../kanban-settings-modal";
 import type { KanbanBoardInfo } from "../../types";
+import { LOCALE_STORAGE_KEY } from "@/i18n/types";
+import { I18nProvider } from "@/i18n";
 
 const defaultHistoryMemoryPolicy = {
   mode: "auto" as const,
@@ -40,7 +43,15 @@ const board: KanbanBoardInfo = {
   updatedAt: "2025-01-01T00:00:00.000Z",
 };
 
+function render(ui: ReactElement) {
+  return rtlRender(<I18nProvider>{ui}</I18nProvider>);
+}
+
 describe("KanbanSettingsModal", () => {
+  beforeEach(() => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+  });
+
   it("applies recommended defaults and saves updated automation", async () => {
     const onSave = vi.fn(async () => {});
     const reviewBoard: KanbanBoardInfo = {

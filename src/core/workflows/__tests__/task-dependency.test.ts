@@ -64,6 +64,14 @@ describe("BackgroundTask Dependency Checking", () => {
       expect(ready).toHaveLength(0); // dep is running, task is blocked
     });
 
+    it("should not return tasks with missing dependencies", async () => {
+      const task = createTask({ id: "task-1", dependsOnTaskIds: ["missing-dep"] });
+      await store.save(task);
+
+      const ready = await store.listReadyToRun();
+      expect(ready).toHaveLength(0);
+    });
+
     it("should return tasks when all dependencies are COMPLETED", async () => {
       const dep = createTask({ id: "dep-1", status: "COMPLETED" });
       const task = createTask({ id: "task-1", dependsOnTaskIds: ["dep-1"] });
@@ -165,4 +173,3 @@ describe("BackgroundTask Dependency Checking", () => {
     });
   });
 });
-

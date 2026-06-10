@@ -28,8 +28,16 @@ class MockEventSource {
   }
 }
 
-function HookHarness({ workspaceId, onInvalidate }: { workspaceId: string; onInvalidate: () => void }) {
-  useKanbanEvents({ workspaceId, onInvalidate });
+function HookHarness({
+  workspaceId,
+  onInvalidate,
+  onFitnessChanged,
+}: {
+  workspaceId: string;
+  onInvalidate: () => void;
+  onFitnessChanged?: () => void;
+}) {
+  useKanbanEvents({ workspaceId, onInvalidate, onFitnessChanged });
   return null;
 }
 
@@ -56,25 +64,35 @@ describe("useKanbanEvents", () => {
     expect(onInvalidate).toHaveBeenCalledTimes(1);
   });
 
-  it("throttles rapid fitness change events", () => {
+  it("routes fitness change events away from full kanban invalidation", () => {
     vi.useFakeTimers();
     const onInvalidate = vi.fn();
+    const onFitnessChanged = vi.fn();
     vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
 
-    render(<HookHarness workspaceId="workspace-1" onInvalidate={onInvalidate} />);
+    render(
+      <HookHarness
+        workspaceId="workspace-1"
+        onInvalidate={onInvalidate}
+        onFitnessChanged={onFitnessChanged}
+      />,
+    );
 
     const source = MockEventSource.instances[0];
     source.emit({ type: "connected" });
     source.emit({ type: "fitness:changed" });
     source.emit({ type: "fitness:changed" });
 
-    expect(onInvalidate).toHaveBeenCalledTimes(1);
+    expect(onInvalidate).not.toHaveBeenCalled();
+    expect(onFitnessChanged).toHaveBeenCalledTimes(1);
 
-    vi.advanceTimersByTime(749);
-    expect(onInvalidate).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(4_999);
+    expect(onInvalidate).not.toHaveBeenCalled();
+    expect(onFitnessChanged).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(1);
-    expect(onInvalidate).toHaveBeenCalledTimes(2);
+    expect(onInvalidate).not.toHaveBeenCalled();
+    expect(onFitnessChanged).toHaveBeenCalledTimes(2);
   });
 
   it("invalidates when the SSE connection reconnects after the first connect", () => {
