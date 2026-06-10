@@ -32,6 +32,7 @@ import {
   getTaskFieldLabel,
   TASK_FIELD_OPTIONS,
 } from "./kanban-settings-automation-helpers";
+import { formatKanbanRoleLabel } from "@/client/utils/kanban-role-labels";
 
 export interface SpecialistOption {
   id: string;
@@ -67,13 +68,14 @@ export function createEmptyAutomationStep(index: number): KanbanAutomationStep {
 function createDoneReporterStep(
   specialistLanguage?: KanbanSpecialistLanguage,
   index = 0,
+  t?: TranslationDictionary,
 ): KanbanAutomationStep {
   return {
     id: `step-${index + 1}`,
     transport: "acp",
     role: "GATE",
     specialistId: DONE_REPORTER_SPECIALIST_ID,
-    specialistName: DONE_REPORTER_SPECIALIST_NAME,
+    specialistName: t?.kanban.doneReporterSpecialistName ?? DONE_REPORTER_SPECIALIST_NAME,
     specialistLocale: specialistLanguage,
   };
 }
@@ -81,13 +83,14 @@ function createDoneReporterStep(
 function createDonePrPublisherStep(
   specialistLanguage?: KanbanSpecialistLanguage,
   index = 0,
+  t?: TranslationDictionary,
 ): KanbanAutomationStep {
   return {
     id: `step-${index + 1}`,
     transport: "acp",
     role: "DEVELOPER",
     specialistId: DONE_PR_PUBLISHER_SPECIALIST_ID,
-    specialistName: DONE_PR_PUBLISHER_SPECIALIST_NAME,
+    specialistName: t?.kanban.prPublisherSpecialistName ?? DONE_PR_PUBLISHER_SPECIALIST_NAME,
     specialistLocale: specialistLanguage,
   };
 }
@@ -362,6 +365,15 @@ function SpecialistCategoryTabs({
   category: SpecialistCategory;
   onChange: (category: SpecialistCategory) => void;
 }) {
+  const { t } = useTranslation();
+  const categoryLabels: Record<SpecialistCategory, string> = {
+    kanban: t.settings.specialistsTab.categoryKanban,
+    team: t.settings.specialistsTab.categoryTeam,
+    harness: t.settings.specialistsTab.categoryHarness,
+    custom: t.settings.specialistsTab.categoryCustom,
+    all: t.settings.specialistsTab.categoryAll,
+  };
+
   return (
     <div className="flex flex-wrap gap-2">
       {SPECIALIST_CATEGORY_OPTIONS.map((option) => (
@@ -375,7 +387,7 @@ function SpecialistCategoryTabs({
               : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-[#0b1119] dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"
           }`}
         >
-          {option.label}
+          {categoryLabels[option.id]}
         </button>
       ))}
     </div>
@@ -443,20 +455,21 @@ export function setDonePrPublisherEnabled(
   automation: ColumnAutomationConfig,
   enabled: boolean,
   specialistLanguage?: KanbanSpecialistLanguage,
+  t?: TranslationDictionary,
 ): ColumnAutomationConfig {
   const existingSteps = getEditableAutomationSteps(automation);
   const stepsWithoutPrPublisher = existingSteps.filter((step) => !isDonePrPublisherStep(step));
 
   const baseSteps = stepsWithoutPrPublisher.length > 0
     ? stepsWithoutPrPublisher
-    : [createDoneReporterStep(specialistLanguage)];
+    : [createDoneReporterStep(specialistLanguage, 0, t)];
   const hasDoneReporter = baseSteps.some((step) => isDoneReporterStep(step));
   const normalizedBaseSteps = hasDoneReporter
     ? baseSteps
-    : [...baseSteps, createDoneReporterStep(specialistLanguage, baseSteps.length)];
+    : [...baseSteps, createDoneReporterStep(specialistLanguage, baseSteps.length, t)];
 
   const nextSteps = enabled
-    ? [createDonePrPublisherStep(specialistLanguage), ...normalizedBaseSteps]
+    ? [createDonePrPublisherStep(specialistLanguage, 0, t), ...normalizedBaseSteps]
     : normalizedBaseSteps;
 
   return syncAutomationPrimaryStep({
@@ -526,7 +539,7 @@ function formatAutomationStepSummary(
     const specialist = getSpecialistDisplayName(findSpecialistById(specialists, resolvedStep.specialistId)) ?? resolvedStep.specialistName;
     return [
       "A2A",
-      specialist ?? resolvedStep.role ?? t.kanban.stepLabel.replace("{index}", String(index + 1)),
+      specialist ?? formatKanbanRoleLabel(resolvedStep.role, t) ?? t.kanban.stepLabel.replace("{index}", String(index + 1)),
       formatAgentCardTarget(resolvedStep.agentCardUrl),
       resolvedStep.skillId ? `skill:${resolvedStep.skillId}` : undefined,
     ].filter(Boolean).join(" • ");
@@ -538,7 +551,7 @@ function formatAutomationStepSummary(
       ? formatAutoProviderLabel(resolvedStep.providerId, providers, autoLabel)
       : resolveProviderName(resolvedStep.providerId, providers) ?? autoLabel;
   const specialist = getSpecialistDisplayName(findSpecialistById(specialists, resolvedStep.specialistId)) ?? resolvedStep.specialistName;
-  return [provider, specialist ?? resolvedStep.role ?? t.kanban.stepLabel.replace("{index}", String(index + 1))].filter(Boolean).join(" • ");
+  return [provider, specialist ?? formatKanbanRoleLabel(resolvedStep.role, t) ?? t.kanban.stepLabel.replace("{index}", String(index + 1))].filter(Boolean).join(" • ");
 }
 
 function getAutomationSummary(
@@ -730,7 +743,7 @@ export function ColumnAutomationWorkspace({
                 >
                   {ROLE_OPTIONS.map((role) => (
                     <option key={role} value={role}>
-                      {role}
+                      {formatKanbanRoleLabel(role, t)}
                     </option>
                   ))}
                 </SelectControl>
@@ -806,6 +819,7 @@ export function ColumnAutomationWorkspace({
                       automation,
                       event.target.checked,
                       specialistLanguage,
+                      t,
                     ))}
                   />
                   <span className="space-y-0.5">
@@ -821,6 +835,11 @@ export function ColumnAutomationWorkspace({
               {automationSteps.length > 1 ? automationSteps.map((step, index) => {
                 const stepSpecialist = findSpecialistById(specialists, step.specialistId) ?? null;
                 const stepTransport = getStepTransport(step);
+                const stepTransportLabel = t.kanban.stepTransportLabel.replace("{index}", String(index + 1));
+                const stepProviderLabel = t.kanban.stepProviderLabel.replace("{index}", String(index + 1));
+                const stepAuthConfigLabel = t.kanban.stepAuthConfigIdLabel.replace("{index}", String(index + 1));
+                const stepRoleLabel = t.kanban.stepRoleLabel.replace("{index}", String(index + 1));
+                const stepSpecialistLabel = t.kanban.stepSpecialistLabel.replace("{index}", String(index + 1));
                 return (
                   <div key={step.id} className="rounded-md border border-slate-200 bg-slate-50/60 px-2 py-2 dark:border-slate-800 dark:bg-[#111722]">
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,132px)_minmax(0,1fr)_auto] md:items-start">
@@ -830,14 +849,14 @@ export function ColumnAutomationWorkspace({
                         </div>
                         <div className="mt-0.5 truncate text-[13px] font-semibold text-slate-900 dark:text-slate-100">
                           {stepTransport === "a2a"
-                            ? formatAgentCardTarget(step.agentCardUrl) ?? getSpecialistDisplayName(stepSpecialist) ?? step.specialistName ?? step.role ?? "A2A"
-                            : getSpecialistDisplayName(stepSpecialist) ?? step.specialistName ?? step.role ?? "DEVELOPER"}
+                            ? formatAgentCardTarget(step.agentCardUrl) ?? getSpecialistDisplayName(stepSpecialist) ?? step.specialistName ?? formatKanbanRoleLabel(step.role, t) ?? "A2A"
+                            : getSpecialistDisplayName(stepSpecialist) ?? step.specialistName ?? formatKanbanRoleLabel(step.role, t)}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 gap-2 xl:grid-cols-6">
-                        <ConfigField label={`Transport ${index + 1}`}>
+                        <ConfigField label={stepTransportLabel}>
                           <SelectControl
-                            aria-label={`Transport ${index + 1}`}
+                            aria-label={stepTransportLabel}
                             value={stepTransport}
                             onChange={(event) => onUpdate(updateAutomationSteps(automation, (steps) => steps.map((currentStep, stepIndex) => (
                               stepIndex === index
@@ -848,11 +867,11 @@ export function ColumnAutomationWorkspace({
                             <option value="acp">ACP</option>
                           </SelectControl>
                         </ConfigField>
-                        <ConfigField label={`Provider ${index + 1}`}>
+                        <ConfigField label={stepProviderLabel}>
                           <ProviderField
                             providers={availableProviders}
                             value={step.providerId}
-                            ariaLabel={`Provider ${index + 1}`}
+                            ariaLabel={stepProviderLabel}
                             dataTestId={`kanban-settings-provider-${index + 1}`}
                             onChange={(providerId) => onUpdate(updateAutomationSteps(automation, (steps) => steps.map((currentStep, stepIndex) => (
                               stepIndex === index
@@ -862,9 +881,9 @@ export function ColumnAutomationWorkspace({
                           />
                         </ConfigField>
                         {stepTransport === "a2a" && (
-                          <ConfigField label={`Auth Config ID ${index + 1}`}>
+                          <ConfigField label={stepAuthConfigLabel}>
                             <input
-                              aria-label={`Auth Config ID ${index + 1}`}
+                              aria-label={stepAuthConfigLabel}
                               value={step.authConfigId ?? ""}
                               onChange={(event) => onUpdate(updateAutomationSteps(automation, (steps) => steps.map((currentStep, stepIndex) => (
                                 stepIndex === index
@@ -876,9 +895,9 @@ export function ColumnAutomationWorkspace({
                             />
                           </ConfigField>
                         )}
-                        <ConfigField label={`Role ${index + 1}`}>
+                        <ConfigField label={stepRoleLabel}>
                           <SelectControl
-                            aria-label={`Role ${index + 1}`}
+                            aria-label={stepRoleLabel}
                             value={step.role ?? "DEVELOPER"}
                             onChange={(event) => onUpdate(updateAutomationSteps(automation, (steps) => steps.map((currentStep, stepIndex) => (
                               stepIndex === index
@@ -888,14 +907,14 @@ export function ColumnAutomationWorkspace({
                           >
                             {ROLE_OPTIONS.map((role) => (
                               <option key={role} value={role}>
-                                {role}
+                                {formatKanbanRoleLabel(role, t)}
                               </option>
                             ))}
                           </SelectControl>
                         </ConfigField>
-                        <ConfigField label={`Specialist ${index + 1}`}>
+                        <ConfigField label={stepSpecialistLabel}>
                           <SelectControl
-                            aria-label={`Specialist ${index + 1}`}
+                            aria-label={stepSpecialistLabel}
                             value={getLanguageSpecificSpecialistId(step.specialistId, specialistLanguage) ?? ""}
                             onChange={(event) => {
                               const specialist = findSpecialistById(specialists, event.target.value);
@@ -924,7 +943,7 @@ export function ColumnAutomationWorkspace({
                       <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
                         <button
                           type="button"
-                          aria-label={`Move step ${index + 1} up`}
+                          aria-label={t.kanban.moveStepUp.replace("{index}", String(index + 1))}
                           disabled={index === 0}
                           onClick={() => onUpdate(updateAutomationSteps(automation, (steps) => {
                             const nextSteps = [...steps];
@@ -937,7 +956,7 @@ export function ColumnAutomationWorkspace({
                         </button>
                         <button
                           type="button"
-                          aria-label={`Move step ${index + 1} down`}
+                          aria-label={t.kanban.moveStepDown.replace("{index}", String(index + 1))}
                           disabled={index === automationSteps.length - 1}
                           onClick={() => onUpdate(updateAutomationSteps(automation, (steps) => {
                             const nextSteps = [...steps];
@@ -950,7 +969,7 @@ export function ColumnAutomationWorkspace({
                         </button>
                         <button
                           type="button"
-                          aria-label={`Remove step ${index + 1}`}
+                          aria-label={t.kanban.removeStep.replace("{index}", String(index + 1))}
                           disabled={automationSteps.length === 1}
                           onClick={() => onUpdate(updateAutomationSteps(automation, (steps) => {
                             const nextSteps = steps.filter((_, stepIndex) => stepIndex !== index);

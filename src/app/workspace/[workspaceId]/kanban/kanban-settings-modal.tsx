@@ -2,6 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AcpProviderInfo } from "@/client/acp-client";
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import { getSpecialistCategory, type SpecialistCategory } from "@/client/utils/specialist-categories";
 import {
@@ -414,7 +415,7 @@ export function KanbanSettingsModal({
     setIsExportingKanbanYaml(true);
     try {
       saveKanbanExportWorkspaceId(workspaceId);
-      const response = await desktopAwareFetch(`/api/kanban/export?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      const response = await desktopAwareFetch(resolveApiPath(`/api/kanban/export?workspaceId=${encodeURIComponent(workspaceId)}`), {
         method: "GET",
       });
       if (!response.ok) {
@@ -446,7 +447,7 @@ export function KanbanSettingsModal({
     setIsImportingKanbanYaml(true);
     try {
       const yamlContent = await file.text();
-      const response = await desktopAwareFetch("/api/kanban/import", {
+      const response = await desktopAwareFetch(resolveApiPath("/api/kanban/import"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ yamlContent, workspaceId }),
@@ -617,7 +618,7 @@ export function KanbanSettingsModal({
                         <div className="mt-1.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                           <LabeledSelect
                             label={t.kanban.mode}
-                            ariaLabel="Dev supervision mode"
+                            ariaLabel={t.kanban.devSupervisionModeAria}
                             value={devSessionSupervision.mode}
                             options={[
                               { value: "disabled", label: t.kanban.off },
@@ -631,7 +632,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledNumberInput
                             label={t.kanban.idleMin}
-                            ariaLabel="Dev supervision idle timeout"
+                            ariaLabel={t.kanban.devSupervisionIdleTimeoutAria}
                             min={1}
                             max={120}
                             value={devSessionSupervision.inactivityTimeoutMinutes}
@@ -642,7 +643,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledNumberInput
                             label={t.kanban.retries}
-                            ariaLabel="Dev supervision max recovery attempts"
+                            ariaLabel={t.kanban.devSupervisionMaxRecoveryAttemptsAria}
                             min={0}
                             max={10}
                             value={devSessionSupervision.maxRecoveryAttempts}
@@ -653,7 +654,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledSelect
                             label={t.kanban.completion}
-                            ariaLabel="Dev supervision completion requirement"
+                            ariaLabel={t.kanban.devSupervisionCompletionRequirementAria}
                             value={devSessionSupervision.completionRequirement}
                             disabled={devSessionSupervision.mode !== "ralph_loop"}
                             options={[
@@ -675,7 +676,7 @@ export function KanbanSettingsModal({
                         <div className="mt-1.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                           <LabeledSelect
                             label={t.kanban.mode}
-                            ariaLabel="History memory policy mode"
+                            ariaLabel={t.kanban.historyMemoryPolicyModeAria}
                             value={historyMemoryPolicy.mode}
                             options={[
                               { value: "off", label: t.kanban.off },
@@ -689,7 +690,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledNumberInput
                             label={t.kanban.historyMemoryMinSessions}
-                            ariaLabel="History memory minimum matched sessions"
+                            ariaLabel={t.kanban.historyMemoryMinSessionsAria}
                             min={0}
                             max={20}
                             disabled={historyMemoryPolicy.mode !== "auto"}
@@ -701,7 +702,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledNumberInput
                             label={t.kanban.historyMemoryMinFiles}
-                            ariaLabel="History memory minimum matched files"
+                            ariaLabel={t.kanban.historyMemoryMinFilesAria}
                             min={0}
                             max={50}
                             disabled={historyMemoryPolicy.mode !== "auto"}
@@ -713,7 +714,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledNumberInput
                             label={t.kanban.historyMemoryMinFeatures}
-                            ariaLabel="History memory minimum feature candidates"
+                            ariaLabel={t.kanban.historyMemoryMinFeaturesAria}
                             min={0}
                             max={20}
                             disabled={historyMemoryPolicy.mode !== "auto"}
@@ -725,7 +726,7 @@ export function KanbanSettingsModal({
                           />
                           <LabeledSelect
                             label={t.kanban.historyMemoryMinConfidence}
-                            ariaLabel="History memory minimum confidence"
+                            ariaLabel={t.kanban.historyMemoryMinConfidenceAria}
                             disabled={historyMemoryPolicy.mode !== "auto"}
                             value={historyMemoryPolicy.minConfidence}
                             options={[
@@ -795,7 +796,7 @@ export function KanbanSettingsModal({
                           autoComplete="off"
                           spellCheck={false}
                           className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 dark:border-slate-700 dark:bg-[#0b1119] dark:text-slate-100"
-                          aria-label="GitHub personal access token"
+                          aria-label={t.kanban.githubPersonalAccessToken}
                         />
                       </label>
                       <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -837,7 +838,7 @@ export function KanbanSettingsModal({
                           onChange={(event) => handleKanbanExportWorkspaceChange(event.target.value)}
                           placeholder={board.workspaceId || "default"}
                           className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-amber-400 dark:border-slate-700 dark:bg-[#0b1119] dark:text-slate-100"
-                          aria-label="Kanban YAML workspace ID"
+                          aria-label={t.kanban.kanbanYamlWorkspaceIdAria}
                         />
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -883,13 +884,13 @@ export function KanbanSettingsModal({
                     <div className="flex flex-wrap items-end gap-3 xl:flex-nowrap">
                       <LabeledTextInput
                         label={t.kanban.name}
-                        ariaLabel="Stage name"
+                        ariaLabel={t.kanban.stageNameAria}
                         value={selectedColumn.name}
                         onChange={(value) => updateColumn(selectedColumn.id, (current) => ({ ...current, name: value }))}
                       />
                       <LabeledSelect
                         label={t.kanban.stageType}
-                        ariaLabel="Stage type"
+                        ariaLabel={t.kanban.stageTypeAria}
                         value={selectedColumn.stage}
                         options={stageTypeOptions.map((option) => ({ value: option.value, label: option.label }))}
                         onChange={(value) => handleStageTypeChange(selectedColumn.id, value)}
@@ -898,7 +899,7 @@ export function KanbanSettingsModal({
                       />
                       <LabeledSelect
                         label={t.kanban.columnWidth}
-                        ariaLabel="Column width"
+                        ariaLabel={t.kanban.columnWidthAria}
                         value={selectedColumn.width || "standard"}
                         options={[
                           { value: "compact", label: t.kanban.compact },

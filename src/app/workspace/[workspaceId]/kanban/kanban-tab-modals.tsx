@@ -5,10 +5,32 @@ import Link from "next/link";
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
 import { RepoPicker, type RepoSelection } from "@/client/components/repo-picker";
 import { useTranslation } from "@/i18n";
+import type { TranslationDictionary } from "@/i18n";
 import type { KanbanRequiredTaskField } from "@/core/models/kanban";
 import type { TaskInfo, WorktreeInfo } from "../types";
 import { ExternalLink, Info, Pencil, Plus, RefreshCw, Trash2, TriangleAlert, X } from "lucide-react";
 
+function formatTemplate(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (current, [key, value]) => current.replaceAll(`{${key}}`, value),
+    template,
+  );
+}
+
+function formatWorktreeStatusLabel(status: WorktreeInfo["status"], t: TranslationDictionary): string {
+  switch (status) {
+    case "creating":
+      return t.kanban.worktreeStatusCreating;
+    case "active":
+      return t.kanban.worktreeStatusActive;
+    case "error":
+      return t.kanban.worktreeStatusError;
+    case "removing":
+      return t.kanban.worktreeStatusRemoving;
+    default:
+      return t.kanban.worktreeStatusUnknown;
+  }
+}
 
 export interface KanbanCodebaseModalProps {
   open: boolean;
@@ -597,13 +619,13 @@ export function KanbanCodebaseModal({
                                 <div className="min-w-0 flex-1 space-y-2">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span className={`rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${getWorktreeStatusTone(worktree.status)}`}>
-                                      {worktree.status}
+                                      {formatWorktreeStatusLabel(worktree.status, t)}
                                     </span>
                                     <span className="font-mono text-[11px] text-desktop-text-primary">{worktree.branch}</span>
                                     <span className="text-[10px] text-desktop-text-secondary">{t.kanban.baseLabel} {worktree.baseBranch}</span>
                                     {linkedTasks.length > 0 ? (
                                       <span className="rounded-sm border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-300">
-                                        {linkedTasks.length} {t.kanbanModals.linkedTasks}{linkedTasks.length > 1 ? "s" : ""}
+                                        {formatTemplate(t.kanbanModals.linkedTasksCount, { count: String(linkedTasks.length) })}
                                       </span>
                                     ) : null}
                                   </div>
@@ -988,7 +1010,9 @@ export function KanbanReplaceAllReposModal({
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t.kanbanModals.replaceAllTitle}</h3>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                This will update all <span className="font-medium text-slate-900 dark:text-slate-100">{codebasesCount} {t.kanbanModals.replaceAllDesc}</span> in this workspace to use:
+                {t.kanbanModals.replaceAllConfirmPrefix}{" "}
+                <span className="font-medium text-slate-900 dark:text-slate-100">{codebasesCount} {t.kanbanModals.replaceAllDesc}</span>
+                {" "}{t.kanbanModals.replaceAllConfirmSuffix}
               </p>
               <div className="mt-2 rounded-lg bg-slate-50 p-2 dark:bg-[#0d1018]">
                 <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{editRepoSelection.name}</div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CodebaseData } from "@/client/hooks/use-workspaces";
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 import { useTranslation } from "@/i18n";
 import type { GitHubIssueListItemInfo, GitHubPRListItemInfo, TaskInfo } from "../types";
@@ -100,7 +101,7 @@ export function KanbanGitHubImportModal({
       try {
         if (activeTab === "issues") {
           const response = await desktopAwareFetch(
-            `/api/github/issues?workspaceId=${encodeURIComponent(workspaceId)}&codebaseId=${encodeURIComponent(selectedCodebaseId)}${boardId ? `&boardId=${encodeURIComponent(boardId)}` : ""}`,
+            resolveApiPath(`/api/github/issues?workspaceId=${encodeURIComponent(workspaceId)}&codebaseId=${encodeURIComponent(selectedCodebaseId)}${boardId ? `&boardId=${encodeURIComponent(boardId)}` : ""}`),
             { cache: "no-store", signal: controller.signal },
           );
           const data = await response.json().catch(() => ({}));
@@ -115,7 +116,7 @@ export function KanbanGitHubImportModal({
           });
         } else {
           const response = await desktopAwareFetch(
-            `/api/github/pulls?workspaceId=${encodeURIComponent(workspaceId)}&codebaseId=${encodeURIComponent(selectedCodebaseId)}${boardId ? `&boardId=${encodeURIComponent(boardId)}` : ""}`,
+            resolveApiPath(`/api/github/pulls?workspaceId=${encodeURIComponent(workspaceId)}&codebaseId=${encodeURIComponent(selectedCodebaseId)}${boardId ? `&boardId=${encodeURIComponent(boardId)}` : ""}`),
             { cache: "no-store", signal: controller.signal },
           );
           const data = await response.json().catch(() => ({}));

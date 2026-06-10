@@ -1,4 +1,5 @@
 import type { GitHubIssueListItemInfo, GitHubPRListItemInfo, TaskInfo } from "../types";
+import { resolveApiPath } from "@/client/config/backend";
 import { desktopAwareFetch } from "@/client/utils/diagnostics";
 
 export type GitHubImportItem = GitHubIssueListItemInfo | GitHubPRListItemInfo;
@@ -35,7 +36,7 @@ export async function createImportedTask(
   payload: Record<string, unknown>,
   fallbackMessage: string,
 ): Promise<TaskInfo> {
-  const response = await desktopAwareFetch("/api/tasks", {
+  const response = await desktopAwareFetch(resolveApiPath("/api/tasks"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
