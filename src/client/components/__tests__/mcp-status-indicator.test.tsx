@@ -31,10 +31,10 @@ describe("McpStatusIndicator", () => {
     render(<McpStatusIndicator />);
 
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: "MCP 3 active" })).toBeTruthy();
+      expect(screen.getByRole("link", { name: /MCP.*3.*(active|活跃)/i })).toBeTruthy();
     });
 
-    expect(screen.getByRole("link", { name: "MCP 3 active" }).getAttribute("href")).toBe("/settings/mcp?tab=tools");
+    expect(screen.getByRole("link", { name: /MCP.*3.*(active|活跃)/i }).getAttribute("href")).toBe("/settings/mcp?tab=tools");
   });
 
   it("falls back to an unavailable state when the status request fails", async () => {
@@ -43,7 +43,7 @@ describe("McpStatusIndicator", () => {
     render(<McpStatusIndicator />);
 
     await waitFor(() => {
-      expect(screen.getByRole("link", { name: "MCP unavailable" })).toBeTruthy();
+      expect(screen.getByRole("link", { name: /MCP.*(unavailable|不可用)/i })).toBeTruthy();
     });
   });
 });

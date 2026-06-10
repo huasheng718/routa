@@ -329,11 +329,12 @@ function main() {
   if (jsonMode) {
     console.log(JSON.stringify(report, null, 2));
     const errorCount = report.issues.filter((i) => i.severity === "error").length;
-    process.exit(errorCount > 0 ? 1 : 0);
+    process.exitCode = errorCount > 0 ? 1 : 0;
+    return;
   }
 
   const errorCount = printReport(report);
-  process.exit(errorCount > 0 ? 1 : 0);
+  process.exitCode = errorCount > 0 ? 1 : 0;
 }
 
 if (isDirectExecution(import.meta.url)) {

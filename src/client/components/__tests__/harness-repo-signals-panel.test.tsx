@@ -13,7 +13,7 @@ describe("HarnessRepoSignalsPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Test Feedback" })).not.toBeNull();
-    expect(screen.queryByRole("heading", { name: "Repository Signals" })).toBeNull();
+    expect(screen.getByRole("heading", { name: /Test Feedback|测试反馈/i })).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: /Repository Signals|仓库信号/i })).toBeNull();
   });
 });

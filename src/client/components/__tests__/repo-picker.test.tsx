@@ -53,12 +53,12 @@ describe("RepoPicker", () => {
 
     render(<RepoPicker value={null} onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /select, clone, or load a repository/i }));
-    fireEvent.click(screen.getByRole("button", { name: /local project/i }));
-    fireEvent.change(screen.getByPlaceholderText("/Users/you/project or ~/project"), {
+    fireEvent.click(screen.getByRole("button", { name: /select, clone, or load a repository|选择、克隆或加载仓库/i }));
+    fireEvent.click(screen.getByRole("button", { name: /local project|本地项目/i }));
+    fireEvent.change(screen.getByPlaceholderText(/\/Users\/you\/project (or|或) ~\/project/i), {
       target: { value: "~/code/routa-js" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /use local project/i }));
+    fireEvent.click(screen.getByRole("button", { name: /use local project|使用本地项目/i }));
 
     await waitFor(() =>
       expect(onChange).toHaveBeenCalledWith({
@@ -72,16 +72,16 @@ describe("RepoPicker", () => {
   it("switches from search to local mode when the query looks like a file path", async () => {
     render(<RepoPicker value={null} onChange={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /select, clone, or load a repository/i }));
+    fireEvent.click(screen.getByRole("button", { name: /select, clone, or load a repository|选择、克隆或加载仓库/i }));
     fireEvent.change(
-      screen.getByPlaceholderText("Search repositories, paste GitHub URL, or enter local path..."),
+      screen.getByPlaceholderText(/Search repositories, paste GitHub URL, or enter local path|搜索仓库、粘贴 GitHub URL 或输入本地路径/i),
       {
         target: { value: "~/code/routa-js" },
       },
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Local Repository Path")).toBeTruthy();
+      expect(screen.getByText(/Local Repository Path|本地仓库路径/i)).toBeTruthy();
       expect(
         screen.getByDisplayValue("~/code/routa-js"),
       ).toBeTruthy();
@@ -112,7 +112,7 @@ describe("RepoPicker", () => {
     expect(screen.getByText(/^~\/\.\.\.\/fcfe6cca.*\/issue-cf7f1e28.*name$/)).toBeTruthy();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /copy to clipboard/i }));
+      fireEvent.click(screen.getByRole("button", { name: /copy to clipboard|复制到剪贴板/i }));
     });
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(

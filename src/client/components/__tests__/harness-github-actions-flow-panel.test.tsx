@@ -85,12 +85,12 @@ describe("HarnessGitHubActionsFlowPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Loading GitHub Actions workflows...")).not.toBeNull();
+    expect(screen.getByText(/Loading GitHub Actions workflows|正在加载 GitHub Actions 工作流/i)).not.toBeNull();
 
     await waitFor(() => {
-      expect(screen.getByText("Workflows")).not.toBeNull();
-      expect(screen.getByText("Triggers")).not.toBeNull();
-      expect(screen.getByText("Jobs")).not.toBeNull();
+      expect(screen.getAllByText(/Workflows|工作流/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Triggers|触发器/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Jobs|任务/).length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: /Defense/i })).not.toBeNull();
       expect(screen.getAllByRole("button", { name: /Fitness Dimensions/i }).length).toBeGreaterThan(0);
     });
@@ -107,17 +107,17 @@ describe("HarnessGitHubActionsFlowPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Release category" })).not.toBeNull();
+      expect(screen.getByRole("button", { name: /Release category|发布 分类|发布类别/i })).not.toBeNull();
       expect(screen.getByRole("button", { name: /Routa Release/i })).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Release category" }));
+    fireEvent.click(screen.getByRole("button", { name: /Release category|发布 分类|发布类别/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /Routa Release/i })).toBeNull();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Release category" }));
+    fireEvent.click(screen.getByRole("button", { name: /Release category|发布 分类|发布类别/i }));
 
     fireEvent.click(screen.getByRole("button", { name: /Routa Release/i }));
 
@@ -141,7 +141,7 @@ describe("HarnessGitHubActionsFlowPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Release category" }).getAttribute("aria-expanded")).toBe("true");
+      expect(screen.getByRole("button", { name: /Release category|发布 分类|发布类别/i }).getAttribute("aria-expanded")).toBe("true");
       expect(screen.getByRole("button", { name: /Routa Release/i })).not.toBeNull();
       expect(screen.getAllByText("workflow_dispatch").length).toBeGreaterThan(0);
     });

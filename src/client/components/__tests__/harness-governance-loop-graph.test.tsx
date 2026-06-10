@@ -59,15 +59,15 @@ describe("HarnessGovernanceLoopGraph", () => {
       />,
     );
 
-    expect(screen.getByText("No ADR / design decision source connected (docs/ARCHITECTURE.md or docs/adr)")).not.toBeNull();
-    expect(screen.getByText("No release / publish workflow detected in this repository.")).not.toBeNull();
+    expect(screen.getByText(/No ADR \/ design decision source connected|暂未接入 ADR \/ 设计决策来源/i)).not.toBeNull();
+    expect(screen.getByText(/No release \/ publish workflow detected|未检测到 release \/ publish workflow/i)).not.toBeNull();
 
     const designDecisionNode = screen.getByRole("button", {
-      name: /Internal loop Design decisions, ADR \/ design trade-offs/i,
+      name: /Internal loop Design decisions, ADR \/ design trade-offs|内部反馈环 设计决策, ADR \/ 设计取舍/i,
     });
     expect(designDecisionNode.getAttribute("aria-disabled")).toBe("true");
     expect(designDecisionNode.getAttribute("aria-describedby")).toBe("governance-unavailable-reason-coding");
-    expect(screen.getAllByText("N/A").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/N\/A|未接入/).length).toBeGreaterThan(0);
   });
 
   it("keeps available stages selectable through the governance flow", () => {
@@ -105,10 +105,10 @@ describe("HarnessGovernanceLoopGraph", () => {
     );
 
     fireEvent.click(screen.getByRole("button", {
-      name: /External loop Release/i,
+      name: /External loop Release|外部反馈环 制品发布/i,
     }));
     fireEvent.click(screen.getByRole("button", {
-      name: /Push loop Change gates/i,
+      name: /Push loop Change gates|推送反馈环 变更门禁/i,
     }));
 
     expect(onSelectedNodeChange).toHaveBeenCalledWith("release");
@@ -136,7 +136,7 @@ describe("HarnessGovernanceLoopGraph", () => {
     );
 
     const testNode = screen.getByRole("button", {
-      name: /Internal loop Local verification/i,
+      name: /Internal loop Local verification|内部反馈环 本地验证/i,
     });
 
     fireEvent.keyDown(testNode, { key: "ArrowRight" });

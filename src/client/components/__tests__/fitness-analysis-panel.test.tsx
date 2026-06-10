@@ -168,11 +168,11 @@ describe("FitnessAnalysisPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Generic/)).toBeTruthy();
+      expect(screen.getByText(/Generic|通用/)).toBeTruthy();
     });
 
     expect(screen.queryByText("routa-js")).toBeNull();
-    expect(screen.getAllByText(/Blockers/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Blockers|关键阻塞/i).length).toBeGreaterThan(0);
     expect(
       screen.getAllByText((_, element) => Boolean(element?.textContent?.includes("Harnessability")) && Boolean(element?.textContent?.includes("Agent-First"))).length,
     ).toBeGreaterThan(0);
@@ -180,8 +180,8 @@ describe("FitnessAnalysisPanel", () => {
     expect(screen.getByText("5/6")).toBeTruthy();
     expect(screen.getByTestId("fitness-dashboard")).toBeTruthy();
     expect(screen.getByTestId("fitness-analysis-content").textContent).toBe("overview");
-    expect(screen.queryByText("Report Controls")).toBeNull();
-    expect(screen.queryByText("Mode")).toBeNull();
-    expect(screen.queryByText("Views")).toBeNull();
+    expect(screen.queryByText(/Report Controls|报告控制/)).toBeNull();
+    expect(screen.queryByText(/Mode|模式/)).toBeNull();
+    expect(screen.queryByText(/Views|视图/)).toBeNull();
   });
 });

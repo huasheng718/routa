@@ -8,6 +8,7 @@ function runScript(relativePath: string, args: string[] = []) {
   return spawnSync(process.execPath, ["--import", "tsx", fromRoot(relativePath), ...args], {
     cwd: fromRoot(),
     encoding: "utf8",
+    maxBuffer: 1024 * 1024 * 10,
   });
 }
 

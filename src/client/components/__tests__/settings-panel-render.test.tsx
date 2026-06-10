@@ -101,10 +101,10 @@ describe("SettingsPanel render", () => {
       />,
     );
 
-    expect(screen.getAllByText("Add Model").length).toBeGreaterThan(0);
-    expect(screen.getByText("Models")).not.toBeNull();
+    expect(screen.getAllByText(/Add Model|添加模型/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Models|模型/).length).toBeGreaterThan(0);
     await waitFor(() => {
-      expect(screen.getByText(/Memory 10\/20 MB/)).not.toBeNull();
+      expect(screen.getByText(/Memory 10\/20 MB|内存 10\/20 MB/)).not.toBeNull();
     });
   });
 

@@ -281,12 +281,12 @@ describe("HarnessReviewTriggersPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Review triggers")).not.toBeNull();
+    expect(screen.getByText(/Review triggers|审查触发器|评审触发器/i)).not.toBeNull();
     expect(screen.queryByText(/high severity/i)).toBeNull();
     expect(screen.queryByText("Path scope")).toBeNull();
     expect(screen.queryByText("Protected scope")).toBeNull();
     expect(screen.queryByText("Human review routing")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Details/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Details|详情/i })).toBeNull();
   });
 
   it("shows real rule paths and thresholds without requiring expansion", () => {
@@ -316,7 +316,7 @@ describe("HarnessReviewTriggersPanel", () => {
       />,
     );
 
-    expect(screen.getAllByText("Require Human Review").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Require Human Review|需要人工评审/i).length).toBeGreaterThan(0);
     expect(screen.getByText(".husky/pre-push")).not.toBeNull();
     expect(
       screen.getByText('node --import tsx tools/hook-runtime/src/cli.ts --profile pre-push "$@"'),
@@ -331,21 +331,21 @@ describe("HarnessReviewTriggersPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Fallback action")).not.toBeNull();
-    expect(screen.getAllByText("Require Human Review").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Provider").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Fallback action|回退动作/i)).not.toBeNull();
+    expect(screen.getAllByText(/Require Human Review|需要人工评审/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Provider|提供方/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText("codex").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Model").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Model|模型/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText("gpt-5.4-mini").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Specialist").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Specialist|专家/i).length).toBeGreaterThan(0);
     expect(screen.getByText("security-reviewer")).not.toBeNull();
-    expect(screen.getAllByText("Context").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Context|上下文/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText("graph_review_context").length).toBeGreaterThan(0);
-    expect(screen.getByText("Review layers")).not.toBeNull();
-    expect(screen.getByText("Layer 1")).not.toBeNull();
-    expect(screen.getByText("Layer 2")).not.toBeNull();
+    expect(screen.getAllByText(/Review layers|审查层/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Layer 1|层 1/i)).not.toBeNull();
+    expect(screen.getByText(/Layer 2|层 2/i)).not.toBeNull();
     expect(screen.getByText("claude-sonnet")).not.toBeNull();
-    expect(screen.getByText("confidence 9/10")).not.toBeNull();
+    expect(screen.getByText(/confidence 9\/10|置信度 9\/10/i)).not.toBeNull();
   });
 
   it("keeps loop sidebar compact until details are requested", () => {
@@ -359,15 +359,15 @@ describe("HarnessReviewTriggersPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Show details" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Show details|显示详情/i })).not.toBeNull();
     expect(screen.getAllByText("src/core/acp/**").length).toBe(2);
     expect(screen.queryByText("docs/fitness/api-contract.md")).toBeNull();
-    expect(screen.queryByText("Trigger command")).toBeNull();
+    expect(screen.queryByText(/Trigger command|触发命令/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    fireEvent.click(screen.getByRole("button", { name: /Show details|显示详情/i }));
 
-    expect(screen.getByRole("button", { name: "Hide details" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Hide details|隐藏详情/i })).not.toBeNull();
     expect(screen.getByText("docs/fitness/api-contract.md")).not.toBeNull();
-    expect(screen.getByText("Trigger command")).not.toBeNull();
+    expect(screen.getByText(/Trigger command|触发命令/i)).not.toBeNull();
   });
 });

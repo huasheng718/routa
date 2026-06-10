@@ -144,21 +144,21 @@ describe("FitnessAnalysisContent overview", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Human-AI Collaboration" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "SDLC Coverage" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "AI Engineering Harness" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Governance & Quality" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Context Engineering" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Human-AI Collaboration|人机协作/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /SDLC Coverage|生命周期覆盖度/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /AI Engineering Harness|工程化支撑/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Governance & Quality|质量与治理/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Context Engineering|上下文工程/i })).toBeTruthy();
     expect(screen.getByText("Harnessability · Agent-Centric · 83% · 100% · Agent-First")).toBeTruthy();
     expect(screen.getByText("The stack is close, but ownership is still too manual for full autonomy.")).toBeTruthy();
     expect(screen.getByText("Verification & Guardrails")).toBeTruthy();
     expect(screen.getByText("Expose ownership and routing signals in machine-readable form")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Governance & Quality" }));
-    expect(screen.getAllByText("Current findings").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Recommended actions").length).toBeGreaterThan(0);
-    expect(screen.getByText("Without this")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Governance & Quality|质量与治理/i }));
+    expect(screen.getAllByText(/Current findings|当前发现/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Recommended actions|建议动作/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Guardrails need machine-readable ownership and dependency controls.")).toBeTruthy();
     expect(screen.getByText("Pair review-trigger rules with CODEOWNERS or Renovate")).toBeTruthy();
     expect(screen.getByText("CODEOWNERS")).toBeTruthy();
-    expect(screen.getByText(/Machine-readable guardrails and validation rules|A repository needs verifiable ownership/i)).toBeTruthy();
+    expect(screen.getAllByText(/\.github\/CODEOWNERS|CODEOWNERS plus docs\/fitness\/review-triggers\.yaml/).length).toBeGreaterThan(0);
   });
 });

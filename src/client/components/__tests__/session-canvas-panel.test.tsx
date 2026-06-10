@@ -28,9 +28,10 @@ describe("SessionCanvasPanel", () => {
 
     expect(screen.getByTestId("session-canvas-panel")).toBeTruthy();
     expect(screen.getByText("Status")).toBeTruthy();
-    expect(screen.getByText("Detected file: status.canvas.tsx")).toBeTruthy();
+    expect(screen.getByText(/Detected file|检测到文件/)).toBeTruthy();
+    expect(screen.getByText((_, element) => element?.textContent === "检测到文件: status.canvas.tsx" || element?.textContent === "Detected file: status.canvas.tsx")).toBeTruthy();
     expect(screen.getByTestId("canvas-viewer").textContent).toBe("canvas-1");
-    expect(screen.getByRole("link", { name: "Open canvas" }).getAttribute("href")).toBe("/canvas/canvas-1");
+    expect(screen.getByRole("link", { name: /Open canvas|打开 Canvas/i }).getAttribute("href")).toBe("/canvas/canvas-1");
   });
 
   it("renders materializing and error states", () => {
@@ -43,7 +44,7 @@ describe("SessionCanvasPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Rendering canvas...")).toBeTruthy();
+    expect(screen.getByText(/Rendering canvas|正在渲染 Canvas/i)).toBeTruthy();
 
     rerender(
       <SessionCanvasPanel
@@ -54,6 +55,6 @@ describe("SessionCanvasPanel", () => {
       />,
     );
 
-    expect(screen.getByText("Canvas render setup failed: bad source")).toBeTruthy();
+    expect(screen.getAllByText((_, element) => element?.textContent === "Canvas render setup failed: bad source" || element?.textContent === "Canvas 渲染准备失败: bad source").length).toBeGreaterThan(0);
   });
 });
