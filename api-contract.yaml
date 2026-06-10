@@ -6136,9 +6136,19 @@ paths:
           in: query
           schema:
             type: string
+        - name: includeBody
+          in: query
+          description: Set to false or 0 for lightweight list responses without full body text
+          schema:
+            type: string
+        - name: filename
+          in: query
+          description: Markdown filename under docs/issues to fetch one normalized issue
+          schema:
+            type: string
       responses:
         "200":
-          description: Normalized docs/issues records
+          description: Normalized docs/issues records, or one issue when filename is provided
           content:
             application/json:
               schema:
@@ -6150,8 +6160,212 @@ paths:
                     type: array
                     items:
                       type: object
+                  issue:
+                    type: object
         "400":
           description: Missing or invalid repository context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Issue not found when filename is provided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createSpecIssue
+      summary: Create a local issue spec with optional attachments
+      parameters:
+        - name: workspaceId
+          in: query
+          schema:
+            type: string
+        - name: codebaseId
+          in: query
+          schema:
+            type: string
+        - name: repoPath
+          in: query
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                workspaceId:
+                  type: string
+                codebaseId:
+                  type: string
+                repoPath:
+                  type: string
+                title:
+                  type: string
+                body:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                kind:
+                  type: string
+                  enum: [issue, analysis, progress_note, verification_report, github_mirror]
+                status:
+                  type: string
+                  enum: [open, investigating, resolved, wontfix, closed]
+                severity:
+                  type: string
+                  enum: [critical, high, medium, low, info]
+                area:
+                  type: string
+                tags:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+                reportedBy:
+                  type: string
+                reported_by:
+                  type: string
+                relatedIssues:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+                related_issues:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items:
+                        type: string
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                workspaceId:
+                  type: string
+                codebaseId:
+                  type: string
+                repoPath:
+                  type: string
+                title:
+                  type: string
+                body:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                kind:
+                  type: string
+                status:
+                  type: string
+                severity:
+                  type: string
+                area:
+                  type: string
+                tags:
+                  type: string
+                reportedBy:
+                  type: string
+                attachmentNames:
+                  type: array
+                  items:
+                    type: string
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "201":
+          description: Created normalized docs/issues record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repoRoot:
+                    type: string
+                  issue:
+                    type: object
+        "400":
+          description: Invalid input, repository context, or attachment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Issue creation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/spec/issues/assets:
+    get:
+      operationId: getSpecIssueAsset
+      summary: Serve a local issue attachment from docs/issues/assets
+      parameters:
+        - name: workspaceId
+          in: query
+          schema:
+            type: string
+        - name: codebaseId
+          in: query
+          schema:
+            type: string
+        - name: repoPath
+          in: query
+          schema:
+            type: string
+        - name: path
+          in: query
+          required: true
+          description: Relative attachment path under docs/issues, starting with assets/
+          schema:
+            type: string
+            pattern: "^assets/"
+      responses:
+        "200":
+          description: Attachment bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Missing or invalid repository context or attachment path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Attachment not found
           content:
             application/json:
               schema:

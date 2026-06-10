@@ -1,12 +1,17 @@
+use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use axum::{
-    extract::{Query, State},
+    body::to_bytes,
+    extract::{DefaultBodyLimit, FromRequest, Query, Request, State},
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
+use axum_extra::extract::Multipart;
 use feature_trace::api_endpoints_from_openapi_contract;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::BTreeMap;
 
@@ -16,14 +21,26 @@ use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/issues", get(list_spec_issues))
+        .route("/issues", get(list_spec_issues).post(create_spec_issue))
+        .route("/issues/assets", get(get_spec_issue_asset))
         .route("/surface-index", get(get_surface_index))
         .route("/feature-tree/preflight", get(preflight_feature_tree))
         .route("/feature-tree/generate", post(generate_feature_tree))
         .route("/feature-tree/commit", post(commit_feature_tree))
+        .layer(DefaultBodyLimit::max(SPEC_ISSUE_BODY_LIMIT_BYTES))
 }
 
 const SPEC_STATUSES: [&str; 4] = ["open", "investigating", "resolved", "wontfix"];
+const SPEC_KINDS: [&str; 5] = [
+    "issue",
+    "analysis",
+    "progress_note",
+    "verification_report",
+    "github_mirror",
+];
+const SPEC_SEVERITIES: [&str; 5] = ["critical", "high", "medium", "low", "info"];
+const MAX_ATTACHMENT_SIZE_BYTES: usize = 50 * 1024 * 1024;
+const SPEC_ISSUE_BODY_LIMIT_BYTES: usize = 220 * 1024 * 1024;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +48,64 @@ struct SpecIssuesQuery {
     workspace_id: Option<String>,
     codebase_id: Option<String>,
     repo_path: Option<String>,
+    include_body: Option<String>,
+    filename: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SpecIssueAssetQuery {
+    workspace_id: Option<String>,
+    codebase_id: Option<String>,
+    repo_path: Option<String>,
+    path: Option<String>,
+}
+
+#[derive(Debug, Default)]
+struct CreateSpecIssueInput {
+    fields: serde_json::Map<String, JsonValue>,
+    attachment_names: Vec<String>,
+    attachments: Vec<UploadedSpecIssueAttachment>,
+}
+
+#[derive(Debug)]
+struct UploadedSpecIssueAttachment {
+    name: String,
+    mime_type: String,
+    data: Vec<u8>,
+}
+
+#[derive(Debug, Serialize)]
+struct SpecIssueFrontmatter {
+    title: String,
+    date: String,
+    kind: String,
+    status: String,
+    severity: String,
+    area: String,
+    tags: Vec<String>,
+    reported_by: String,
+    related_issues: Vec<String>,
+    github_issue: Option<u64>,
+    github_state: Option<String>,
+    github_url: Option<String>,
+    attachments: Vec<SpecIssueAttachmentFrontmatter>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct SpecIssueAttachmentFrontmatter {
+    filename: String,
+    original_name: String,
+    path: String,
+    mime_type: String,
+    size: u64,
+    category: String,
+}
+
+#[derive(Debug)]
+enum CreateSpecIssueError {
+    AttachmentTooLarge(String),
+    Internal(String),
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -163,6 +238,73 @@ fn yaml_optional_string(frontmatter: &serde_yaml::Value, key: &str) -> Option<Js
     }
 }
 
+fn yaml_string_field_any(frontmatter: &serde_yaml::Value, keys: &[&str]) -> String {
+    keys.iter()
+        .map(|key| yaml_string_field(frontmatter, key))
+        .find(|value| !value.is_empty())
+        .unwrap_or_default()
+}
+
+fn yaml_attachment_size(value: &serde_yaml::Value) -> u64 {
+    match value {
+        serde_yaml::Value::Number(value) => value.as_u64().unwrap_or_default(),
+        serde_yaml::Value::String(value) => value.trim().parse::<u64>().unwrap_or_default(),
+        serde_yaml::Value::Tagged(tagged) => yaml_attachment_size(&tagged.value),
+        _ => 0,
+    }
+}
+
+fn normalize_attachment_category(value: &str) -> &'static str {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "image" => "image",
+        "video" => "video",
+        _ => "document",
+    }
+}
+
+fn yaml_attachments(frontmatter: &serde_yaml::Value) -> Vec<JsonValue> {
+    let Some(value) = frontmatter.get("attachments") else {
+        return Vec::new();
+    };
+    let sequence = match value {
+        serde_yaml::Value::Sequence(values) => values,
+        serde_yaml::Value::Tagged(tagged) => match &tagged.value {
+            serde_yaml::Value::Sequence(values) => values,
+            _ => return Vec::new(),
+        },
+        _ => return Vec::new(),
+    };
+
+    sequence
+        .iter()
+        .filter_map(|attachment| {
+            let filename = yaml_string_field(attachment, "filename");
+            let path = yaml_string_field(attachment, "path");
+            if filename.is_empty() || path.is_empty() {
+                return None;
+            }
+
+            Some(json!({
+                "filename": filename,
+                "originalName": yaml_string_field_any(attachment, &["original_name", "originalName"]),
+                "path": path,
+                "mimeType": yaml_string_field_any(attachment, &["mime_type", "mimeType"]),
+                "size": attachment.get("size").map(yaml_attachment_size).unwrap_or_default(),
+                "category": normalize_attachment_category(&yaml_string_field(attachment, "category")),
+            }))
+        })
+        .collect()
+}
+
+fn normalize_spec_scalar(value: Option<&JsonValue>) -> String {
+    match value {
+        Some(JsonValue::String(value)) => value.trim().to_string(),
+        Some(JsonValue::Number(value)) => value.to_string(),
+        Some(JsonValue::Bool(value)) => value.to_string(),
+        _ => String::new(),
+    }
+}
+
 fn normalize_status(raw: &str) -> String {
     let normalized = raw.trim().to_ascii_lowercase();
     if normalized == "closed" {
@@ -174,6 +316,597 @@ fn normalize_status(raw: &str) -> String {
     } else {
         "open".to_string()
     }
+}
+
+fn normalize_kind(raw: &str) -> String {
+    let normalized = raw.trim().to_ascii_lowercase();
+    if SPEC_KINDS.contains(&normalized.as_str()) {
+        normalized
+    } else {
+        "issue".to_string()
+    }
+}
+
+fn normalize_severity(raw: &str) -> String {
+    let normalized = raw.trim().to_ascii_lowercase();
+    if SPEC_SEVERITIES.contains(&normalized.as_str()) {
+        normalized
+    } else {
+        "medium".to_string()
+    }
+}
+
+fn normalize_issue_date(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.len() == 10
+        && trimmed.as_bytes().get(4) == Some(&b'-')
+        && trimmed.as_bytes().get(7) == Some(&b'-')
+        && chrono::NaiveDate::parse_from_str(trimmed, "%Y-%m-%d").is_ok()
+    {
+        trimmed.to_string()
+    } else {
+        chrono::Utc::now().date_naive().to_string()
+    }
+}
+
+fn should_include_body(value: Option<&str>) -> bool {
+    !matches!(value, Some("false" | "0"))
+}
+
+fn normalize_issue_filename(value: Option<&str>) -> Option<String> {
+    let file_name = Path::new(value?.trim())
+        .file_name()?
+        .to_string_lossy()
+        .to_string();
+    if file_name.ends_with(".md") && file_name != "_template.md" {
+        Some(file_name)
+    } else {
+        None
+    }
+}
+
+fn normalize_attachment_path(value: Option<&str>) -> Option<String> {
+    let raw = value?.trim().replace('\\', "/");
+    if raw.is_empty() || raw.starts_with('/') {
+        return None;
+    }
+
+    let mut parts = Vec::new();
+    for part in raw.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return None,
+            value => parts.push(value),
+        }
+    }
+
+    let normalized = parts.join("/");
+    if normalized.starts_with("assets/") {
+        Some(normalized)
+    } else {
+        None
+    }
+}
+
+fn content_type_for_attachment(file_name: &str) -> &'static str {
+    match Path::new(file_name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "svg" => "image/svg+xml",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "mov" => "video/quicktime",
+        "pdf" => "application/pdf",
+        "txt" => "text/plain; charset=utf-8",
+        "md" => "text/markdown; charset=utf-8",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        _ => "application/octet-stream",
+    }
+}
+
+fn slugify_title(title: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_dash = false;
+    for ch in title.trim().to_lowercase().chars() {
+        if ch.is_alphanumeric() {
+            slug.push(ch);
+            last_was_dash = false;
+        } else if !last_was_dash && !slug.is_empty() {
+            slug.push('-');
+            last_was_dash = true;
+        }
+
+        if slug.len() >= 80 {
+            break;
+        }
+    }
+
+    while slug.ends_with('-') {
+        slug.pop();
+    }
+
+    if slug.is_empty() {
+        "demand".to_string()
+    } else {
+        slug
+    }
+}
+
+fn truncate_to_char_boundary(value: &str, max_bytes: usize) -> String {
+    if value.len() <= max_bytes {
+        return value.to_string();
+    }
+
+    let mut truncated = String::new();
+    for ch in value.chars() {
+        if truncated.len() + ch.len_utf8() > max_bytes {
+            break;
+        }
+        truncated.push(ch);
+    }
+    truncated.trim_end_matches('-').to_string()
+}
+
+fn sanitize_attachment_filename(filename: &str) -> String {
+    let basename = Path::new(filename.trim())
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("attachment");
+    let parsed = Path::new(basename);
+    let stem = parsed
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("attachment");
+    let extension = parsed
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| {
+            value
+                .to_ascii_lowercase()
+                .chars()
+                .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '.')
+                .take(16)
+                .collect::<String>()
+        })
+        .filter(|value| !value.is_empty());
+    let mut slug = truncate_to_char_boundary(&slugify_title(stem), 64);
+    if slug.is_empty() {
+        slug = "attachment".to_string();
+    }
+
+    match extension {
+        Some(extension) => format!("{slug}.{extension}"),
+        None => slug,
+    }
+}
+
+fn split_filename_extension(filename: &str) -> (String, String) {
+    let path = Path::new(filename);
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(filename)
+        .to_string();
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| format!(".{value}"))
+        .unwrap_or_default();
+    (stem, extension)
+}
+
+fn issue_filename_candidate(title: &str, date: &str, counter: usize) -> String {
+    let slug = slugify_title(title);
+
+    if counter <= 1 {
+        format!("{date}-{slug}.md")
+    } else {
+        format!("{date}-{slug}-{counter}.md")
+    }
+}
+
+fn write_issue_markdown_atomic(
+    issues_dir: &Path,
+    title: &str,
+    date: &str,
+    markdown: &str,
+) -> std::io::Result<(String, PathBuf, std::fs::File)> {
+    let mut counter = 1;
+
+    loop {
+        let filename = issue_filename_candidate(title, date, counter);
+        let issue_path = issues_dir.join(&filename);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&issue_path)
+        {
+            Ok(mut file) => {
+                file.write_all(markdown.as_bytes())?;
+                return Ok((filename, issue_path, file));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                counter += 1;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn pick_attachment_filename(attachment_dir: &Path, original_name: &str) -> String {
+    let base_filename = sanitize_attachment_filename(original_name);
+    let mut filename = base_filename.clone();
+    let (stem, extension) = split_filename_extension(&base_filename);
+    let mut counter = 2;
+    while attachment_dir.join(&filename).exists() {
+        filename = format!("{stem}-{counter}{extension}");
+        counter += 1;
+    }
+
+    filename
+}
+
+fn to_delimited_string_array(value: Option<&JsonValue>) -> Vec<String> {
+    match value {
+        Some(JsonValue::Array(values)) => values
+            .iter()
+            .map(|value| normalize_spec_scalar(Some(value)))
+            .filter(|value| !value.is_empty())
+            .collect(),
+        Some(JsonValue::String(value)) => value
+            .split([',', '，', '\n'])
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string)
+            .collect(),
+        Some(value) => {
+            let normalized = normalize_spec_scalar(Some(value));
+            if normalized.is_empty() {
+                Vec::new()
+            } else {
+                vec![normalized]
+            }
+        }
+        None => Vec::new(),
+    }
+}
+
+fn infer_attachment_category(mime_type: &str) -> &'static str {
+    if mime_type.starts_with("image/") {
+        "image"
+    } else if mime_type.starts_with("video/") {
+        "video"
+    } else {
+        "document"
+    }
+}
+
+fn build_attachment_markdown(attachments: &[SpecIssueAttachmentFrontmatter]) -> String {
+    if attachments.is_empty() {
+        return String::new();
+    }
+
+    let mut markdown = "## 附件\n\n".to_string();
+    for (index, attachment) in attachments.iter().enumerate() {
+        if index > 0 {
+            markdown.push('\n');
+        }
+        markdown.push_str(&format!(
+            "- [{}](./{})",
+            attachment.original_name, attachment.path
+        ));
+    }
+
+    markdown
+}
+
+fn append_attachment_markdown(
+    body: &str,
+    attachments: &[SpecIssueAttachmentFrontmatter],
+) -> String {
+    let attachment_markdown = build_attachment_markdown(attachments);
+    if attachment_markdown.is_empty() {
+        return body.to_string();
+    }
+
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        attachment_markdown
+    } else {
+        format!("{trimmed}\n\n{attachment_markdown}")
+    }
+}
+
+fn issue_markdown_content(
+    frontmatter: &SpecIssueFrontmatter,
+    body: &str,
+) -> Result<String, ServerError> {
+    let frontmatter = serde_yaml::to_string(frontmatter)
+        .map_err(|error| ServerError::Internal(format!("创建需求记录失败: {error}")))?;
+    Ok(format!("---\n{}---\n{}", frontmatter, body))
+}
+
+fn context_value_from_input(
+    input: &CreateSpecIssueInput,
+    key: &str,
+    query_value: Option<String>,
+) -> Option<String> {
+    let body_value = normalize_spec_scalar(input.fields.get(key));
+    let body_value = body_value.trim();
+    if body_value.is_empty() {
+        query_value
+    } else {
+        Some(body_value.to_string())
+    }
+}
+
+fn build_surface_text(content: &str) -> String {
+    let mut surface = String::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        let relevant = trimmed.starts_with('#')
+            || trimmed.contains("`src/")
+            || trimmed.contains("`docs/")
+            || trimmed.contains("`crates/")
+            || trimmed.contains("`apps/")
+            || trimmed.contains("`resources/")
+            || trimmed.contains("src/")
+            || trimmed.contains("docs/")
+            || trimmed.contains("crates/")
+            || trimmed.contains("apps/")
+            || trimmed.contains("resources/")
+            || trimmed.contains("/api/")
+            || trimmed.contains("/workspace")
+            || trimmed.contains("/settings")
+            || trimmed.contains("/messages")
+            || trimmed.contains("/traces")
+            || trimmed.contains("/debug")
+            || trimmed.contains("/mcp-tools")
+            || trimmed.contains("/a2a")
+            || trimmed.contains("/ag-ui");
+        if relevant {
+            if !surface.is_empty() {
+                surface.push('\n');
+            }
+            surface.push_str(trimmed);
+            if surface.len() >= 4_000 {
+                surface.truncate(4_000);
+                break;
+            }
+        }
+    }
+
+    surface
+}
+
+fn parse_spec_issue_file(entry_path: &Path, include_body: bool) -> Option<JsonValue> {
+    let raw = std::fs::read_to_string(entry_path).ok()?;
+    let filename = entry_path.file_name()?.to_string_lossy().to_string();
+    let (frontmatter_str, body) = extract_frontmatter(&raw)?;
+    let fm: serde_yaml::Value = serde_yaml::from_str(&frontmatter_str).ok()?;
+
+    let title_fallback = filename.trim_end_matches(".md").to_string();
+    let title = yaml_string_field_or(&fm, "title", &title_fallback);
+    let kind = yaml_string_field_or(&fm, "kind", "issue").to_ascii_lowercase();
+    let severity = yaml_string_field_or(&fm, "severity", "medium").to_ascii_lowercase();
+    let status = normalize_status(&yaml_string_field(&fm, "status"));
+    let body = body.trim();
+
+    Some(json!({
+        "filename": filename,
+        "title": title,
+        "date": yaml_string_field(&fm, "date"),
+        "kind": kind,
+        "status": status,
+        "severity": severity,
+        "area": yaml_string_field(&fm, "area"),
+        "tags": yaml_string_vec(&fm, "tags"),
+        "reportedBy": yaml_string_field(&fm, "reported_by"),
+        "relatedIssues": yaml_string_vec(&fm, "related_issues"),
+        "githubIssue": yaml_optional_number(&fm, "github_issue"),
+        "githubState": yaml_optional_string(&fm, "github_state"),
+        "githubUrl": yaml_optional_string(&fm, "github_url"),
+        "attachments": yaml_attachments(&fm),
+        "body": if include_body { body } else { "" },
+        "bodyLoaded": include_body,
+        "surfaceText": build_surface_text(body),
+    }))
+}
+
+fn input_field(input: &CreateSpecIssueInput, key: &str) -> String {
+    normalize_spec_scalar(input.fields.get(key))
+}
+
+fn input_field_any(input: &CreateSpecIssueInput, keys: &[&str]) -> String {
+    keys.iter()
+        .map(|key| input_field(input, key))
+        .find(|value| !value.is_empty())
+        .unwrap_or_default()
+}
+
+fn create_spec_issue_file(
+    repo_root: &Path,
+    input: CreateSpecIssueInput,
+) -> Result<JsonValue, CreateSpecIssueError> {
+    let title = input_field(&input, "title");
+    let issues_dir = repo_root.join("docs").join("issues");
+    let date = normalize_issue_date(&input_field(&input, "date"));
+    let issue_body = input_field(&input, "body");
+    let metadata = SpecIssueFrontmatter {
+        title: title.clone(),
+        date: date.clone(),
+        kind: normalize_kind(&input_field(&input, "kind")),
+        status: normalize_status(&input_field(&input, "status")),
+        severity: normalize_severity(&input_field(&input, "severity")),
+        area: input_field(&input, "area"),
+        tags: to_delimited_string_array(input.fields.get("tags")),
+        reported_by: {
+            let reported_by = input_field_any(&input, &["reportedBy", "reported_by"]);
+            if reported_by.is_empty() {
+                "human".to_string()
+            } else {
+                reported_by
+            }
+        },
+        related_issues: to_delimited_string_array(
+            input
+                .fields
+                .get("relatedIssues")
+                .or_else(|| input.fields.get("related_issues")),
+        ),
+        github_issue: None,
+        github_state: None,
+        github_url: None,
+        attachments: Vec::new(),
+    };
+
+    for file in &input.attachments {
+        if !file.data.is_empty() && file.data.len() > MAX_ATTACHMENT_SIZE_BYTES {
+            return Err(CreateSpecIssueError::AttachmentTooLarge(file.name.clone()));
+        }
+    }
+
+    std::fs::create_dir_all(&issues_dir)
+        .map_err(|error| CreateSpecIssueError::Internal(format!("创建需求目录失败: {error}")))?;
+    let placeholder_markdown = issue_markdown_content(&metadata, &issue_body)
+        .map_err(|error| CreateSpecIssueError::Internal(error.to_string()))?;
+    let (filename, issue_path, mut issue_file) =
+        write_issue_markdown_atomic(&issues_dir, &title, &date, &placeholder_markdown).map_err(
+            |error| CreateSpecIssueError::Internal(format!("创建需求记录失败: {error}")),
+        )?;
+    let issue_slug = filename.trim_end_matches(".md").to_string();
+    let attachment_dir = issues_dir.join("assets").join(&issue_slug);
+    let mut attachments = Vec::new();
+
+    for (index, file) in input.attachments.into_iter().enumerate() {
+        if file.data.is_empty() {
+            continue;
+        }
+        if file.data.len() > MAX_ATTACHMENT_SIZE_BYTES {
+            return Err(CreateSpecIssueError::AttachmentTooLarge(file.name));
+        }
+
+        std::fs::create_dir_all(&attachment_dir).map_err(|error| {
+            CreateSpecIssueError::Internal(format!("创建附件目录失败: {error}"))
+        })?;
+        let original_name = input
+            .attachment_names
+            .get(index)
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .unwrap_or(&file.name)
+            .to_string();
+        let attachment_filename = pick_attachment_filename(&attachment_dir, &original_name);
+        let attachment_path = attachment_dir.join(&attachment_filename);
+        std::fs::write(&attachment_path, &file.data)
+            .map_err(|error| CreateSpecIssueError::Internal(format!("写入附件失败: {error}")))?;
+        let mime_type = if file.mime_type.trim().is_empty() {
+            "application/octet-stream".to_string()
+        } else {
+            file.mime_type.trim().to_string()
+        };
+        attachments.push(SpecIssueAttachmentFrontmatter {
+            filename: attachment_filename.clone(),
+            original_name,
+            path: format!("assets/{issue_slug}/{attachment_filename}"),
+            mime_type: mime_type.clone(),
+            size: file.data.len() as u64,
+            category: infer_attachment_category(&mime_type).to_string(),
+        });
+    }
+
+    let mut metadata = metadata;
+    metadata.attachments = attachments.clone();
+    let content = append_attachment_markdown(&issue_body, &attachments);
+    let markdown = issue_markdown_content(&metadata, &content)
+        .map_err(|error| CreateSpecIssueError::Internal(error.to_string()))?;
+    issue_file
+        .set_len(0)
+        .and_then(|_| issue_file.seek(SeekFrom::Start(0)).map(|_| ()))
+        .and_then(|_| issue_file.write_all(markdown.as_bytes()))
+        .and_then(|_| issue_file.sync_all())
+        .map_err(|error| CreateSpecIssueError::Internal(format!("写入需求记录失败: {error}")))?;
+
+    parse_spec_issue_file(&issue_path, true)
+        .ok_or_else(|| CreateSpecIssueError::Internal("读取需求记录失败".to_string()))
+}
+
+async fn read_create_spec_issue_input(
+    state: &AppState,
+    request: Request,
+) -> Result<CreateSpecIssueInput, ServerError> {
+    let content_type = request
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if content_type.contains("multipart/form-data") {
+        let mut multipart = Multipart::from_request(request, state)
+            .await
+            .map_err(|_| ServerError::BadRequest("请求内容无效".to_string()))?;
+        let mut input = CreateSpecIssueInput::default();
+        while let Some(field) = multipart
+            .next_field()
+            .await
+            .map_err(|_| ServerError::BadRequest("请求内容无效".to_string()))?
+        {
+            let name = field.name().unwrap_or_default().to_string();
+            let file_name = field.file_name().unwrap_or("attachment").to_string();
+            let mime_type = field
+                .content_type()
+                .map(ToString::to_string)
+                .unwrap_or_default();
+            let data = field
+                .bytes()
+                .await
+                .map_err(|_| ServerError::BadRequest("请求内容无效".to_string()))?;
+            if name == "attachments" {
+                input.attachments.push(UploadedSpecIssueAttachment {
+                    name: file_name,
+                    mime_type,
+                    data: data.to_vec(),
+                });
+            } else if name == "attachmentNames" {
+                input
+                    .attachment_names
+                    .push(String::from_utf8_lossy(&data).trim().to_string());
+            } else if !name.is_empty() {
+                input.fields.insert(
+                    name,
+                    JsonValue::String(String::from_utf8_lossy(&data).to_string()),
+                );
+            }
+        }
+        return Ok(input);
+    }
+
+    let bytes = to_bytes(request.into_body(), SPEC_ISSUE_BODY_LIMIT_BYTES)
+        .await
+        .map_err(|_| ServerError::BadRequest("请求内容无效".to_string()))?;
+    let value = serde_json::from_slice::<JsonValue>(&bytes)
+        .map_err(|_| ServerError::BadRequest("请求内容无效".to_string()))?;
+    let fields = value
+        .as_object()
+        .cloned()
+        .ok_or_else(|| ServerError::BadRequest("请求内容无效".to_string()))?;
+    Ok(CreateSpecIssueInput {
+        fields,
+        attachment_names: Vec::new(),
+        attachments: Vec::new(),
+    })
 }
 
 fn empty_surface_index_response(repo_root: &Path, warnings: Vec<String>) -> JsonValue {
@@ -343,7 +1076,7 @@ async fn list_spec_issues(
         query.workspace_id.as_deref(),
         query.codebase_id.as_deref(),
         query.repo_path.as_deref(),
-        "Missing context: provide workspaceId, codebaseId, or repoPath",
+        "缺少上下文：请提供 workspaceId、codebaseId 或 repoPath",
         ResolveRepoRootOptions {
             prefer_current_repo_for_default_workspace: true,
         },
@@ -358,8 +1091,19 @@ async fn list_spec_issues(
         })));
     }
 
+    if let Some(filename) = normalize_issue_filename(query.filename.as_deref()) {
+        let issue_path = issues_dir.join(filename);
+        let issue = parse_spec_issue_file(&issue_path, true)
+            .ok_or_else(|| ServerError::NotFound("未找到需求记录".to_string()))?;
+        return Ok(Json(json!({
+            "issue": issue,
+            "repoRoot": repo_root.to_string_lossy(),
+        })));
+    }
+
+    let include_body = should_include_body(query.include_body.as_deref());
     let mut entries: Vec<PathBuf> = std::fs::read_dir(&issues_dir)
-        .map_err(|e| ServerError::Internal(format!("Failed to read issues dir: {e}")))?
+        .map_err(|e| ServerError::Internal(format!("读取需求目录失败: {e}")))?
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let name = entry.file_name().to_string_lossy().to_string();
@@ -380,55 +1124,135 @@ async fn list_spec_issues(
 
     let mut issues = Vec::new();
     for entry_path in &entries {
-        let raw = match std::fs::read_to_string(entry_path) {
-            Ok(content) => content,
-            Err(_) => continue,
-        };
-
-        let filename = entry_path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string();
-
-        let (frontmatter_str, body) = match extract_frontmatter(&raw) {
-            Some(pair) => pair,
-            None => continue,
-        };
-
-        let fm: serde_yaml::Value = match serde_yaml::from_str(&frontmatter_str) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-
-        let title_fallback = filename.trim_end_matches(".md").to_string();
-        let title = yaml_string_field_or(&fm, "title", &title_fallback);
-        let kind = yaml_string_field_or(&fm, "kind", "issue").to_ascii_lowercase();
-        let severity = yaml_string_field_or(&fm, "severity", "medium").to_ascii_lowercase();
-        let status = normalize_status(&yaml_string_field(&fm, "status"));
-
-        issues.push(json!({
-            "filename": filename,
-            "title": title,
-            "date": yaml_string_field(&fm, "date"),
-            "kind": kind,
-            "status": status,
-            "severity": severity,
-            "area": yaml_string_field(&fm, "area"),
-            "tags": yaml_string_vec(&fm, "tags"),
-            "reportedBy": yaml_string_field(&fm, "reported_by"),
-            "relatedIssues": yaml_string_vec(&fm, "related_issues"),
-            "githubIssue": yaml_optional_number(&fm, "github_issue"),
-            "githubState": yaml_optional_string(&fm, "github_state"),
-            "githubUrl": yaml_optional_string(&fm, "github_url"),
-            "body": body.trim(),
-        }));
+        if let Some(issue) = parse_spec_issue_file(entry_path, include_body) {
+            issues.push(issue);
+        }
     }
 
     Ok(Json(json!({
         "issues": issues,
         "repoRoot": repo_root.to_string_lossy(),
     })))
+}
+
+async fn create_spec_issue(
+    State(state): State<AppState>,
+    Query(query): Query<SpecIssuesQuery>,
+    request: Request,
+) -> Result<Response, ServerError> {
+    let input = read_create_spec_issue_input(&state, request).await?;
+    let title = input_field(&input, "title");
+    if title.is_empty() {
+        return Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "标题不能为空" })),
+        )
+            .into_response());
+    }
+
+    let workspace_id = context_value_from_input(&input, "workspaceId", query.workspace_id);
+    let codebase_id = context_value_from_input(&input, "codebaseId", query.codebase_id);
+    let repo_path = context_value_from_input(&input, "repoPath", query.repo_path);
+    let repo_root = resolve_repo_root(
+        &state,
+        workspace_id.as_deref(),
+        codebase_id.as_deref(),
+        repo_path.as_deref(),
+        "缺少上下文：请提供 workspaceId、codebaseId 或 repoPath",
+        ResolveRepoRootOptions {
+            prefer_current_repo_for_default_workspace: true,
+        },
+    )
+    .await?;
+
+    let repo_root_for_response = repo_root.to_string_lossy().to_string();
+    let issue = tokio::task::spawn_blocking(move || create_spec_issue_file(&repo_root, input))
+        .await
+        .map_err(|error| ServerError::Internal(format!("创建需求记录失败: {error}")))?;
+
+    match issue {
+        Ok(issue) => Ok((
+            StatusCode::CREATED,
+            Json(json!({
+                "issue": issue,
+                "repoRoot": repo_root_for_response,
+            })),
+        )
+            .into_response()),
+        Err(CreateSpecIssueError::AttachmentTooLarge(filename)) => Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": format!("附件过大：{filename}") })),
+        )
+            .into_response()),
+        Err(CreateSpecIssueError::Internal(message)) => Ok((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "error": "创建需求记录失败",
+                "details": message,
+            })),
+        )
+            .into_response()),
+    }
+}
+
+async fn get_spec_issue_asset(
+    State(state): State<AppState>,
+    Query(query): Query<SpecIssueAssetQuery>,
+) -> Result<(HeaderMap, Vec<u8>), ServerError> {
+    let attachment_path = normalize_attachment_path(query.path.as_deref())
+        .ok_or_else(|| ServerError::BadRequest("附件路径不能为空".to_string()))?;
+    let repo_root = resolve_repo_root(
+        &state,
+        query.workspace_id.as_deref(),
+        query.codebase_id.as_deref(),
+        query.repo_path.as_deref(),
+        "缺少上下文：请提供 workspaceId、codebaseId 或 repoPath",
+        ResolveRepoRootOptions {
+            prefer_current_repo_for_default_workspace: true,
+        },
+    )
+    .await?;
+
+    let issues_dir = repo_root.join("docs").join("issues");
+    let assets_dir = issues_dir.join("assets");
+    let file_path = issues_dir.join(&attachment_path);
+    if !file_path.starts_with(&assets_dir) {
+        return Err(ServerError::BadRequest("附件路径无效".to_string()));
+    }
+
+    let real_assets_dir = assets_dir
+        .canonicalize()
+        .map_err(|_| ServerError::NotFound("未找到附件".to_string()))?;
+    let real_file_path = file_path
+        .canonicalize()
+        .map_err(|_| ServerError::NotFound("未找到附件".to_string()))?;
+    if real_file_path != real_assets_dir && !real_file_path.starts_with(&real_assets_dir) {
+        return Err(ServerError::BadRequest("附件路径无效".to_string()));
+    }
+
+    let data = std::fs::read(&real_file_path)
+        .map_err(|_| ServerError::NotFound("未找到附件".to_string()))?;
+    let file_name = real_file_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let encoded_name = urlencoding::encode(&file_name);
+    let mut headers = HeaderMap::new();
+    headers.insert("cache-control", "no-store".parse().unwrap());
+    headers.insert(
+        "content-type",
+        content_type_for_attachment(&file_name).parse().unwrap(),
+    );
+    headers.insert(
+        "content-disposition",
+        format!("inline; filename*=UTF-8''{encoded_name}")
+            .parse()
+            .unwrap(),
+    );
+
+    Ok((headers, data))
 }
 
 async fn get_surface_index(
@@ -440,7 +1264,7 @@ async fn get_surface_index(
         query.workspace_id.as_deref(),
         query.codebase_id.as_deref(),
         query.repo_path.as_deref(),
-        "Missing context: provide workspaceId, codebaseId, or repoPath",
+        "缺少上下文：请提供 workspaceId、codebaseId 或 repoPath",
         ResolveRepoRootOptions {
             prefer_current_repo_for_default_workspace: true,
         },
@@ -468,16 +1292,12 @@ async fn get_surface_index(
         Ok(raw) => match serde_json::from_str::<FeatureSurfaceIndexFile>(&raw) {
             Ok(index) => Some(index),
             Err(_) => {
-                warnings.push(format!(
-                    "Feature surface index is not valid JSON at {relative_index_path}"
-                ));
+                warnings.push(format!("产品面索引 JSON 无效：{relative_index_path}"));
                 None
             }
         },
         Err(_) => {
-            warnings.push(format!(
-                "Feature surface index not found at {relative_index_path}"
-            ));
+            warnings.push(format!("未找到产品面索引：{relative_index_path}"));
             None
         }
     };
@@ -487,14 +1307,14 @@ async fn get_surface_index(
             Ok(apis) => {
                 if apis.is_empty() {
                     warnings.push(format!(
-                        "OpenAPI contract produced no endpoints at {relative_api_contract_path}"
+                        "OpenAPI 合约未生成端点：{relative_api_contract_path}"
                     ));
                 }
                 Some(to_surface_api_from_contract(apis))
             }
             Err(error) => {
                 warnings.push(format!(
-                    "Failed to parse OpenAPI contract at {relative_api_contract_path}: {error}"
+                    "解析 OpenAPI 合约失败：{relative_api_contract_path}: {error}"
                 ));
                 None
             }
@@ -561,7 +1381,7 @@ async fn resolve_feature_tree_repo_root(
         workspace_id,
         codebase_id,
         repo_path,
-        "Missing context: provide workspaceId, codebaseId, or repoPath",
+        "缺少上下文：请提供 workspaceId、codebaseId 或 repoPath",
         ResolveRepoRootOptions {
             prefer_current_repo_for_default_workspace: true,
         },
