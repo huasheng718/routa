@@ -47,6 +47,7 @@ pub mod skills_catalog;
 pub mod skills_clone;
 pub mod skills_upload;
 pub mod spec;
+pub(crate) mod spec_surface_index;
 pub mod specialists;
 pub mod tasks;
 pub mod tasks_automation;
