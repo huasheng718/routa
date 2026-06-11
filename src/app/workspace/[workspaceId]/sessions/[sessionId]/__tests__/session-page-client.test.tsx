@@ -289,6 +289,19 @@ describe("SessionPageClient", () => {
     });
   });
 
+  it("defaults the session agent selector to crafter instead of multi-agent routa", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ session: {}, sessions: [], specialists: [], globalMode: "essential" }),
+    }) as Response));
+
+    render(<SessionPageClient />);
+
+    await waitFor(() => {
+      expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("CRAFTER");
+    });
+  });
+
   it("sends a stored pending prompt once ACP is already ready", async () => {
     storePendingPrompt("session-1", "continue execution");
     acpState.updates = [

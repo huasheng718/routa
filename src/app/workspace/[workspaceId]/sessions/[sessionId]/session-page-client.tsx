@@ -160,7 +160,7 @@ export function SessionPageClient() {
 
   const [refreshKey, setRefreshKey] = useState(0);
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<AgentRole>("ROUTA");
+  const [selectedAgent, setSelectedAgent] = useState<AgentRole>("CRAFTER");
   const [selectedSpecialistId, setSelectedSpecialistId] = useState<string | null>(null);
   const [showAgentToast, setShowAgentToast] = useState(false);
   const [repoSelection, setRepoSelection] = useState<RepoSelection | null>(null);
