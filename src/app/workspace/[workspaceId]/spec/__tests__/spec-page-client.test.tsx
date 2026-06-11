@@ -441,8 +441,8 @@ describe("SpecPageClient", () => {
     });
 
     expect(screen.getAllByText("产品面索引未生成").length).toBeGreaterThan(0);
-    expect(screen.getByText("当前代码库还没有 docs/product-specs/FEATURE_TREE.md，需求仍可查看和开启工作区；如需展示页面、接口和 Feature 影响面，请先到特性浏览生成 Feature Tree。")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "去生成 Feature Tree" }).getAttribute("href")).toBe("/workspace/default/feature-explorer");
+    expect(screen.getByText("当前代码库还没有 docs/product-specs/FEATURE_TREE.md，需求仍可查看和开启工作区；如需展示页面、接口和特性影响面，请先到特性浏览生成特性树。")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "去生成特性树" }).getAttribute("href")).toBe("/workspace/default/feature-explorer");
   });
 
   it("filters visible issues by kind and severity from the toolbar", async () => {
@@ -980,12 +980,12 @@ describe("SpecPageClient", () => {
     render(<SpecPageClient />);
 
     await waitFor(() => {
-      expect(screen.getByRole("region", { name: "选择一条 issue" })).toBeTruthy();
+      expect(screen.getByRole("region", { name: "选择一条需求" })).toBeTruthy();
     });
 
     expect(screen.getAllByText("产品面索引未生成").length).toBeGreaterThan(0);
-    expect(screen.getByText("当前代码库还没有 docs/product-specs/FEATURE_TREE.md，需求仍可查看和开启工作区；如需展示页面、接口和 Feature 影响面，请先到特性浏览生成 Feature Tree。")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "去生成 Feature Tree" }).getAttribute("href")).toBe("/workspace/default/feature-explorer");
+    expect(screen.getByText("当前代码库还没有 docs/product-specs/FEATURE_TREE.md，需求仍可查看和开启工作区；如需展示页面、接口和特性影响面，请先到特性浏览生成特性树。")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "去生成特性树" }).getAttribute("href")).toBe("/workspace/default/feature-explorer");
   });
 
   it("surfaces issue API errors instead of rendering an empty board", async () => {
