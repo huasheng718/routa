@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import * as path from "path";
 import { describe, expect, it } from "vitest";
@@ -129,6 +129,61 @@ Touches \`src/app/api/spec/issues/route.ts\` and \`/api/spec/issues\`.
       for (const attachment of issue?.attachments ?? []) {
         await expect(stat(path.join(repoRoot, "docs", "issues", attachment.path))).resolves.toBeTruthy();
       }
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("creates unique issue files for concurrent requests with the same title", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      const [firstIssue, secondIssue] = await Promise.all([
+        createSpecIssue(repoRoot, {
+          title: "并发需求",
+          body: "第一条",
+        }),
+        createSpecIssue(repoRoot, {
+          title: "并发需求",
+          body: "第二条",
+        }),
+      ]);
+
+      expect(firstIssue?.filename).toMatch(/^\d{4}-\d{2}-\d{2}-并发需求(?:-\d+)?\.md$/u);
+      expect(secondIssue?.filename).toMatch(/^\d{4}-\d{2}-\d{2}-并发需求(?:-\d+)?\.md$/u);
+      expect(firstIssue?.filename).not.toBe(secondIssue?.filename);
+
+      const listed = await listSpecIssues(repoRoot, { includeBody: true });
+      expect(listed.map((issue) => issue.filename).sort()).toEqual([
+        firstIssue?.filename,
+        secondIssue?.filename,
+      ].sort());
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("cleans reserved markdown and attachment directory when attachment persistence fails", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      await expect(createSpecIssue(repoRoot, {
+        title: "失败清理",
+        attachments: [{
+          name: "需求说明.md",
+          type: "text/markdown",
+          size: 12,
+          arrayBuffer: async () => {
+            throw new Error("read failed");
+          },
+        }],
+      })).rejects.toThrow("read failed");
+
+      const issuesDir = path.join(repoRoot, "docs", "issues");
+      const issueEntries = await readdir(issuesDir, { withFileTypes: true });
+      expect(issueEntries.some((entry) => entry.isFile() && entry.name.includes("失败清理"))).toBe(false);
+      const assetEntries = await readdir(path.join(issuesDir, "assets")).catch(() => []);
+      expect(assetEntries.some((entry) => entry.includes("失败清理"))).toBe(false);
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }

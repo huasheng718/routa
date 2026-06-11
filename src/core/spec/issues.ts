@@ -435,17 +435,34 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-async function pickIssueFilename(issuesDir: string, title: string, date: string): Promise<string> {
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error !== null && typeof error === "object" && "code" in error;
+}
+
+async function reserveIssueFilename(
+  issuesDir: string,
+  title: string,
+  date: string,
+): Promise<string> {
   const slug = slugifyTitle(title);
-  let filename = `${date}-${slug}.md`;
-  let counter = 2;
+  let counter = 1;
 
-  while (await fileExists(path.join(issuesDir, filename))) {
-    filename = `${date}-${slug}-${counter}.md`;
-    counter += 1;
+  while (true) {
+    const filename = counter === 1 ? `${date}-${slug}.md` : `${date}-${slug}-${counter}.md`;
+    try {
+      await fsp.writeFile(path.join(issuesDir, filename), "", {
+        encoding: "utf-8",
+        flag: "wx",
+      });
+      return filename;
+    } catch (error) {
+      if (isNodeError(error) && error.code === "EEXIST") {
+        counter += 1;
+        continue;
+      }
+      throw error;
+    }
   }
-
-  return filename;
 }
 
 export async function parseSpecIssueFile(
@@ -562,46 +579,55 @@ export async function createSpecIssue(
 
   await fsp.mkdir(issuesDir, { recursive: true });
   validateUploadedSpecIssueAttachments(attachmentFiles, attachmentNames);
-  const filename = await pickIssueFilename(issuesDir, title, date);
+  const filename = await reserveIssueFilename(issuesDir, title, date);
   const issueSlug = filename.replace(/\.md$/u, "");
+  const issuePath = path.join(issuesDir, filename);
   const attachmentDir = path.join(issuesDir, "assets", issueSlug);
   const attachments: SpecIssueAttachment[] = [];
-  for (const [index, file] of attachmentFiles.entries()) {
-    await fsp.mkdir(attachmentDir, { recursive: true });
-    const originalName = attachmentNames[index] || file.name;
-    const baseFilename = sanitizeAttachmentFilename(originalName);
-    let attachmentFilename = baseFilename;
-    let counter = 2;
-    while (await fileExists(path.join(attachmentDir, attachmentFilename))) {
-      const parsed = path.parse(baseFilename);
-      attachmentFilename = `${parsed.name}-${counter}${parsed.ext}`;
-      counter += 1;
+  try {
+    for (const [index, file] of attachmentFiles.entries()) {
+      await fsp.mkdir(attachmentDir, { recursive: true });
+      const originalName = attachmentNames[index] || file.name;
+      const baseFilename = sanitizeAttachmentFilename(originalName);
+      let attachmentFilename = baseFilename;
+      let counter = 2;
+      while (await fileExists(path.join(attachmentDir, attachmentFilename))) {
+        const parsed = path.parse(baseFilename);
+        attachmentFilename = `${parsed.name}-${counter}${parsed.ext}`;
+        counter += 1;
+      }
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await fsp.writeFile(path.join(attachmentDir, attachmentFilename), buffer);
+      attachments.push({
+        filename: attachmentFilename,
+        originalName,
+        path: `assets/${issueSlug}/${attachmentFilename}`,
+        mimeType: file.type || "application/octet-stream",
+        size: file.size,
+        category: inferAttachmentCategory(file),
+      });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await fsp.writeFile(path.join(attachmentDir, attachmentFilename), buffer);
-    attachments.push({
-      filename: attachmentFilename,
-      originalName,
-      path: `assets/${issueSlug}/${attachmentFilename}`,
-      mimeType: file.type || "application/octet-stream",
-      size: file.size,
-      category: inferAttachmentCategory(file),
+    const content = matter.stringify(appendAttachmentMarkdown(issueBody, attachments), {
+      ...metadata,
+      attachments: attachments.map((attachment) => ({
+        filename: attachment.filename,
+        original_name: attachment.originalName,
+        path: attachment.path,
+        mime_type: attachment.mimeType,
+        size: attachment.size,
+        category: attachment.category,
+      })),
     });
+    await fsp.writeFile(issuePath, content, "utf-8");
+  } catch (error) {
+    await Promise.all([
+      fsp.rm(issuePath, { force: true }).catch(() => undefined),
+      fsp.rm(attachmentDir, { recursive: true, force: true }).catch(() => undefined),
+    ]);
+    throw error;
   }
-
-  const content = matter.stringify(appendAttachmentMarkdown(issueBody, attachments), {
-    ...metadata,
-    attachments: attachments.map((attachment) => ({
-      filename: attachment.filename,
-      original_name: attachment.originalName,
-      path: attachment.path,
-      mime_type: attachment.mimeType,
-      size: attachment.size,
-      category: attachment.category,
-    })),
-  });
-  await fsp.writeFile(path.join(issuesDir, filename), content, "utf-8");
 
   return parseSpecIssueFile(issuesDir, filename, true);
 }
