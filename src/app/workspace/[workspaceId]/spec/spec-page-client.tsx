@@ -377,6 +377,7 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
     setOpeningWorkspaceFilename(actionKey);
     setOpenWorkspaceError(null);
 
+    let createdWorkspaceId: string | null = null;
     try {
       const issuesForTask = await loadFullIssues(issues, t.specBoard.openWorkspaceFailed);
 
@@ -404,6 +405,7 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
       if (!workspace?.id) {
         throw new Error(t.specBoard.openWorkspaceFailed);
       }
+      createdWorkspaceId = workspace.id;
 
       const copiedCodebaseIds: string[] = [];
       for (const codebase of sourceCodebases) {
@@ -464,6 +466,11 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
 
       router.push(`/workspace/${encodeURIComponent(workspace.id)}/kanban?taskId=${encodeURIComponent(workspaceTask.id)}`);
     } catch (openError) {
+      if (createdWorkspaceId) {
+        await desktopAwareFetch(resolveApiPath(`/workspaces/${encodeURIComponent(createdWorkspaceId)}`), {
+          method: "DELETE",
+        }).catch(() => null);
+      }
       const message = openError instanceof Error ? openError.message : String(openError);
       setOpenWorkspaceError(`${t.specBoard.openWorkspaceFailed}: ${message}`);
     } finally {

@@ -70,6 +70,7 @@ function mockSpecResponses(options?: {
   failBodyFilenames?: string[];
   createIssueError?: string;
   codebaseCopyError?: string;
+  workspaceTaskError?: string;
 }) {
   const surfaceOk = options?.surfaceOk ?? true;
   const failBodyFilenames = new Set(options?.failBodyFilenames ?? []);
@@ -162,8 +163,15 @@ function mockSpecResponses(options?: {
       });
     }
 
+    if (path === "/api/workspaces/workspace-from-spec" && init?.method === "DELETE") {
+      return okJson({ deleted: true });
+    }
+
     if (path === "/api/tasks" && init?.method === "POST") {
       const body = JSON.parse(String(init.body));
+      if (body.workspaceId === "workspace-from-spec" && options?.workspaceTaskError) {
+        return errorJson({ error: options.workspaceTaskError });
+      }
       return okJson({
         task: {
           id: body.workspaceId === "workspace-from-spec" ? "task-from-spec" : "task-current-workspace",
@@ -663,6 +671,26 @@ describe("SpecPageClient", () => {
     expect(desktopAwareFetch.mock.calls.some(([path, init]) => (
       path === "/api/tasks" && init?.method === "POST"
     ))).toBe(false);
+    expect(desktopAwareFetch.mock.calls.some(([path, init]) => (
+      path === "/api/workspaces/workspace-from-spec" && init?.method === "DELETE"
+    ))).toBe(true);
+  });
+
+  it("rolls back the new workspace when workspace task creation fails", async () => {
+    mockSpecResponses({ workspaceTaskError: "任务创建失败" });
+
+    render(<SpecPageClient />);
+
+    const detailPane = await screen.findByRole("region", { name: "Spec board" });
+    fireEvent.click(within(detailPane).getByRole("button", { name: "开启工作区" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("开启工作区失败: 任务创建失败")).toBeTruthy();
+    });
+    expect(navState.push).not.toHaveBeenCalled();
+    expect(desktopAwareFetch.mock.calls.some(([path, init]) => (
+      path === "/api/workspaces/workspace-from-spec" && init?.method === "DELETE"
+    ))).toBe(true);
   });
 
   it("creates a kanban task in the current workspace from the selected demand", async () => {
