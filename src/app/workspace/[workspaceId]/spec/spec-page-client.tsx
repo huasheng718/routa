@@ -38,6 +38,13 @@ import { SpecStatusBoard } from "./spec-status-board";
 import { SpecToolbar } from "./spec-toolbar";
 import { useSpecBoardViewModel } from "./use-spec-board-view-model";
 
+function readIssueFilenameFromLocation(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return compactText(new URLSearchParams(window.location.search).get("issue")) || null;
+}
+
 export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -56,6 +63,36 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
   const [createIssueForm, setCreateIssueForm] = useState<CreateIssueForm>(EMPTY_CREATE_ISSUE_FORM);
   const [creatingIssue, setCreatingIssue] = useState(false);
   const [createIssueError, setCreateIssueError] = useState<string | null>(null);
+  const [selectedIssueFromUrl, setSelectedIssueFromUrl] = useState<string | null>(readIssueFilenameFromLocation);
+
+  const handleSelectedIssueFilenameChange = useCallback((filename: string | null) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextUrl = new URL(window.location.href);
+    if (filename) {
+      nextUrl.searchParams.set("issue", filename);
+    } else {
+      nextUrl.searchParams.delete("issue");
+    }
+
+    const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextPath !== currentPath) {
+      setSelectedIssueFromUrl(filename);
+      router.replace(nextPath, { scroll: false });
+    }
+  }, [router]);
+
+  useEffect(() => {
+    const syncIssueFromLocation = () => {
+      setSelectedIssueFromUrl(readIssueFilenameFromLocation());
+    };
+
+    window.addEventListener("popstate", syncIssueFromLocation);
+    return () => window.removeEventListener("popstate", syncIssueFromLocation);
+  }, []);
 
   const {
     boardModel,
@@ -77,6 +114,8 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
     allIssues,
     surfaceIndex,
     detailPaneRef,
+    selectedIssueFilename: selectedIssueFromUrl,
+    onSelectedIssueFilenameChange: handleSelectedIssueFilenameChange,
   });
 
   const mergeLoadedIssue = useCallback((loadedIssue: SpecIssue) => {

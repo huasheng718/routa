@@ -39,16 +39,23 @@ export function useSpecBoardViewModel({
   allIssues,
   surfaceIndex,
   detailPaneRef,
+  selectedIssueFilename,
+  onSelectedIssueFilenameChange,
 }: {
   allIssues: SpecIssue[];
   surfaceIndex: FeatureSurfaceIndexResponse;
   detailPaneRef: RefObject<HTMLDivElement | null>;
+  selectedIssueFilename: string | null;
+  onSelectedIssueFilenameChange: (filename: string | null) => void;
 }) {
-  const [selectedIssueFilename, setSelectedIssueFilename] = useState<string | null>(null);
   const [selectedIssueFilenames, setSelectedIssueFilenames] = useState<Set<string>>(() => new Set());
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   const boardModel = useMemo(() => buildSpecBoardModel(allIssues, surfaceIndex), [allIssues, surfaceIndex]);
+
+  const selectIssueFilename = useCallback((filename: string | null) => {
+    onSelectedIssueFilenameChange(filename);
+  }, [onSelectedIssueFilenameChange]);
 
   const filteredIssues = useMemo(() => {
     return filterIssues(allIssues, filters);
@@ -117,34 +124,31 @@ export function useSpecBoardViewModel({
   const setFiltersAndSelection = useCallback((nextFilters: Filters) => {
     setFilters(nextFilters);
     const nextFilteredIssues = filterIssues(allIssues, nextFilters);
-    setSelectedIssueFilename((current) => {
-      if (nextFilteredIssues.length === 0) {
-        return null;
-      }
-      if (current && nextFilteredIssues.some((issue) => issue.filename === current)) {
-        return current;
-      }
-      return (nextFilteredIssues[0] as SpecIssue).filename;
-    });
-  }, [allIssues]);
+    const nextSelectedIssueFilename = nextFilteredIssues.length === 0
+      ? null
+      : selectedIssueFilename && nextFilteredIssues.some((issue) => issue.filename === selectedIssueFilename)
+        ? selectedIssueFilename
+        : (nextFilteredIssues[0] as SpecIssue).filename;
+    selectIssueFilename(nextSelectedIssueFilename);
+  }, [allIssues, selectIssueFilename, selectedIssueFilename]);
 
   const setSelectedIssue = useCallback((issue: SpecIssue | null) => {
-    setSelectedIssueFilename(issue?.filename ?? null);
-  }, []);
+    selectIssueFilename(issue?.filename ?? null);
+  }, [selectIssueFilename]);
 
   const handleSelectLinkedIssue = useCallback((filename: string) => {
     const issue = boardModel.issueByFilename.get(filename);
     if (issue) {
-      setSelectedIssueFilename(issue.filename);
+      selectIssueFilename(issue.filename);
     }
-  }, [boardModel.issueByFilename]);
+  }, [boardModel.issueByFilename, selectIssueFilename]);
 
   const handleSelectIssue = useCallback((issue: SpecIssue) => {
-    setSelectedIssueFilename(issue.filename);
+    selectIssueFilename(issue.filename);
     window.requestAnimationFrame(() => {
       detailPaneRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     });
-  }, [detailPaneRef]);
+  }, [detailPaneRef, selectIssueFilename]);
 
   const handleToggleIssueSelection = useCallback((issue: SpecIssue) => {
     setSelectedIssueFilenames((current) => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const navState = vi.hoisted(() => ({
   params: { workspaceId: "default" },
   push: vi.fn(),
+  replace: vi.fn(),
 }));
 
 const { desktopAwareFetch } = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ const { useWorkspaces } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useParams: () => navState.params,
   usePathname: () => "/workspace/default/spec",
-  useRouter: () => ({ push: navState.push }),
+  useRouter: () => ({ push: navState.push, replace: navState.replace }),
 }));
 
 vi.mock("@/client/utils/diagnostics", async () => {
@@ -313,6 +314,8 @@ describe("SpecPageClient", () => {
   beforeEach(() => {
     navState.params = { workspaceId: "default" };
     navState.push.mockReset();
+    navState.replace.mockReset();
+    window.history.replaceState(null, "", "/workspace/default/spec");
     desktopAwareFetch.mockReset();
     getDesktopApiBaseUrl.mockReturnValue("");
     useWorkspaces.mockReturnValue({
@@ -362,6 +365,37 @@ describe("SpecPageClient", () => {
     expect(desktopAwareFetch.mock.calls.some(([path]) => (
       String(path).includes("/api/spec/issues?workspaceId=default&filename=2026-04-10-linked-issue.md")
     ))).toBe(true);
+  });
+
+  it("opens the demand detail from the issue query parameter", async () => {
+    window.history.replaceState(null, "", "/workspace/default/spec?issue=2026-04-10-linked-issue.md");
+    mockSpecResponses();
+
+    render(<SpecPageClient />);
+
+    const detailPane = await screen.findByRole("region", { name: "Linked issue" });
+    expect(within(detailPane).getByText("Linked issue")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByTestId("markdown-viewer").textContent).toContain("Second body for the linked issue.");
+    });
+  });
+
+  it("updates the issue query parameter when selecting a demand", async () => {
+    mockSpecResponses();
+
+    render(<SpecPageClient />);
+
+    await screen.findByRole("region", { name: "Spec board" });
+
+    const statusBoard = screen.getByRole("region", { name: "状态" });
+    fireEvent.click(within(statusBoard).getByRole("button", { name: /Linked issue/i }));
+
+    await waitFor(() => {
+      expect(navState.replace).toHaveBeenCalledWith(
+        "/workspace/default/spec?issue=2026-04-10-linked-issue.md",
+        { scroll: false },
+      );
+    });
   });
 
   it("allows collapsing the currently selected family cluster from the explorer", async () => {
