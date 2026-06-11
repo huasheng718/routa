@@ -140,9 +140,9 @@ export function HomeInput({
   const normalizedLaunchModes = React.useMemo<LaunchModeConfig[]>(() => {
     if (launchModes && launchModes.length > 0) {
       return launchModes.map((mode) => ({
-        defaultAgentRole: mode.defaultAgentRole ?? "ROUTA",
-        allowRoleSwitch: mode.allowRoleSwitch ?? true,
-        allowCustomSpecialist: mode.allowCustomSpecialist ?? true,
+        defaultAgentRole: mode.defaultAgentRole ?? "CRAFTER",
+        allowRoleSwitch: mode.allowRoleSwitch ?? false,
+        allowCustomSpecialist: mode.allowCustomSpecialist ?? false,
         requireRepoSelection: mode.requireRepoSelection ?? false,
         dispatchMode: mode.dispatchMode ?? "pending-prompt",
         ...mode,

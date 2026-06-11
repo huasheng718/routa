@@ -337,4 +337,32 @@ describe("HomeInput", () => {
     expect(args[15]).toBe("System: Ship it");
     expect(storePendingPromptMock).not.toHaveBeenCalled();
   });
+
+  it("defaults launch modes without role config to single-agent crafter", async () => {
+    render(
+      <HomeInput
+        workspaceId="ws-1"
+        launchModes={[{
+          id: "simple",
+          label: "Simple",
+          description: "Simple session",
+        }]}
+        initialLaunchModeId="simple"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("repo-selection").textContent).toBe("/repo/main");
+    });
+    expect(screen.queryByText("Multi-agent")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(createSessionMock).toHaveBeenCalledTimes(1);
+    });
+
+    const args = createSessionMock.mock.calls[0];
+    expect(args[3]).toBe("CRAFTER");
+  });
 });
