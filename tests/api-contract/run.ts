@@ -10,7 +10,7 @@
  *
  * Options:
  *   --json          Output results as JSON
- *   --suite=agents  Run only a specific suite (agents, tasks, notes, workspaces, sessions, skills)
+ *   --suite=agents  Run only a specific suite (agents, tasks, notes, spec, workspaces, sessions, skills)
  *   --bail          Stop on first failure
  */
 
@@ -18,6 +18,7 @@ import { BASE_URL, type TestResult } from "./helpers";
 import { testAgents } from "./test-agents";
 import { testTasks } from "./test-tasks";
 import { testNotes } from "./test-notes";
+import { testSpec } from "./test-spec";
 import { testWorkspaces } from "./test-workspaces";
 import { testSessions, testSkills } from "./test-sessions";
 import { testSchemaValidation } from "./test-schema-validation";
@@ -39,6 +40,7 @@ const suites: { name: string; run: () => Promise<TestResult[]> }[] = [
   { name: "agents", run: testAgents },
   { name: "tasks", run: testTasks },
   { name: "notes", run: testNotes },
+  { name: "spec", run: testSpec },
   { name: "sessions", run: testSessions },
   { name: "skills", run: testSkills },
   { name: "schema-validation", run: testSchemaValidation },
@@ -70,7 +72,9 @@ async function main() {
   const available = await checkBackendAvailable();
   if (!available) {
     if (jsonMode) {
-      console.log(JSON.stringify({ error: `Backend not available at ${BASE_URL}` }));
+      console.log(
+        JSON.stringify({ error: `Backend not available at ${BASE_URL}` }),
+      );
     } else {
       console.error(`\n❌ Backend not available at ${BASE_URL}`);
       console.error("   Start the backend first:\n");
@@ -161,15 +165,15 @@ async function main() {
           })),
         },
         null,
-        2
-      )
+        2,
+      ),
     );
   } else {
     console.log("══════════════════════════════════════════════════");
     console.log(
       `  Total: ${totalPassed + totalFailed} tests | ` +
         `✅ ${totalPassed} passed | ` +
-        `❌ ${totalFailed} failed`
+        `❌ ${totalFailed} failed`,
     );
     console.log("══════════════════════════════════════════════════\n");
   }
