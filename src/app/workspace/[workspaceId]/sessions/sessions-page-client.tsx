@@ -196,9 +196,9 @@ export function SessionsPageClient() {
                   label: t.home.modeSessionTitle,
                   description: t.home.modeSessionDescription,
                   placeholder: t.home.modeSessionPlaceholder,
-                  defaultAgentRole: "ROUTA",
-                  allowRoleSwitch: true,
-                  allowCustomSpecialist: true,
+                  defaultAgentRole: "CRAFTER",
+                  allowRoleSwitch: false,
+                  allowCustomSpecialist: false,
                   dispatchMode: "pending-prompt",
                   buildSessionUrl: (nextWorkspaceId, sessionId) =>
                     `/workspace/${nextWorkspaceId ?? workspaceId}/sessions/${sessionId}`,

@@ -30,17 +30,20 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const { title } = body;
 
-  if (!title) {
+  if (typeof title !== "string" || title.trim().length === 0) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
   const system = getRoutaSystem();
   const workspace = createWorkspace({
     id: crypto.randomUUID(),
-    title,
+    title: title.trim(),
   });
 
   await system.workspaceStore.save(workspace);

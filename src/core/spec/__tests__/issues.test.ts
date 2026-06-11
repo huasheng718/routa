@@ -10,7 +10,12 @@ import {
   normalizeSpecIssueAttachmentPath,
   parseSpecIssueFile,
   resolveSpecIssueAttachmentFile,
+  SPEC_ISSUE_MAX_ATTACHMENT_COUNT,
+  SPEC_ISSUE_MAX_TOTAL_ATTACHMENT_BYTES,
+  SpecIssueAttachmentsTotalTooLargeError,
+  SpecIssueAttachmentTooManyError,
   SpecIssueAttachmentTooLargeError,
+  SpecIssueAttachmentUnsupportedTypeError,
 } from "../issues";
 
 async function createTempRepo(): Promise<string> {
@@ -170,6 +175,56 @@ Touches \`src/app/api/spec/issues/route.ts\` and \`/api/spec/issues\`.
         title: "Large attachment",
         attachments: [oversized],
       })).rejects.toBeInstanceOf(SpecIssueAttachmentTooLargeError);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects unsupported attachment types", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      await expect(createSpecIssue(repoRoot, {
+        title: "Unsupported attachment",
+        attachments: [
+          new File(["binary"], "archive.zip", { type: "application/zip" }),
+        ],
+      })).rejects.toBeInstanceOf(SpecIssueAttachmentUnsupportedTypeError);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects too many attachments", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      await expect(createSpecIssue(repoRoot, {
+        title: "Too many attachments",
+        attachments: Array.from({ length: SPEC_ISSUE_MAX_ATTACHMENT_COUNT + 1 }, (_, index) => (
+          new File([`doc-${index}`], `需求-${index}.md`, { type: "text/markdown" })
+        )),
+      })).rejects.toBeInstanceOf(SpecIssueAttachmentTooManyError);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects attachments over the total size limit before reading file buffers", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      const largeFiles = Array.from({ length: 5 }, (_, index) => ({
+        name: `recording-${index}.mp4`,
+        type: "video/mp4",
+        size: Math.floor(SPEC_ISSUE_MAX_TOTAL_ATTACHMENT_BYTES / 5) + 1,
+        arrayBuffer: async () => new ArrayBuffer(0),
+      }));
+
+      await expect(createSpecIssue(repoRoot, {
+        title: "Total attachment size",
+        attachments: largeFiles,
+      })).rejects.toBeInstanceOf(SpecIssueAttachmentsTotalTooLargeError);
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }

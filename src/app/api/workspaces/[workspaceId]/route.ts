@@ -77,7 +77,10 @@ export async function PATCH(
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   const { workspaceId } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const { title, metadata } = body;
 
   const system = getRoutaSystem();
@@ -88,7 +91,10 @@ export async function PATCH(
   }
 
   if (title !== undefined) {
-    await system.workspaceStore.updateTitle(workspaceId, title);
+    if (typeof title !== "string" || title.trim().length === 0) {
+      return NextResponse.json({ error: "title must be a non-empty string" }, { status: 400 });
+    }
+    await system.workspaceStore.updateTitle(workspaceId, title.trim());
   }
   if (metadata !== undefined) {
     try {

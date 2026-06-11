@@ -29,7 +29,10 @@ export async function POST(
   { params }: { params: Promise<{ workspaceId: string }> }
 ) {
   const { workspaceId } = await params;
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
   const repoPathInput = typeof body?.repoPath === "string" ? body.repoPath : "";
   const { branch, label } = body;
 

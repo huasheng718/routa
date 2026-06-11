@@ -14,7 +14,7 @@ import {
   normalizeSpecIssueScalar,
   shouldIncludeSpecIssueBody,
   specIssuesDirExists,
-  SpecIssueAttachmentTooLargeError,
+  SpecIssueAttachmentValidationError,
   type UploadedSpecIssueAttachmentInput,
 } from "@/core/spec/issues";
 
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     const issue = await createSpecIssue(repoRoot, { ...input, title });
     return NextResponse.json({ issue, repoRoot }, { status: 201 });
   } catch (error) {
-    if (error instanceof SpecIssueAttachmentTooLargeError) {
+    if (error instanceof SpecIssueAttachmentValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     const message = error instanceof Error ? error.message : String(error);

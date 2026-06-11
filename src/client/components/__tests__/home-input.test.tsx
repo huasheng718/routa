@@ -263,6 +263,7 @@ describe("HomeInput", () => {
     await waitFor(() => {
       expect(screen.getByTestId("repo-selection").textContent).toBe("/repo/main");
     });
+    expect(screen.queryByRole("button", { name: "Multi-agent" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /fix-tests/i }));
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -275,7 +276,7 @@ describe("HomeInput", () => {
     expect(args[0]).toBe("/repo/main");
     expect(args[1]).toBe("provider-x");
     expect(args[2]).toBe("mode-fast");
-    expect(args[3]).toBe("ROUTA");
+    expect(args[3]).toBe("CRAFTER");
     expect(args[4]).toBe("ws-1");
     expect(args[5]).toBe("resolved-model");
     expect(args[11]).toBe("main");

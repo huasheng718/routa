@@ -7,7 +7,23 @@ export const SPEC_KINDS = ["issue", "analysis", "progress_note", "verification_r
 export const SPEC_SEVERITIES = ["critical", "high", "medium", "low", "info"] as const;
 export const SPEC_ATTACHMENT_CATEGORIES = ["document", "image", "video"] as const;
 
-const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024;
+export const SPEC_ISSUE_MAX_ATTACHMENT_COUNT = 10;
+export const SPEC_ISSUE_MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+export const SPEC_ISSUE_MAX_TOTAL_ATTACHMENT_BYTES = 200 * 1024 * 1024;
+
+const ALLOWED_DOCUMENT_ATTACHMENT_EXTENSIONS = new Set([
+  ".doc",
+  ".docx",
+  ".pdf",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".txt",
+  ".md",
+]);
+const ALLOWED_IMAGE_ATTACHMENT_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg"]);
+const ALLOWED_VIDEO_ATTACHMENT_EXTENSIONS = new Set([".mp4", ".webm", ".mov"]);
 
 export type SpecStatus = typeof SPEC_STATUSES[number];
 export type SpecKind = typeof SPEC_KINDS[number];
@@ -67,9 +83,29 @@ export type CreateSpecIssueInput = {
   attachmentNames?: unknown;
 };
 
-export class SpecIssueAttachmentTooLargeError extends Error {
+export class SpecIssueAttachmentValidationError extends Error {}
+
+export class SpecIssueAttachmentTooManyError extends SpecIssueAttachmentValidationError {
+  constructor() {
+    super(`最多上传 ${SPEC_ISSUE_MAX_ATTACHMENT_COUNT} 个附件。`);
+  }
+}
+
+export class SpecIssueAttachmentUnsupportedTypeError extends SpecIssueAttachmentValidationError {
+  constructor(filename: string) {
+    super(`不支持的附件类型：${filename}`);
+  }
+}
+
+export class SpecIssueAttachmentTooLargeError extends SpecIssueAttachmentValidationError {
   constructor(filename: string) {
     super(`附件过大：${filename}`);
+  }
+}
+
+export class SpecIssueAttachmentsTotalTooLargeError extends SpecIssueAttachmentValidationError {
+  constructor() {
+    super(`附件总大小过大，最多 ${formatBytes(SPEC_ISSUE_MAX_TOTAL_ATTACHMENT_BYTES)}。`);
   }
 }
 
@@ -289,11 +325,36 @@ function sanitizeAttachmentFilename(filename: string): string {
   return `${base}${ext}`;
 }
 
+function attachmentExtension(file: UploadedSpecIssueAttachmentInput, fallbackName?: string): string {
+  return path.extname(fallbackName || file.name).toLowerCase();
+}
+
+export function isAllowedUploadedSpecIssueAttachment(
+  file: UploadedSpecIssueAttachmentInput,
+  fallbackName?: string,
+): boolean {
+  if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+    return true;
+  }
+
+  const extension = attachmentExtension(file, fallbackName);
+  return ALLOWED_DOCUMENT_ATTACHMENT_EXTENSIONS.has(extension)
+    || ALLOWED_IMAGE_ATTACHMENT_EXTENSIONS.has(extension)
+    || ALLOWED_VIDEO_ATTACHMENT_EXTENSIONS.has(extension);
+}
+
 function inferAttachmentCategory(file: UploadedSpecIssueAttachmentInput): SpecIssueAttachmentCategory {
   if (file.type.startsWith("image/")) {
     return "image";
   }
   if (file.type.startsWith("video/")) {
+    return "video";
+  }
+  const extension = attachmentExtension(file);
+  if (ALLOWED_IMAGE_ATTACHMENT_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+  if (ALLOWED_VIDEO_ATTACHMENT_EXTENSIONS.has(extension)) {
     return "video";
   }
   return "document";
@@ -328,6 +389,41 @@ function appendAttachmentMarkdown(body: string, attachments: SpecIssueAttachment
   }
 
   return [body.trim(), attachmentMarkdown].filter(Boolean).join("\n\n");
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${Math.round(bytes / (1024 * 1024))} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${bytes} B`;
+}
+
+function validateUploadedSpecIssueAttachments(
+  files: UploadedSpecIssueAttachmentInput[],
+  attachmentNames: string[],
+) {
+  if (files.length > SPEC_ISSUE_MAX_ATTACHMENT_COUNT) {
+    throw new SpecIssueAttachmentTooManyError();
+  }
+
+  const unsupported = files.find((file, index) => !isAllowedUploadedSpecIssueAttachment(file, attachmentNames[index]));
+  if (unsupported) {
+    const unsupportedIndex = files.indexOf(unsupported);
+    throw new SpecIssueAttachmentUnsupportedTypeError(attachmentNames[unsupportedIndex] || unsupported.name);
+  }
+
+  const oversized = files.find((file) => file.size > SPEC_ISSUE_MAX_ATTACHMENT_BYTES);
+  if (oversized) {
+    throw new SpecIssueAttachmentTooLargeError(oversized.name);
+  }
+
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  if (totalSize > SPEC_ISSUE_MAX_TOTAL_ATTACHMENT_BYTES) {
+    throw new SpecIssueAttachmentsTotalTooLargeError();
+  }
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -465,15 +561,12 @@ export async function createSpecIssue(
   };
 
   await fsp.mkdir(issuesDir, { recursive: true });
+  validateUploadedSpecIssueAttachments(attachmentFiles, attachmentNames);
   const filename = await pickIssueFilename(issuesDir, title, date);
   const issueSlug = filename.replace(/\.md$/u, "");
   const attachmentDir = path.join(issuesDir, "assets", issueSlug);
   const attachments: SpecIssueAttachment[] = [];
   for (const [index, file] of attachmentFiles.entries()) {
-    if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-      throw new SpecIssueAttachmentTooLargeError(file.name);
-    }
-
     await fsp.mkdir(attachmentDir, { recursive: true });
     const originalName = attachmentNames[index] || file.name;
     const baseFilename = sanitizeAttachmentFilename(originalName);

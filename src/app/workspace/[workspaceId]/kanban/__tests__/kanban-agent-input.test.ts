@@ -87,4 +87,17 @@ describe("scheduleKanbanRefreshBurst", () => {
 
     expect(onRefresh).not.toHaveBeenCalled();
   });
+
+  it("coalesces overlapping refresh bursts to the latest request", () => {
+    const firstRefresh = vi.fn();
+    const secondRefresh = vi.fn();
+
+    scheduleKanbanRefreshBurst(firstRefresh);
+    vi.advanceTimersByTime(AGENT_REFRESH_BURST_DELAYS_MS[0] - 1);
+    scheduleKanbanRefreshBurst(secondRefresh);
+    vi.advanceTimersByTime(Math.max(...AGENT_REFRESH_BURST_DELAYS_MS) + 1);
+
+    expect(firstRefresh).not.toHaveBeenCalled();
+    expect(secondRefresh).toHaveBeenCalledTimes(AGENT_REFRESH_BURST_DELAYS_MS.length);
+  });
 });

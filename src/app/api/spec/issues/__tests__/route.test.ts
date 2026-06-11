@@ -3,6 +3,7 @@ import { tmpdir } from "os";
 import * as path from "path";
 import { NextRequest } from "next/server";
 import { describe, expect, it, vi } from "vitest";
+import { SPEC_ISSUE_MAX_ATTACHMENT_COUNT } from "@/core/spec/issues";
 
 const system = {
   codebaseStore: {
@@ -176,7 +177,7 @@ Touches \`/workspace/default/kanban\` and \`src/app/api/kanban/boards/route.ts\`
       ));
       const payload = await response.json();
 
-      expect(response.status).toBe(201);
+      expect(response.status, JSON.stringify(payload)).toBe(201);
       expect(payload.repoRoot).toBe(repoRoot);
       expect(payload.issue).toMatchObject({
         title: "新增合同审批风险提示",
@@ -236,7 +237,7 @@ Touches \`/workspace/default/kanban\` and \`src/app/api/kanban/boards/route.ts\`
       ));
       const payload = await response.json();
 
-      expect(response.status).toBe(201);
+      expect(response.status, JSON.stringify(payload)).toBe(201);
       expect(payload.issue.attachments).toHaveLength(3);
       expect(payload.issue.attachments.map((attachment: { category: string }) => attachment.category)).toEqual([
         "document",
@@ -258,6 +259,63 @@ Touches \`/workspace/default/kanban\` and \`src/app/api/kanban/boards/route.ts\`
       for (const attachment of payload.issue.attachments as Array<{ path: string }>) {
         await expect(stat(path.join(repoRoot, "docs", "issues", attachment.path))).resolves.toBeTruthy();
       }
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 400 for unsupported uploaded attachment types", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      const formData = new FormData();
+      formData.append("title", "不支持的附件");
+      formData.append("attachments", new File(["zip"], "archive.zip", {
+        type: "application/zip",
+      }), "archive.zip");
+      formData.append("attachmentNames", "archive.zip");
+
+      const response = await POST(new NextRequest(
+        `http://localhost/api/spec/issues?repoPath=${encodeURIComponent(repoRoot)}`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      ));
+      const payload = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(payload.error).toContain("不支持的附件类型");
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("returns 400 when uploaded attachment count exceeds the server limit", async () => {
+    const repoRoot = await createTempRepo();
+
+    try {
+      const formData = new FormData();
+      formData.append("title", "附件数量过多");
+      for (let index = 0; index < SPEC_ISSUE_MAX_ATTACHMENT_COUNT + 1; index += 1) {
+        const filename = `需求-${index}.md`;
+        formData.append("attachments", new File([`doc-${index}`], filename, {
+          type: "text/markdown",
+        }), filename);
+        formData.append("attachmentNames", filename);
+      }
+
+      const response = await POST(new NextRequest(
+        `http://localhost/api/spec/issues?repoPath=${encodeURIComponent(repoRoot)}`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      ));
+      const payload = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(payload.error).toContain("最多上传");
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
     }
