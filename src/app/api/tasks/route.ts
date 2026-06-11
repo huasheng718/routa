@@ -191,16 +191,12 @@ export async function GET(request: NextRequest) {
 
 async function getTasks(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const workspaceId = requireWorkspaceId(searchParams.get("workspaceId"));
+  const workspaceId = requireWorkspaceId(searchParams.get("workspaceId")) ?? "default";
   const sessionId = searchParams.get("sessionId");
   const status = searchParams.get("status");
   const assignedTo = searchParams.get("assignedTo");
   const expand = new Set(searchParams.getAll("expand").flatMap((value) => value.split(",").map((item) => item.trim())));
   const includeDeliveryReadiness = expand.has("deliveryReadiness");
-
-  if (!workspaceId) {
-    return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
-  }
 
   const system = getRoutaSystem();
 
@@ -277,7 +273,7 @@ export async function POST(request: NextRequest) {
 
   const normalizedTitle = typeof title === "string" ? title : "";
   const normalizedObjective = typeof objective === "string" ? objective : "";
-  const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
+  const normalizedWorkspaceId = requireWorkspaceId(workspaceId) ?? "default";
   const normalizedSessionId = typeof sessionId === "string" ? sessionId : undefined;
   const normalizedScope = typeof scope === "string" ? scope : undefined;
   const normalizedAcceptanceCriteria = Array.isArray(acceptanceCriteria)
@@ -339,10 +335,6 @@ export async function POST(request: NextRequest) {
   if (!normalizedObjective) {
     return NextResponse.json({ error: "objective is required" }, { status: 400 });
   }
-  if (!normalizedWorkspaceId) {
-    return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
-  }
-
   const normalizedPriority = parsePriority(priority);
   if (priority !== undefined && priority !== null && normalizedPriority === undefined) {
     return NextResponse.json({ error: `Invalid priority: ${String(priority)}` }, { status: 400 });

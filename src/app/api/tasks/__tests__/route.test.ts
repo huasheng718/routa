@@ -231,16 +231,16 @@ describe("/api/tasks GET", () => {
     expect(data.tasks[0].jitContextSnapshot).toBeUndefined();
   });
 
-  it("rejects task listing without workspaceId", async () => {
+  it("lists default workspace tasks when workspaceId is omitted", async () => {
     const response = await GET(new NextRequest("http://localhost/api/tasks"));
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data).toEqual({ error: "workspaceId is required" });
-    expect(taskStore.listByWorkspace).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(taskStore.listByWorkspace).toHaveBeenCalledWith("default");
+    expect(data.tasks).toHaveLength(1);
   });
 
-  it("rejects task creation without workspaceId", async () => {
+  it("creates tasks in the default workspace when workspaceId is omitted", async () => {
     const response = await POST(new NextRequest("http://localhost/api/tasks", {
       method: "POST",
       body: JSON.stringify({
@@ -251,8 +251,11 @@ describe("/api/tasks GET", () => {
     }));
     const data = await response.json();
 
-    expect(response.status).toBe(400);
-    expect(data).toEqual({ error: "workspaceId is required" });
+    expect(response.status).toBe(201);
+    expect(data.task.workspaceId).toBe("default");
+    expect(taskStore.save).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: "default",
+    }));
   });
 
   it("processes automation immediately when creating into an automated lane", async () => {
