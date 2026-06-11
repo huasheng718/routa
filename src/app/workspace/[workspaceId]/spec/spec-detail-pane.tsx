@@ -1,5 +1,6 @@
 "use client";
 
+import ImagePreview from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, ClipboardList, FilePlus2, FileText, FolderPlus, GitBranch, Image, Link2, Video } from "lucide-react";
 import { resolveApiPath } from "@/client/config/backend";
@@ -212,27 +213,83 @@ function IssueAttachments({
     return null;
   }
 
+  const buildAttachmentUrl = (path: string) => resolveApiPath(
+    `/spec/issues/assets?workspaceId=${encodeURIComponent(workspaceId)}&path=${encodeURIComponent(path)}`,
+    getDesktopApiBaseUrl(),
+  );
+
   return (
     <section className="rounded-xl border border-black/6 bg-white/80 p-3 dark:border-white/10 dark:bg-white/[0.03]">
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
         {t.specBoard.createIssueAttachmentsTitle}
       </div>
-      <div className="grid gap-2 xl:grid-cols-2">
+      <div className="grid gap-3 xl:grid-cols-2">
         {issue.attachments.map((attachment) => {
           const Icon = attachment.category === "image" ? Image : attachment.category === "video" ? Video : FileText;
+          const attachmentUrl = buildAttachmentUrl(attachment.path);
+          const attachmentName = attachment.originalName || attachment.filename;
+
+          if (attachment.category === "image") {
+            return (
+              <figure
+                key={attachment.path}
+                className="overflow-hidden rounded-lg border border-black/6 bg-[#f8fafc] dark:border-white/10 dark:bg-white/[0.04]"
+              >
+                <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <ImagePreview
+                    src={attachmentUrl}
+                    alt={attachmentName}
+                    width={640}
+                    height={360}
+                    unoptimized
+                    loading="lazy"
+                    className="h-44 w-full bg-white object-contain dark:bg-black/20"
+                  />
+                </a>
+                <figcaption className="flex items-center gap-2 border-t border-black/6 px-2.5 py-2 text-sm text-slate-700 dark:border-white/10 dark:text-slate-100">
+                  <Icon className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-300" strokeWidth={1.8} />
+                  <span className="min-w-0 flex-1 truncate">{attachmentName}</span>
+                  <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-400">{formatFileSize(attachment.size)}</span>
+                </figcaption>
+              </figure>
+            );
+          }
+
+          if (attachment.category === "video") {
+            return (
+              <figure
+                key={attachment.path}
+                className="overflow-hidden rounded-lg border border-black/6 bg-[#0f1722] dark:border-white/10"
+              >
+                <video
+                  src={attachmentUrl}
+                  controls
+                  preload="metadata"
+                  className="h-44 w-full bg-black object-contain"
+                >
+                  <a href={attachmentUrl} target="_blank" rel="noopener noreferrer">
+                    {attachmentName}
+                  </a>
+                </video>
+                <figcaption className="flex items-center gap-2 border-t border-white/10 px-2.5 py-2 text-sm text-slate-100">
+                  <Icon className="h-4 w-4 shrink-0 text-slate-300" strokeWidth={1.8} />
+                  <span className="min-w-0 flex-1 truncate">{attachmentName}</span>
+                  <span className="shrink-0 text-[11px] text-slate-400">{formatFileSize(attachment.size)}</span>
+                </figcaption>
+              </figure>
+            );
+          }
+
           return (
             <a
               key={attachment.path}
-              href={resolveApiPath(
-                `/spec/issues/assets?workspaceId=${encodeURIComponent(workspaceId)}&path=${encodeURIComponent(attachment.path)}`,
-                getDesktopApiBaseUrl(),
-              )}
+              href={attachmentUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-lg border border-black/6 bg-[#f8fafc] px-2.5 py-2 text-sm text-slate-700 transition-colors hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-100 dark:hover:bg-white/[0.07]"
             >
               <Icon className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-300" strokeWidth={1.8} />
-              <span className="min-w-0 flex-1 truncate">{attachment.originalName || attachment.filename}</span>
+              <span className="min-w-0 flex-1 truncate">{attachmentName}</span>
               <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-400">{formatFileSize(attachment.size)}</span>
             </a>
           );

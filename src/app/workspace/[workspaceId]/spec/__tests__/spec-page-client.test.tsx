@@ -109,7 +109,11 @@ function mockSpecResponses(options?: {
                 path: `assets/2026-05-24-contract-risk/${file.name}`,
                 mimeType: file.type,
                 size: file.size,
-                category: file.type.startsWith("image/") ? "image" : "document",
+                category: file.type.startsWith("image/")
+                  ? "image"
+                  : file.type.startsWith("video/")
+                    ? "video"
+                    : "document",
               }))
             : [],
           body: String(body.body ?? ""),
@@ -534,10 +538,52 @@ describe("SpecPageClient", () => {
     expect((createBody as FormData).get("reportedBy")).toBe("human");
     expect(((createBody as FormData).get("attachments") as File).name).toBe("risk.png");
     expect((createBody as FormData).get("attachmentNames")).toBe("risk.png");
-    expect(screen.getByRole("link", { name: /risk.png/i }).getAttribute("href")).toBe(
+    expect(screen.getByRole("img", { name: "risk.png" }).getAttribute("src")).toBe(
       "http://127.0.0.1:3210/api/spec/issues/assets?workspaceId=default&path=assets%2F2026-05-24-contract-risk%2Frisk.png",
     );
     expect(screen.getByTestId("markdown-viewer").textContent).toContain("需要在合同审批前展示风险提示。");
+  });
+
+  it("previews image and video attachments while keeping document attachments as links", async () => {
+    mockSpecResponses();
+    getDesktopApiBaseUrl.mockReturnValue("http://127.0.0.1:3210");
+
+    render(<SpecPageClient />);
+
+    await screen.findByRole("region", { name: "Spec board" });
+    fireEvent.click(screen.getByRole("button", { name: "新增需求" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "新增需求" });
+    fireEvent.change(within(dialog).getByLabelText("需求标题"), {
+      target: { value: "附件预览验证" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("上传附件"), {
+      target: {
+        files: [
+          new File(["image"], "flow.png", { type: "image/png" }),
+          new File(["video"], "demo.mp4", { type: "video/mp4" }),
+          new File(["doc"], "brief.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "新增需求" }));
+
+    await screen.findByRole("region", { name: "附件预览验证" });
+
+    const image = screen.getByRole("img", { name: "flow.png" });
+    expect(image.getAttribute("src")).toBe(
+      "http://127.0.0.1:3210/api/spec/issues/assets?workspaceId=default&path=assets%2F2026-05-24-contract-risk%2Fflow.png",
+    );
+
+    const video = document.querySelector("video");
+    expect(video?.getAttribute("controls")).not.toBeNull();
+    expect(video?.getAttribute("src")).toBe(
+      "http://127.0.0.1:3210/api/spec/issues/assets?workspaceId=default&path=assets%2F2026-05-24-contract-risk%2Fdemo.mp4",
+    );
+
+    expect(screen.getByRole("link", { name: /brief.pdf/i }).getAttribute("href")).toBe(
+      "http://127.0.0.1:3210/api/spec/issues/assets?workspaceId=default&path=assets%2F2026-05-24-contract-risk%2Fbrief.pdf",
+    );
   });
 
   it("removes an attachment from the create demand dialog before submitting", async () => {
