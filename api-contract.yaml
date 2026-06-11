@@ -184,6 +184,33 @@ components:
       type: string
       enum: [local, github]
 
+    Codebase:
+      type: object
+      required: [id, workspaceId, repoPath, isDefault, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        repoPath:
+          type: string
+        branch:
+          type: string
+        label:
+          type: string
+        isDefault:
+          type: boolean
+        sourceType:
+          $ref: "#/components/schemas/CodebaseSourceType"
+        sourceUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
     VirtualFileEntry:
       type: object
       required: [path, name, isDirectory]
@@ -595,10 +622,6 @@ components:
         id:
           type: string
         title:
-          type: string
-        repoPath:
-          type: string
-        branch:
           type: string
         status:
           $ref: "#/components/schemas/WorkspaceStatus"
@@ -2201,10 +2224,6 @@ paths:
               properties:
                 title:
                   type: string
-                repoPath:
-                  type: string
-                branch:
-                  type: string
                 metadata:
                   type: object
                   additionalProperties:
@@ -2216,6 +2235,17 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [workspace]
+                properties:
+                  workspace:
+                    $ref: "#/components/schemas/Workspace"
+        "201":
+          description: Created workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workspace]
                 properties:
                   workspace:
                     $ref: "#/components/schemas/Workspace"
@@ -2232,16 +2262,24 @@ paths:
             type: string
       responses:
         "200":
-          description: Single workspace
+          description: Single workspace with associated codebases
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Workspace"
+                type: object
+                required: [workspace, codebases]
+                properties:
+                  workspace:
+                    $ref: "#/components/schemas/Workspace"
+                  codebases:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Codebase"
         "404":
           description: Workspace not found
     patch:
       operationId: updateWorkspace
-      summary: Update workspace (title, repoPath, branch, status, metadata)
+      summary: Update workspace title and metadata
       parameters:
         - name: id
           in: path
@@ -2257,12 +2295,6 @@ paths:
               properties:
                 title:
                   type: string
-                repoPath:
-                  type: string
-                branch:
-                  type: string
-                status:
-                  $ref: "#/components/schemas/WorkspaceStatus"
                 metadata:
                   type: object
                   additionalProperties:
@@ -2274,6 +2306,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [workspace]
                 properties:
                   workspace:
                     $ref: "#/components/schemas/Workspace"
@@ -4328,7 +4361,7 @@ paths:
                   codebases:
                     type: array
                     items:
-                      type: object
+                      $ref: "#/components/schemas/Codebase"
     post:
       operationId: addWorkspaceCodebase
       summary: Add a codebase to a workspace
@@ -4344,16 +4377,31 @@ paths:
           application/json:
             schema:
               type: object
+              required: [repoPath]
               properties:
-                name:
+                repoPath:
                   type: string
-                path:
+                branch:
                   type: string
+                label:
+                  type: string
+                isDefault:
+                  type: boolean
                 sourceType:
                   $ref: "#/components/schemas/CodebaseSourceType"
+                sourceUrl:
+                  type: string
       responses:
         "201":
           description: Created codebase
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [codebase]
+                properties:
+                  codebase:
+                    $ref: "#/components/schemas/Codebase"
 
   /api/workspaces/{workspaceId}/codebases/{codebaseId}:
     delete:
