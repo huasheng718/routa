@@ -1356,6 +1356,11 @@ const en: TranslationDictionary = {
     mergeTaskTitle: "Merged demand: {title} and {count} items",
     mergeWorkspaceTitle: "Merged demand: {title} and {count} items",
     mergeSourcesTitle: "Merged source demands",
+    taskAttachments: "Requirement attachments",
+    taskAttachmentRow: "- {name} ({category}, {size}): {path}",
+    attachmentCategoryDocument: "document",
+    attachmentCategoryImage: "image",
+    attachmentCategoryVideo: "video",
     mergeCreateKanbanTaskIntro:
       "Kanban task merged from demand management in the current workspace.",
     mergeOpenWorkspaceTaskIntro:

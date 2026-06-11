@@ -1255,6 +1255,11 @@ export interface TranslationDictionary
     mergeTaskTitle: string;
     mergeWorkspaceTitle: string;
     mergeSourcesTitle: string;
+    taskAttachments: string;
+    taskAttachmentRow: string;
+    attachmentCategoryDocument: string;
+    attachmentCategoryImage: string;
+    attachmentCategoryVideo: string;
     mergeCreateKanbanTaskIntro: string;
     mergeOpenWorkspaceTaskIntro: string;
     createKanbanTaskFromIssue: string;

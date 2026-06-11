@@ -20,5 +20,7 @@ describe("en spec board copy", () => {
     expect(en.specBoard.mergeCreateKanbanTask).toBe("Merge into Kanban task");
     expect(en.specBoard.mergeOpenWorkspace).toBe("Merge into workspace");
     expect(en.specBoard.mergeSourcesTitle).toBe("Merged source demands");
+    expect(en.specBoard.taskAttachments).toBe("Requirement attachments");
+    expect(en.specBoard.attachmentCategoryImage).toBe("image");
   });
 });

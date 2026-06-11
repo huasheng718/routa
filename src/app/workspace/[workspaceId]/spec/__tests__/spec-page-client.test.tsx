@@ -223,6 +223,23 @@ function mockSpecResponses(options?: {
           githubIssue: filename === "2026-04-11-spec-board.md" ? 410 : null,
           githubState: filename === "2026-04-11-spec-board.md" ? "closed" : null,
           githubUrl: filename === "2026-04-11-spec-board.md" ? "https://github.com/phodal/routa/issues/410" : null,
+          attachments: filename === "2026-04-11-spec-board.md"
+            ? [{
+                filename: "flow.png",
+                originalName: "流程图.png",
+                path: "assets/2026-04-11-spec-board/flow.png",
+                mimeType: "image/png",
+                size: 2048,
+                category: "image",
+              }]
+            : [{
+                filename: "brief.pdf",
+                originalName: "需求说明.pdf",
+                path: "assets/2026-04-10-linked-issue/brief.pdf",
+                mimeType: "application/pdf",
+                size: 4096,
+                category: "document",
+              }],
           body: bodyByFilename[filename ?? ""] ?? "",
           bodyLoaded: true,
           surfaceText: bodyByFilename[filename ?? ""] ?? "",
@@ -250,6 +267,14 @@ function mockSpecResponses(options?: {
             githubIssue: 410,
             githubState: "closed",
             githubUrl: "https://github.com/phodal/routa/issues/410",
+            attachments: [{
+              filename: "flow.png",
+              originalName: "流程图.png",
+              path: "assets/2026-04-11-spec-board/flow.png",
+              mimeType: "image/png",
+              size: 2048,
+              category: "image",
+            }],
             body: "",
             bodyLoaded: false,
             surfaceText: [
@@ -273,6 +298,14 @@ function mockSpecResponses(options?: {
             githubIssue: null,
             githubState: null,
             githubUrl: null,
+            attachments: [{
+              filename: "brief.pdf",
+              originalName: "需求说明.pdf",
+              path: "assets/2026-04-10-linked-issue/brief.pdf",
+              mimeType: "application/pdf",
+              size: 4096,
+              category: "document",
+            }],
             body: "",
             bodyLoaded: false,
             surfaceText: "",
@@ -729,12 +762,17 @@ describe("SpecPageClient", () => {
     });
     expect(taskBody.contextSearchSpec).toMatchObject({
       query: "Spec board",
-      relatedFiles: ["docs/issues/2026-04-11-spec-board.md"],
+      relatedFiles: [
+        "docs/issues/2026-04-11-spec-board.md",
+        "docs/issues/assets/2026-04-11-spec-board/flow.png",
+      ],
       moduleHints: ["kanban"],
     });
     expect(taskBody.contextSearchSpec.symptomHints).toEqual(expect.arrayContaining(["Spec board", "high", "kanban", "board"]));
     expect(taskBody.objective).toContain("从需求管理开启的新工作区任务。");
     expect(taskBody.objective).toContain("来源需求: Spec board");
+    expect(taskBody.objective).toContain("需求附件:");
+    expect(taskBody.objective).toContain("- 流程图.png（图片，2 KB）：docs/issues/assets/2026-04-11-spec-board/flow.png");
     expect(taskBody.objective).toContain("Marker: lineage-alpha");
     expect(taskBody.acceptanceCriteria).toEqual([
       "新工作区保留原需求来源与关联上下文。",
@@ -809,12 +847,17 @@ describe("SpecPageClient", () => {
     });
     expect(taskBody.contextSearchSpec).toMatchObject({
       query: "Spec board",
-      relatedFiles: ["docs/issues/2026-04-11-spec-board.md"],
+      relatedFiles: [
+        "docs/issues/2026-04-11-spec-board.md",
+        "docs/issues/assets/2026-04-11-spec-board/flow.png",
+      ],
       moduleHints: ["kanban"],
     });
     expect(taskBody.contextSearchSpec.symptomHints).toEqual(expect.arrayContaining(["Spec board", "high", "kanban", "board"]));
     expect(taskBody.objective).toContain("从需求管理创建的当前工作区看板任务。");
     expect(taskBody.objective).toContain("来源需求: Spec board");
+    expect(taskBody.objective).toContain("需求附件:");
+    expect(taskBody.objective).toContain("- 流程图.png（图片，2 KB）：docs/issues/assets/2026-04-11-spec-board/flow.png");
     expect(taskBody.objective).toContain("Marker: lineage-alpha");
     expect(taskBody.acceptanceCriteria).toEqual([
       "看板任务保留原需求来源与关联上下文。",
@@ -854,7 +897,9 @@ describe("SpecPageClient", () => {
       query: "Spec board Linked issue",
       relatedFiles: [
         "docs/issues/2026-04-11-spec-board.md",
+        "docs/issues/assets/2026-04-11-spec-board/flow.png",
         "docs/issues/2026-04-10-linked-issue.md",
+        "docs/issues/assets/2026-04-10-linked-issue/brief.pdf",
       ],
       moduleHints: ["kanban"],
     });
@@ -872,6 +917,8 @@ describe("SpecPageClient", () => {
     expect(taskBody.objective).toContain("合并来源需求:");
     expect(taskBody.objective).toContain("1. Spec board");
     expect(taskBody.objective).toContain("2. Linked issue");
+    expect(taskBody.objective).toContain("- 流程图.png（图片，2 KB）：docs/issues/assets/2026-04-11-spec-board/flow.png");
+    expect(taskBody.objective).toContain("- 需求说明.pdf（文档，4 KB）：docs/issues/assets/2026-04-10-linked-issue/brief.pdf");
     expect(taskBody.objective).toContain("Marker: lineage-alpha");
     expect(taskBody.objective).toContain("Second body for the linked issue.");
   });
@@ -936,7 +983,9 @@ describe("SpecPageClient", () => {
       query: "Spec board Linked issue",
       relatedFiles: [
         "docs/issues/2026-04-11-spec-board.md",
+        "docs/issues/assets/2026-04-11-spec-board/flow.png",
         "docs/issues/2026-04-10-linked-issue.md",
+        "docs/issues/assets/2026-04-10-linked-issue/brief.pdf",
       ],
       moduleHints: ["kanban"],
     });
@@ -954,6 +1003,8 @@ describe("SpecPageClient", () => {
     expect(taskBody.objective).toContain("合并来源需求:");
     expect(taskBody.objective).toContain("1. Spec board");
     expect(taskBody.objective).toContain("2. Linked issue");
+    expect(taskBody.objective).toContain("- 流程图.png（图片，2 KB）：docs/issues/assets/2026-04-11-spec-board/flow.png");
+    expect(taskBody.objective).toContain("- 需求说明.pdf（文档，4 KB）：docs/issues/assets/2026-04-10-linked-issue/brief.pdf");
     expect(taskBody.acceptanceCriteria).toEqual([
       "新工作区保留原需求来源与关联上下文。",
       "新工作区已准备当前代码库上下文，可直接进入看板推进。",

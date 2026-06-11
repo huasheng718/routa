@@ -20,5 +20,7 @@ describe("zh spec board copy", () => {
     expect(zh.specBoard.mergeCreateKanbanTask).toBe("合并创建看板任务");
     expect(zh.specBoard.mergeOpenWorkspace).toBe("合并开启工作区");
     expect(zh.specBoard.mergeSourcesTitle).toBe("合并来源需求");
+    expect(zh.specBoard.taskAttachments).toBe("需求附件");
+    expect(zh.specBoard.attachmentCategoryImage).toBe("图片");
   });
 });

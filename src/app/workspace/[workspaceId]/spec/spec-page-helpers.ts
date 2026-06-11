@@ -299,6 +299,50 @@ export function priorityFromIssues(issues: SpecIssue[]): "urgent" | "high" | "me
   return highestSeverityIssue ? priorityFromIssueSeverity(highestSeverityIssue.severity) : undefined;
 }
 
+function buildAttachmentRepoPath(path: string): string {
+  const normalizedPath = compactText(path).replaceAll("\\", "/").replace(/^\.?\//u, "");
+  if (!normalizedPath) {
+    return "";
+  }
+  return normalizedPath.startsWith("docs/issues/")
+    ? normalizedPath
+    : `docs/issues/${normalizedPath}`;
+}
+
+function getAttachmentCategoryLabel(
+  category: NonNullable<SpecIssue["attachments"]>[number]["category"],
+  t: TranslationT,
+): string {
+  switch (category) {
+    case "image":
+      return t.specBoard.attachmentCategoryImage;
+    case "video":
+      return t.specBoard.attachmentCategoryVideo;
+    case "document":
+    default:
+      return t.specBoard.attachmentCategoryDocument;
+  }
+}
+
+function buildIssueAttachmentRows(issue: SpecIssue, t: TranslationT): string[] {
+  return (issue.attachments ?? []).flatMap((attachment) => {
+    const repoPath = buildAttachmentRepoPath(attachment.path);
+    if (!repoPath) {
+      return [];
+    }
+
+    const attachmentName = compactText(attachment.originalName) || compactText(attachment.filename) || repoPath;
+    return [
+      formatTemplate(t.specBoard.taskAttachmentRow, {
+        name: attachmentName,
+        category: getAttachmentCategoryLabel(attachment.category, t),
+        size: formatFileSize(attachment.size),
+        path: repoPath,
+      }),
+    ];
+  });
+}
+
 function buildIssueTaskObjective(issue: SpecIssue, t: TranslationT, intro: string): string {
   const body = compactText(issue.body) || compactText(issue.surfaceText);
   const statusLabels = getStatusLabels(t);
@@ -318,11 +362,19 @@ function buildIssueTaskObjective(issue: SpecIssue, t: TranslationT, intro: strin
   if (githubUrl) {
     metadataRows.push([t.specBoard.githubLinked, githubUrl]);
   }
+  const attachmentRows = buildIssueAttachmentRows(issue, t);
 
   return [
     intro,
     "",
     ...metadataRows.map(([label, value]) => `${label}: ${value}`),
+    ...(attachmentRows.length > 0
+      ? [
+          "",
+          `${t.specBoard.taskAttachments}:`,
+          ...attachmentRows,
+        ]
+      : []),
     "",
     body || t.specBoard.openWorkspaceTaskBodyEmpty,
   ].join("\n");
@@ -351,6 +403,11 @@ export function buildIssuesTaskObjective(issues: SpecIssue[], t: TranslationT, i
     const githubUrl = compactText(issue.githubUrl);
     if (githubUrl) {
       rows.push(`   ${t.specBoard.githubLinked}: ${githubUrl}`);
+    }
+    const attachmentRows = buildIssueAttachmentRows(issue, t);
+    if (attachmentRows.length > 0) {
+      rows.push(`   ${t.specBoard.taskAttachments}:`);
+      attachmentRows.forEach((row) => rows.push(`   ${row}`));
     }
 
     return [
@@ -393,13 +450,14 @@ export function buildIssuesTaskScope(issues: SpecIssue[]): string | undefined {
 }
 
 export function buildIssuesTaskContextSearchSpec(issues: SpecIssue[]): TaskContextSearchSpec | undefined {
-  const issueFiles = Array.from(new Set(
-    issues
-      .map((issue) => compactText(issue.filename))
-      .filter(Boolean)
-      .map((filename) => `docs/issues/${filename}`),
-  ));
-  if (issueFiles.length === 0) {
+  const relatedFiles = Array.from(new Set(issues.flatMap((issue) => {
+    const issueFile = compactText(issue.filename);
+    return [
+      ...(issueFile ? [`docs/issues/${issueFile}`] : []),
+      ...(issue.attachments ?? []).map((attachment) => buildAttachmentRepoPath(attachment.path)).filter(Boolean),
+    ];
+  })));
+  if (relatedFiles.length === 0) {
     return undefined;
   }
 
@@ -412,7 +470,7 @@ export function buildIssuesTaskContextSearchSpec(issues: SpecIssue[]): TaskConte
 
   return {
     query: titles.join(" "),
-    relatedFiles: issueFiles,
+    relatedFiles,
     moduleHints: areas,
     symptomHints: Array.from(new Set([...titles, ...severities, ...tags])),
   };
