@@ -66,6 +66,16 @@ function errorJson(data: unknown) {
   } as Response;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((innerResolve, innerReject) => {
+    resolve = innerResolve;
+    reject = innerReject;
+  });
+  return { promise, resolve, reject };
+}
+
 function mockSpecResponses(options?: {
   surfaceOk?: boolean;
   failBodyFilenames?: string[];
@@ -921,6 +931,100 @@ describe("SpecPageClient", () => {
     expect(taskBody.objective).toContain("- 需求说明.pdf（文档，4 KB）：docs/issues/assets/2026-04-10-linked-issue/brief.pdf");
     expect(taskBody.objective).toContain("Marker: lineage-alpha");
     expect(taskBody.objective).toContain("Second body for the linked issue.");
+  });
+
+  it("loads selected demand bodies concurrently before creating a merged kanban task", async () => {
+    const firstBody = deferred<Response>();
+    const secondBody = deferred<Response>();
+    const bodyRequests: string[] = [];
+
+    mockSpecResponses();
+    const baseFetch = desktopAwareFetch.getMockImplementation();
+    expect(baseFetch).toBeTruthy();
+    desktopAwareFetch.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.includes("/api/spec/issues?workspaceId=default&filename=")) {
+        const filename = new URL(path, "http://localhost").searchParams.get("filename") ?? "";
+        bodyRequests.push(filename);
+        if (filename === "2026-04-11-spec-board.md") {
+          return firstBody.promise;
+        }
+        if (filename === "2026-04-10-linked-issue.md") {
+          return secondBody.promise;
+        }
+      }
+      return baseFetch!(path, init);
+    });
+
+    render(<SpecPageClient />);
+
+    await screen.findByRole("region", { name: "Spec board" });
+
+    fireEvent.click(screen.getAllByLabelText("选择需求：Spec board")[0] as HTMLElement);
+    fireEvent.click(screen.getAllByLabelText("选择需求：Linked issue")[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "合并创建看板任务" }));
+
+    await waitFor(() => {
+      expect(bodyRequests).toContain("2026-04-10-linked-issue.md");
+    });
+    expect(bodyRequests.filter((filename) => filename === "2026-04-11-spec-board.md").length).toBeGreaterThanOrEqual(1);
+
+    expect(desktopAwareFetch.mock.calls.some(([path, init]) => (
+      path === "/api/tasks" && init?.method === "POST"
+    ))).toBe(false);
+
+    firstBody.resolve(okJson({
+      issue: {
+        filename: "2026-04-11-spec-board.md",
+        title: "Spec board",
+        date: "2026-04-11",
+        kind: "progress_note",
+        status: "closed",
+        severity: "high",
+        area: "kanban",
+        tags: ["kanban", "board"],
+        reportedBy: "codex",
+        relatedIssues: ["docs/issues/2026-04-10-linked-issue.md"],
+        githubIssue: 410,
+        githubState: "closed",
+        githubUrl: "https://github.com/phodal/routa/issues/410",
+        attachments: [],
+        body: "First delayed body.",
+        bodyLoaded: true,
+        surfaceText: "First delayed body.",
+      },
+    }));
+    secondBody.resolve(okJson({
+      issue: {
+        filename: "2026-04-10-linked-issue.md",
+        title: "Linked issue",
+        date: "2026-04-10",
+        kind: "issue",
+        status: "open",
+        severity: "medium",
+        area: "kanban",
+        tags: ["link-target"],
+        reportedBy: "codex",
+        relatedIssues: [],
+        githubIssue: null,
+        githubState: null,
+        githubUrl: null,
+        attachments: [],
+        body: "Second delayed body.",
+        bodyLoaded: true,
+        surfaceText: "Second delayed body.",
+      },
+    }));
+
+    await waitFor(() => {
+      expect(navState.push).toHaveBeenCalledWith("/workspace/default/kanban?taskId=task-current-workspace");
+    });
+
+    const taskCall = desktopAwareFetch.mock.calls.find(([path, init]) => (
+      path === "/api/tasks" && init?.method === "POST"
+    ));
+    const taskBody = JSON.parse(String(taskCall?.[1]?.body));
+    expect(taskBody.objective).toContain("First delayed body.");
+    expect(taskBody.objective).toContain("Second delayed body.");
   });
 
   it("stops merged task creation before posting when a selected demand body cannot load", async () => {

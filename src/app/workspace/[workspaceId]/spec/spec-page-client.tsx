@@ -259,11 +259,7 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
   }, [mergeLoadedIssue, workspaceId]);
 
   const loadFullIssues = useCallback(async (issues: SpecIssue[], fallback: string): Promise<SpecIssue[]> => {
-    const loadedIssues: SpecIssue[] = [];
-    for (const issue of issues) {
-      loadedIssues.push(await loadFullIssue(issue, fallback));
-    }
-    return loadedIssues;
+    return Promise.all(issues.map((issue) => loadFullIssue(issue, fallback)));
   }, [loadFullIssue]);
 
   const handleOpenCreateIssueDialog = useCallback(() => {
