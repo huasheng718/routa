@@ -530,6 +530,10 @@ export const enExtended: ExtendedTranslationDictionarySections = {
     noProgressNotesYet: "No progress notes yet.",
     progressNoteSourceLegacy: "Migrated legacy note",
     progressNoteSourceUpdateCard: "Added via update_card",
+    sourceRequirements: "Source Requirements",
+    sourceRequirementsHint:
+      "Requirements carried over from the demand-management page when this task was created.",
+    sourceRequirementFile: "Source file",
     scope: "Scope",
     acceptanceCriteria: "Acceptance Criteria",
     verificationCommands: "Verification Commands",

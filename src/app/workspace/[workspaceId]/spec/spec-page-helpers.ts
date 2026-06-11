@@ -1,5 +1,6 @@
 import { normalizeSpecStatus, type FeatureSurfaceIndexResponse, type SpecIssue, type SpecStatus, type SurfaceHit } from "./spec-board-model";
 import type { useTranslation } from "@/i18n";
+import type { TaskContextSearchSpec } from "@/core/models/task";
 
 export type TranslationT = ReturnType<typeof useTranslation>["t"];
 
@@ -389,6 +390,32 @@ export function buildIssuesTaskScope(issues: SpecIssue[]): string | undefined {
 
   const kinds = Array.from(new Set(issues.map((issue) => compactText(issue.kind)).filter(Boolean)));
   return kinds.length > 0 ? kinds.join(", ") : undefined;
+}
+
+export function buildIssuesTaskContextSearchSpec(issues: SpecIssue[]): TaskContextSearchSpec | undefined {
+  const issueFiles = Array.from(new Set(
+    issues
+      .map((issue) => compactText(issue.filename))
+      .filter(Boolean)
+      .map((filename) => `docs/issues/${filename}`),
+  ));
+  if (issueFiles.length === 0) {
+    return undefined;
+  }
+
+  const titles = issues
+    .map((issue) => compactText(issue.title) || compactText(issue.filename))
+    .filter(Boolean);
+  const areas = Array.from(new Set(issues.map((issue) => compactText(issue.area)).filter(Boolean)));
+  const severities = Array.from(new Set(issues.map((issue) => compactText(issue.severity)).filter(Boolean)));
+  const tags = Array.from(new Set(issues.flatMap((issue) => issue.tags).map((tag) => compactText(tag)).filter(Boolean)));
+
+  return {
+    query: titles.join(" "),
+    relatedFiles: issueFiles,
+    moduleHints: areas,
+    symptomHints: Array.from(new Set([...titles, ...severities, ...tags])),
+  };
 }
 
 export function buildIssueGitHubTaskFields(issues: SpecIssue[]) {

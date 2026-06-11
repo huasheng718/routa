@@ -202,6 +202,41 @@ describe("kanban move blocked modal", () => {
 });
 
 describe("KanbanCardDetail repository health", () => {
+  it("renders source requirements from task context search spec", () => {
+    render(
+      <KanbanCardDetail
+        task={{
+          ...createTask("task-source", "Spec task"),
+          contextSearchSpec: {
+            relatedFiles: [
+              "docs/issues/2026-04-11-spec-board.md",
+              "src/app/page.tsx",
+              "docs/issues/2026-04-12-linked-issue.md",
+            ],
+          },
+        }}
+        boardColumns={board.columns}
+        availableProviders={[]}
+        specialists={[]}
+        specialistLanguage="en"
+        codebases={[]}
+        allCodebaseIds={[]}
+        worktreeCache={{}}
+        sessions={[]}
+        fullWidth
+        onPatchTask={vi.fn(async () => createTask("task-source", "Spec task"))}
+        onRetryTrigger={vi.fn()}
+        onDelete={vi.fn()}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Source Requirements")).toBeTruthy();
+    expect(screen.getByText("2026-04-11-spec-board.md")).toBeTruthy();
+    expect(screen.getByText("2026-04-12-linked-issue.md")).toBeTruthy();
+    expect(screen.queryByText("src/app/page.tsx")).toBeNull();
+  });
+
   it("offers session mismatch interventions in repositories", async () => {
     const onPatchTask = vi.fn(async () => createTask("task-1", "Story One"));
     const onSelectSession = vi.fn();

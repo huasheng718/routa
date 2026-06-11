@@ -197,6 +197,42 @@ describe("/api/tasks GET", () => {
     });
   });
 
+  it("serializes source requirements from context search related files", async () => {
+    taskStore.listByWorkspace.mockResolvedValueOnce([
+      createTask({
+        id: "task-source-specs",
+        title: "Spec sourced task",
+        objective: "Keep demand-management lineage structured.",
+        workspaceId: "workspace-1",
+        contextSearchSpec: {
+          relatedFiles: [
+            "docs/issues/2026-04-11-spec-board.md",
+            "src/app/page.tsx",
+            "docs/issues/2026-04-10-linked-issue.md",
+          ],
+        },
+      }),
+    ]);
+
+    const response = await GET(new NextRequest("http://localhost/api/tasks?workspaceId=workspace-1"));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.tasks[0]).toMatchObject({
+      id: "task-source-specs",
+      sourceRequirements: [
+        {
+          filename: "2026-04-11-spec-board.md",
+          path: "docs/issues/2026-04-11-spec-board.md",
+        },
+        {
+          filename: "2026-04-10-linked-issue.md",
+          path: "docs/issues/2026-04-10-linked-issue.md",
+        },
+      ],
+    });
+  });
+
   it("hides speculative backlog history memory from list responses", async () => {
     taskStore.listByWorkspace.mockResolvedValueOnce([
       createTask({

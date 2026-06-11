@@ -185,6 +185,16 @@ function parsePriority(value: unknown): TaskPriority | undefined {
     : undefined;
 }
 
+function buildTaskSourceRequirements(task: Task): Array<{ filename: string; path: string }> {
+  return (task.contextSearchSpec?.relatedFiles ?? [])
+    .map((path) => path.trim())
+    .filter((path) => path.startsWith("docs/issues/") && path.endsWith(".md"))
+    .map((path) => ({
+      path,
+      filename: path.split("/").pop() ?? path,
+    }));
+}
+
 export async function GET(request: NextRequest) {
   return monitorApiRoute(request, "GET /api/tasks", () => getTasks(request));
 }
@@ -557,6 +567,7 @@ async function serializeTask(
     creationSource: task.creationSource,
     codebaseIds: task.codebaseIds ?? [],
     contextSearchSpec: task.contextSearchSpec,
+    sourceRequirements: buildTaskSourceRequirements(task),
     jitContextSnapshot: task.jitContextSnapshot,
     worktreeId: task.worktreeId,
     completionSummary: task.completionSummary,

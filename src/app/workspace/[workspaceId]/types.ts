@@ -120,6 +120,11 @@ export interface TaskEvidenceSummaryInfo {
   };
 }
 
+export interface TaskSourceRequirementInfo {
+  filename: string;
+  path: string;
+}
+
 export interface TaskInfo {
   id: string;
   title: string;
@@ -207,6 +212,7 @@ export interface TaskInfo {
   /** Associated codebase IDs for this task */
   codebaseIds?: string[];
   contextSearchSpec?: TaskContextSearchSpec;
+  sourceRequirements?: TaskSourceRequirementInfo[];
   jitContextSnapshot?: TaskJitContextSnapshot;
   /** Git worktree ID for this task */
   worktreeId?: string;

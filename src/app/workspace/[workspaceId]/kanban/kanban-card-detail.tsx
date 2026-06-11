@@ -235,6 +235,21 @@ function getEvidenceStatus(task: TaskInfo, t: ReturnType<typeof useTranslation>[
   return reviewable ? t.kanbanDetail.reviewable : t.kanbanDetail.reviewBlocked;
 }
 
+function resolveSourceRequirements(task: TaskInfo): NonNullable<TaskInfo["sourceRequirements"]> {
+  const explicit = task.sourceRequirements ?? [];
+  const explicitKeys = new Set(explicit.map((item) => item.path || item.filename));
+  const inferred = (task.contextSearchSpec?.relatedFiles ?? [])
+    .map((path) => path.trim())
+    .filter((path) => path.startsWith("docs/issues/") && path.endsWith(".md"))
+    .map((path) => ({
+      path,
+      filename: path.split("/").pop() ?? path,
+    }))
+    .filter((item) => !explicitKeys.has(item.path) && !explicitKeys.has(item.filename));
+
+  return [...explicit, ...inferred];
+}
+
 export function KanbanCardDetail({
   task,
   refreshSignal,
@@ -270,6 +285,7 @@ export function KanbanCardDetail({
 }: KanbanCardDetailProps) {
   const { t } = useTranslation();
   const progressNotes = useMemo(() => resolveTaskCommentEntries(task), [task]);
+  const sourceRequirements = useMemo(() => resolveSourceRequirements(task), [task]);
   const sessionCopy = getKanbanSessionCopy(specialistLanguage);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editObjective, setEditObjective] = useState(task.objective ?? "");
@@ -570,6 +586,26 @@ export function KanbanCardDetail({
                   }}
                 />
               </section>
+
+              {sourceRequirements.length > 0 ? (
+                <DetailSection
+                  title={t.kanbanDetail.sourceRequirements}
+                  description={compactMode ? undefined : t.kanbanDetail.sourceRequirementsHint}
+                  compact={compactMode}
+                >
+                  <div className={`flex flex-wrap gap-2 ${compactMode ? "px-3 py-2" : "px-4 py-2.5"}`}>
+                    {sourceRequirements.map((source) => (
+                      <span
+                        key={`${source.path}:${source.filename}`}
+                        className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100"
+                        title={`${t.kanbanDetail.sourceRequirementFile}: ${source.path}`}
+                      >
+                        <span className="truncate">{source.filename}</span>
+                      </span>
+                    ))}
+                  </div>
+                </DetailSection>
+              ) : null}
 
               <DetailSection
                 title={t.kanbanDetail.reviewFeedback}

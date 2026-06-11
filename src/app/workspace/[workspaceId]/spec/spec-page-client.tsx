@@ -16,6 +16,7 @@ import { SpecFamilyExplorer } from "./spec-family-explorer";
 import {
   buildIssueGitHubTaskFields,
   buildIssuesTaskLabels,
+  buildIssuesTaskContextSearchSpec,
   buildIssuesTaskObjective,
   buildIssuesTaskScope,
   buildIssuesTaskTitle,
@@ -376,6 +377,7 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
           ],
           priority: priorityFromIssues(issuesForTask),
           labels: buildIssuesTaskLabels(issuesForTask),
+          contextSearchSpec: buildIssuesTaskContextSearchSpec(issuesForTask),
           ...buildIssueGitHubTaskFields(issuesForTask),
           creationSource: "manual",
         }),
@@ -488,6 +490,7 @@ export function SpecBoardPanel({ workspaceId }: { workspaceId: string }) {
           ],
           priority: priorityFromIssues(issuesForTask),
           labels: buildIssuesTaskLabels(issuesForTask),
+          contextSearchSpec: buildIssuesTaskContextSearchSpec(issuesForTask),
           ...(copiedCodebaseIds.length > 0 ? { codebaseIds: copiedCodebaseIds } : {}),
           ...buildIssueGitHubTaskFields(issuesForTask),
           creationSource: "manual",

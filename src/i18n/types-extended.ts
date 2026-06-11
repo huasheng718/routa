@@ -485,6 +485,9 @@ export interface ExtendedTranslationDictionarySections
     noProgressNotesYet: string;
     progressNoteSourceLegacy: string;
     progressNoteSourceUpdateCard: string;
+    sourceRequirements: string;
+    sourceRequirementsHint: string;
+    sourceRequirementFile: string;
     scope: string;
     acceptanceCriteria: string;
     verificationCommands: string;

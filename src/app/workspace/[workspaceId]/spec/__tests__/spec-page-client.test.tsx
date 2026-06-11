@@ -727,6 +727,12 @@ describe("SpecPageClient", () => {
       githubState: "closed",
       creationSource: "manual",
     });
+    expect(taskBody.contextSearchSpec).toMatchObject({
+      query: "Spec board",
+      relatedFiles: ["docs/issues/2026-04-11-spec-board.md"],
+      moduleHints: ["kanban"],
+    });
+    expect(taskBody.contextSearchSpec.symptomHints).toEqual(expect.arrayContaining(["Spec board", "high", "kanban", "board"]));
     expect(taskBody.objective).toContain("从需求管理开启的新工作区任务。");
     expect(taskBody.objective).toContain("来源需求: Spec board");
     expect(taskBody.objective).toContain("Marker: lineage-alpha");
@@ -801,6 +807,12 @@ describe("SpecPageClient", () => {
       githubState: "closed",
       creationSource: "manual",
     });
+    expect(taskBody.contextSearchSpec).toMatchObject({
+      query: "Spec board",
+      relatedFiles: ["docs/issues/2026-04-11-spec-board.md"],
+      moduleHints: ["kanban"],
+    });
+    expect(taskBody.contextSearchSpec.symptomHints).toEqual(expect.arrayContaining(["Spec board", "high", "kanban", "board"]));
     expect(taskBody.objective).toContain("从需求管理创建的当前工作区看板任务。");
     expect(taskBody.objective).toContain("来源需求: Spec board");
     expect(taskBody.objective).toContain("Marker: lineage-alpha");
@@ -838,6 +850,23 @@ describe("SpecPageClient", () => {
       labels: ["progress_note", "high", "kanban", "board", "issue", "medium", "link-target"],
       creationSource: "manual",
     });
+    expect(taskBody.contextSearchSpec).toMatchObject({
+      query: "Spec board Linked issue",
+      relatedFiles: [
+        "docs/issues/2026-04-11-spec-board.md",
+        "docs/issues/2026-04-10-linked-issue.md",
+      ],
+      moduleHints: ["kanban"],
+    });
+    expect(taskBody.contextSearchSpec.symptomHints).toEqual(expect.arrayContaining([
+      "Spec board",
+      "Linked issue",
+      "high",
+      "medium",
+      "kanban",
+      "board",
+      "link-target",
+    ]));
     expect(taskBody.githubNumber).toBeUndefined();
     expect(taskBody.objective).toContain("从需求管理合并创建的当前工作区看板任务。");
     expect(taskBody.objective).toContain("合并来源需求:");
@@ -903,6 +932,23 @@ describe("SpecPageClient", () => {
       codebaseIds: ["copied-codebase"],
       creationSource: "manual",
     });
+    expect(taskBody.contextSearchSpec).toMatchObject({
+      query: "Spec board Linked issue",
+      relatedFiles: [
+        "docs/issues/2026-04-11-spec-board.md",
+        "docs/issues/2026-04-10-linked-issue.md",
+      ],
+      moduleHints: ["kanban"],
+    });
+    expect(taskBody.contextSearchSpec.symptomHints).toEqual(expect.arrayContaining([
+      "Spec board",
+      "Linked issue",
+      "high",
+      "medium",
+      "kanban",
+      "board",
+      "link-target",
+    ]));
     expect(taskBody.githubNumber).toBeUndefined();
     expect(taskBody.objective).toContain("从需求管理合并开启的新工作区任务。");
     expect(taskBody.objective).toContain("合并来源需求:");
