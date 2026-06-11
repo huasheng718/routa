@@ -345,8 +345,8 @@ async fn api_spec_issue_create_rejects_invalid_input() {
     let oversized_form = Form::new().text("title", "过大的附件").part(
         "attachments",
         Part::bytes(vec![b'x'; 50 * 1024 * 1024 + 1])
-            .file_name("huge.bin")
-            .mime_str("application/octet-stream")
+            .file_name("huge.txt")
+            .mime_str("text/plain")
             .expect("valid mime"),
     );
     let oversized = fixture
@@ -360,6 +360,72 @@ async fn api_spec_issue_create_rejects_invalid_input() {
     assert_eq!(oversized.status(), StatusCode::BAD_REQUEST);
     let oversized_payload: Value = oversized.json().await.expect("decode oversized");
     assert!(json_has_error(&oversized_payload, "附件过大"));
+
+    let unsupported_form = Form::new().text("title", "不支持的附件类型").part(
+        "attachments",
+        Part::bytes(b"zip".to_vec())
+            .file_name("archive.zip")
+            .mime_str("application/zip")
+            .expect("valid mime"),
+    );
+    let unsupported = fixture
+        .client
+        .post(fixture.endpoint("/api/spec/issues"))
+        .query(&[("repoPath", repo_root.path().to_string_lossy().to_string())])
+        .multipart(unsupported_form)
+        .send()
+        .await
+        .expect("create issue with unsupported attachment");
+    assert_eq!(unsupported.status(), StatusCode::BAD_REQUEST);
+    let unsupported_payload: Value = unsupported.json().await.expect("decode unsupported");
+    assert!(json_has_error(&unsupported_payload, "不支持的附件类型"));
+
+    let mut too_many_form = Form::new().text("title", "附件数量过多");
+    for index in 0..11 {
+        too_many_form = too_many_form.part(
+            "attachments",
+            Part::bytes(format!("doc-{index}").into_bytes())
+                .file_name(format!("doc-{index}.txt"))
+                .mime_str("text/plain")
+                .expect("valid text mime"),
+        );
+    }
+    let too_many = fixture
+        .client
+        .post(fixture.endpoint("/api/spec/issues"))
+        .query(&[("repoPath", repo_root.path().to_string_lossy().to_string())])
+        .multipart(too_many_form)
+        .send()
+        .await
+        .expect("create issue with too many attachments");
+    assert_eq!(too_many.status(), StatusCode::BAD_REQUEST);
+    let too_many_payload: Value = too_many.json().await.expect("decode too many");
+    assert!(json_has_error(&too_many_payload, "附件数量过多"));
+
+    let mut total_too_large_form = Form::new().text("title", "附件总大小过大");
+    for index in 0..5 {
+        total_too_large_form = total_too_large_form.part(
+            "attachments",
+            Part::bytes(vec![b'x'; 41 * 1024 * 1024])
+                .file_name(format!("large-{index}.txt"))
+                .mime_str("text/plain")
+                .expect("valid text mime"),
+        );
+    }
+    let total_too_large = fixture
+        .client
+        .post(fixture.endpoint("/api/spec/issues"))
+        .query(&[("repoPath", repo_root.path().to_string_lossy().to_string())])
+        .multipart(total_too_large_form)
+        .send()
+        .await
+        .expect("create issue with total attachment size too large");
+    assert_eq!(total_too_large.status(), StatusCode::BAD_REQUEST);
+    let total_too_large_payload: Value = total_too_large
+        .json()
+        .await
+        .expect("decode total too large");
+    assert!(json_has_error(&total_too_large_payload, "附件总大小过大"));
 }
 
 #[tokio::test]

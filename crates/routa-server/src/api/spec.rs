@@ -38,8 +38,17 @@ const SPEC_KINDS: [&str; 5] = [
     "github_mirror",
 ];
 const SPEC_SEVERITIES: [&str; 5] = ["critical", "high", "medium", "low", "info"];
+const MAX_ATTACHMENT_COUNT: usize = 10;
 const MAX_ATTACHMENT_SIZE_BYTES: usize = 50 * 1024 * 1024;
+const MAX_TOTAL_ATTACHMENT_SIZE_BYTES: usize = 200 * 1024 * 1024;
 const SPEC_ISSUE_BODY_LIMIT_BYTES: usize = 220 * 1024 * 1024;
+const ALLOWED_DOCUMENT_ATTACHMENT_EXTENSIONS: [&str; 9] = [
+    ".doc", ".docx", ".pdf", ".ppt", ".pptx", ".xls", ".xlsx", ".txt", ".md",
+];
+const ALLOWED_IMAGE_ATTACHMENT_EXTENSIONS: [&str; 6] =
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
+const ALLOWED_VIDEO_ATTACHMENT_EXTENSIONS: [&str; 7] =
+    [".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv", ".mpeg"];
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -104,6 +113,9 @@ struct SpecIssueAttachmentFrontmatter {
 #[derive(Debug)]
 enum CreateSpecIssueError {
     AttachmentTooLarge(String),
+    AttachmentTooMany,
+    AttachmentUnsupportedType(String),
+    AttachmentsTotalTooLarge,
     Internal(String),
 }
 
@@ -455,6 +467,79 @@ fn split_filename_extension(filename: &str) -> (String, String) {
     (stem, extension)
 }
 
+fn attachment_extension(file_name: &str) -> String {
+    Path::new(file_name)
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| format!(".{}", value.to_ascii_lowercase()))
+        .unwrap_or_default()
+}
+
+fn attachment_original_name<'a>(
+    input: &'a CreateSpecIssueInput,
+    index: usize,
+    fallback: &'a str,
+) -> &'a str {
+    input
+        .attachment_names
+        .get(index)
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(fallback)
+}
+
+fn is_allowed_attachment_extension(extension: &str) -> bool {
+    ALLOWED_DOCUMENT_ATTACHMENT_EXTENSIONS.contains(&extension)
+        || ALLOWED_IMAGE_ATTACHMENT_EXTENSIONS.contains(&extension)
+        || ALLOWED_VIDEO_ATTACHMENT_EXTENSIONS.contains(&extension)
+}
+
+fn is_allowed_uploaded_attachment(file: &UploadedSpecIssueAttachment, fallback_name: &str) -> bool {
+    if file.mime_type.starts_with("image/") || file.mime_type.starts_with("video/") {
+        return true;
+    }
+
+    let extension = attachment_extension(fallback_name);
+    is_allowed_attachment_extension(&extension)
+}
+
+fn validate_uploaded_attachments(input: &CreateSpecIssueInput) -> Result<(), CreateSpecIssueError> {
+    let non_empty_files: Vec<(usize, &UploadedSpecIssueAttachment)> = input
+        .attachments
+        .iter()
+        .enumerate()
+        .filter(|(_, file)| !file.data.is_empty())
+        .collect();
+
+    if non_empty_files.len() > MAX_ATTACHMENT_COUNT {
+        return Err(CreateSpecIssueError::AttachmentTooMany);
+    }
+
+    for (index, file) in &non_empty_files {
+        let original_name = attachment_original_name(input, *index, &file.name);
+        if !is_allowed_uploaded_attachment(file, original_name) {
+            return Err(CreateSpecIssueError::AttachmentUnsupportedType(
+                original_name.to_string(),
+            ));
+        }
+        if file.data.len() > MAX_ATTACHMENT_SIZE_BYTES {
+            return Err(CreateSpecIssueError::AttachmentTooLarge(
+                original_name.to_string(),
+            ));
+        }
+    }
+
+    let total_size: usize = non_empty_files
+        .iter()
+        .map(|(_, file)| file.data.len())
+        .sum();
+    if total_size > MAX_TOTAL_ATTACHMENT_SIZE_BYTES {
+        return Err(CreateSpecIssueError::AttachmentsTotalTooLarge);
+    }
+
+    Ok(())
+}
+
 fn issue_filename_candidate(title: &str, date: &str, counter: usize) -> String {
     let slug = slugify_title(title);
 
@@ -720,11 +805,7 @@ fn create_spec_issue_file(
         attachments: Vec::new(),
     };
 
-    for file in &input.attachments {
-        if !file.data.is_empty() && file.data.len() > MAX_ATTACHMENT_SIZE_BYTES {
-            return Err(CreateSpecIssueError::AttachmentTooLarge(file.name.clone()));
-        }
-    }
+    validate_uploaded_attachments(&input)?;
 
     std::fs::create_dir_all(&issues_dir)
         .map_err(|error| CreateSpecIssueError::Internal(format!("创建需求目录失败: {error}")))?;
@@ -738,24 +819,15 @@ fn create_spec_issue_file(
     let attachment_dir = issues_dir.join("assets").join(&issue_slug);
     let mut attachments = Vec::new();
 
-    for (index, file) in input.attachments.into_iter().enumerate() {
+    for (index, file) in input.attachments.iter().enumerate() {
         if file.data.is_empty() {
             continue;
-        }
-        if file.data.len() > MAX_ATTACHMENT_SIZE_BYTES {
-            return Err(CreateSpecIssueError::AttachmentTooLarge(file.name));
         }
 
         std::fs::create_dir_all(&attachment_dir).map_err(|error| {
             CreateSpecIssueError::Internal(format!("创建附件目录失败: {error}"))
         })?;
-        let original_name = input
-            .attachment_names
-            .get(index)
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty())
-            .unwrap_or(&file.name)
-            .to_string();
+        let original_name = attachment_original_name(&input, index, &file.name).to_string();
         let attachment_filename = pick_attachment_filename(&attachment_dir, &original_name);
         let attachment_path = attachment_dir.join(&attachment_filename);
         std::fs::write(&attachment_path, &file.data)
@@ -973,6 +1045,21 @@ async fn create_spec_issue(
         Err(CreateSpecIssueError::AttachmentTooLarge(filename)) => Ok((
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": format!("附件过大：{filename}") })),
+        )
+            .into_response()),
+        Err(CreateSpecIssueError::AttachmentTooMany) => Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": format!("附件数量过多，最多支持 {MAX_ATTACHMENT_COUNT} 个") })),
+        )
+            .into_response()),
+        Err(CreateSpecIssueError::AttachmentUnsupportedType(filename)) => Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": format!("不支持的附件类型：{filename}") })),
+        )
+            .into_response()),
+        Err(CreateSpecIssueError::AttachmentsTotalTooLarge) => Ok((
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "附件总大小过大，最多支持 200 MB" })),
         )
             .into_response()),
         Err(CreateSpecIssueError::Internal(message)) => Ok((
