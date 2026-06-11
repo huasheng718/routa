@@ -10,7 +10,10 @@ use axum::{
     Json, Router,
 };
 use axum_extra::extract::Multipart;
-use feature_trace::api_endpoints_from_openapi_contract;
+use feature_trace::{
+    api_endpoints_from_openapi_contract, ApiEndpointDetail, FeatureTreeCatalog, FrontendPageDetail,
+    ImplementationApiRoute,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use std::collections::BTreeMap;
@@ -122,6 +125,8 @@ struct FeatureSurfaceIndexFile {
     nextjs_apis: Vec<FeatureSurfaceImplementationApi>,
     #[serde(default)]
     rust_apis: Vec<FeatureSurfaceImplementationApi>,
+    #[serde(default)]
+    implementation_apis: Vec<FeatureSurfaceImplementationApi>,
     metadata: Option<JsonValue>,
 }
 
@@ -917,6 +922,7 @@ fn empty_surface_index_response(repo_root: &Path, warnings: Vec<String>) -> Json
         "contractApis": [],
         "nextjsApis": [],
         "rustApis": [],
+        "implementationApis": [],
         "metadata": JsonValue::Null,
         "repoRoot": repo_root.to_string_lossy(),
         "warnings": warnings,
@@ -1017,18 +1023,70 @@ fn normalize_surface_implementation_apis(
         .collect()
 }
 
-fn to_surface_api_from_contract(
-    apis: Vec<feature_trace::ApiEndpointDetail>,
-) -> Vec<FeatureSurfaceApi> {
-    apis.into_iter()
-        .map(|api| FeatureSurfaceApi {
-            domain: api.domain,
-            method: api.method,
-            path: api.endpoint,
-            operation_id: String::new(),
-            summary: api.description,
-        })
-        .collect()
+fn to_surface_page(page: FrontendPageDetail) -> FeatureSurfacePage {
+    FeatureSurfacePage {
+        route: page.route,
+        title: page.name,
+        description: page.description,
+        source_file: String::new(),
+    }
+}
+
+fn to_surface_api(api: ApiEndpointDetail) -> FeatureSurfaceApi {
+    FeatureSurfaceApi {
+        domain: api.domain,
+        method: api.method,
+        path: api.endpoint,
+        operation_id: String::new(),
+        summary: api.description,
+    }
+}
+
+fn to_surface_implementation_api(api: ImplementationApiRoute) -> FeatureSurfaceImplementationApi {
+    FeatureSurfaceImplementationApi {
+        domain: api.domain,
+        method: api.method,
+        path: api.endpoint,
+        source_files: api.source_files,
+    }
+}
+
+fn to_surface_api_from_contract(apis: Vec<ApiEndpointDetail>) -> Vec<FeatureSurfaceApi> {
+    apis.into_iter().map(to_surface_api).collect()
+}
+
+fn to_surface_index_from_feature_tree(catalog: FeatureTreeCatalog) -> FeatureSurfaceIndexFile {
+    let metadata = json!({
+        "capabilityGroups": catalog.capability_groups,
+        "features": catalog.features,
+    });
+
+    FeatureSurfaceIndexFile {
+        generated_at: None,
+        pages: catalog
+            .frontend_pages
+            .into_iter()
+            .map(to_surface_page)
+            .collect(),
+        apis: catalog
+            .api_endpoints
+            .into_iter()
+            .map(to_surface_api)
+            .collect(),
+        contract_apis: Vec::new(),
+        nextjs_apis: catalog
+            .nextjs_api_routes
+            .into_iter()
+            .map(to_surface_implementation_api)
+            .collect(),
+        rust_apis: catalog
+            .rust_api_routes
+            .into_iter()
+            .map(to_surface_implementation_api)
+            .collect(),
+        implementation_apis: Vec::new(),
+        metadata: Some(metadata),
+    }
 }
 
 fn normalize_surface_index(
@@ -1038,6 +1096,17 @@ fn normalize_surface_index(
     warnings: Vec<String>,
 ) -> JsonValue {
     let pages = index.pages;
+    let nextjs_apis = index.nextjs_apis;
+    let rust_apis = index.rust_apis;
+    let implementation_apis = if index.implementation_apis.is_empty() {
+        nextjs_apis
+            .iter()
+            .cloned()
+            .chain(rust_apis.iter().cloned())
+            .collect()
+    } else {
+        index.implementation_apis
+    };
     let fallback_contract_apis = if index.contract_apis.is_empty() {
         index.apis.clone()
     } else {
@@ -1059,8 +1128,9 @@ fn normalize_surface_index(
         "pages": normalize_surface_pages(pages),
         "apis": normalize_surface_apis(resolved_apis),
         "contractApis": normalize_surface_apis(resolved_contract_apis),
-        "nextjsApis": normalize_surface_implementation_apis(index.nextjs_apis),
-        "rustApis": normalize_surface_implementation_apis(index.rust_apis),
+        "nextjsApis": normalize_surface_implementation_apis(nextjs_apis),
+        "rustApis": normalize_surface_implementation_apis(rust_apis),
+        "implementationApis": normalize_surface_implementation_apis(implementation_apis),
         "metadata": index.metadata.unwrap_or(JsonValue::Null),
         "repoRoot": repo_root.to_string_lossy(),
         "warnings": warnings,
@@ -1275,10 +1345,19 @@ async fn get_surface_index(
         .join("docs")
         .join("product-specs")
         .join("feature-tree.index.json");
+    let feature_tree_path = repo_root
+        .join("docs")
+        .join("product-specs")
+        .join("FEATURE_TREE.md");
     let api_contract_path = repo_root.join("api-contract.yaml");
     let relative_index_path = index_path
         .strip_prefix(&repo_root)
         .unwrap_or(&index_path)
+        .to_string_lossy()
+        .to_string();
+    let relative_feature_tree_path = feature_tree_path
+        .strip_prefix(&repo_root)
+        .unwrap_or(&feature_tree_path)
         .to_string_lossy()
         .to_string();
     let relative_api_contract_path = api_contract_path
@@ -1288,18 +1367,35 @@ async fn get_surface_index(
         .to_string();
 
     let mut warnings = Vec::new();
-    let parsed_index = match std::fs::read_to_string(&index_path) {
-        Ok(raw) => match serde_json::from_str::<FeatureSurfaceIndexFile>(&raw) {
-            Ok(index) => Some(index),
-            Err(_) => {
-                warnings.push(format!("产品面索引 JSON 无效：{relative_index_path}"));
+    let parsed_markdown = if feature_tree_path.exists() {
+        match FeatureTreeCatalog::from_feature_tree_markdown(&feature_tree_path) {
+            Ok(catalog) => Some(to_surface_index_from_feature_tree(catalog)),
+            Err(error) => {
+                warnings.push(format!(
+                    "解析产品面索引失败：{relative_feature_tree_path}: {error}"
+                ));
                 None
             }
-        },
-        Err(_) => {
-            warnings.push(format!("未找到产品面索引：{relative_index_path}"));
-            None
         }
+    } else {
+        None
+    };
+    let parsed_index = if parsed_markdown.is_none() {
+        match std::fs::read_to_string(&index_path) {
+            Ok(raw) => match serde_json::from_str::<FeatureSurfaceIndexFile>(&raw) {
+                Ok(index) => Some(index),
+                Err(_) => {
+                    warnings.push(format!("产品面索引 JSON 无效：{relative_index_path}"));
+                    None
+                }
+            },
+            Err(_) => {
+                warnings.push(format!("未找到产品面索引：{relative_index_path}"));
+                None
+            }
+        }
+    } else {
+        None
     };
 
     let openapi_contract_apis = if api_contract_path.exists() {
@@ -1323,20 +1419,26 @@ async fn get_surface_index(
         None
     };
 
-    match (parsed_index, openapi_contract_apis) {
-        (Some(index), openapi_contract_apis) => Ok(Json(normalize_surface_index(
+    match (parsed_markdown, parsed_index, openapi_contract_apis) {
+        (Some(index), _, openapi_contract_apis) => Ok(Json(normalize_surface_index(
             index,
             openapi_contract_apis.unwrap_or_default(),
             &repo_root,
             warnings,
         ))),
-        (None, Some(openapi_contract_apis)) => Ok(Json(normalize_surface_index(
+        (None, Some(index), openapi_contract_apis) => Ok(Json(normalize_surface_index(
+            index,
+            openapi_contract_apis.unwrap_or_default(),
+            &repo_root,
+            warnings,
+        ))),
+        (None, None, Some(openapi_contract_apis)) => Ok(Json(normalize_surface_index(
             FeatureSurfaceIndexFile::default(),
             openapi_contract_apis,
             &repo_root,
             warnings,
         ))),
-        (None, None) => Ok(Json(empty_surface_index_response(&repo_root, warnings))),
+        (None, None, None) => Ok(Json(empty_surface_index_response(&repo_root, warnings))),
     }
 }
 

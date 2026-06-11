@@ -642,6 +642,84 @@ paths:
 }
 
 #[tokio::test]
+async fn api_spec_surface_index_reads_feature_tree_markdown_without_json_index() {
+    let fixture = ApiFixture::new().await;
+    let repo_root = tempfile::tempdir().expect("temp repo");
+    let specs_dir = repo_root.path().join("docs").join("product-specs");
+
+    fs::create_dir_all(&specs_dir).expect("product specs dir");
+    fs::write(
+        specs_dir.join("FEATURE_TREE.md"),
+        r#"---
+feature_metadata:
+  schema_version: 1
+  capability_groups:
+    - id: governance-settings
+      name: Governance and Settings
+  features:
+    - id: spec-management
+      name: Spec Management
+      group: governance-settings
+      pages:
+        - /workspace/:workspaceId/spec
+      apis:
+        - GET /api/spec/issues
+---
+
+# Product Feature Specification
+
+## Frontend Pages
+
+| Page | Route | Source File | Description |
+|------|-------|-------------|-------------|
+| Workspace / Spec | `/workspace/:workspaceId/spec` | `src/app/workspace/[workspaceId]/spec/page.tsx` | Dense issue relationship board |
+
+## API Contract Endpoints
+
+### Spec (1)
+
+| Method | Endpoint | Details | Next.js | Rust |
+|--------|----------|---------|---------|------|
+| GET | `/api/spec/issues` | List local issue specs | `src/app/api/spec/issues/route.ts` | `crates/routa-server/src/api/spec.rs` |
+"#,
+    )
+    .expect("write feature tree markdown");
+
+    let response = fixture
+        .client
+        .get(fixture.endpoint("/api/spec/surface-index"))
+        .query(&[("repoPath", repo_root.path().to_string_lossy().to_string())])
+        .send()
+        .await
+        .expect("get markdown-backed spec surface index");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let payload: Value = response.json().await.expect("decode surface index");
+    assert_eq!(payload["warnings"], json!([]));
+    assert_eq!(
+        payload["pages"][0]["route"],
+        json!("/workspace/:workspaceId/spec")
+    );
+    assert_eq!(
+        payload["contractApis"][0]["path"],
+        json!("/api/spec/issues")
+    );
+    assert_eq!(
+        payload["nextjsApis"][0]["sourceFiles"][0],
+        json!("src/app/api/spec/issues/route.ts")
+    );
+    assert_eq!(
+        payload["rustApis"][0]["sourceFiles"][0],
+        json!("crates/routa-server/src/api/spec.rs")
+    );
+    assert_eq!(payload["implementationApis"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        payload["metadata"]["features"][0]["id"],
+        json!("spec-management")
+    );
+}
+
+#[tokio::test]
 async fn api_spec_surface_index_falls_back_from_invalid_repo_path_to_workspace_codebase() {
     let fixture = ApiFixture::new().await;
     let repo = GitRepoFixture::new();

@@ -9,6 +9,7 @@ pub use analyzer::{
 pub use catalog::{
     api_endpoints_from_openapi_contract, ApiEndpointDetail, CapabilityGroup, FeatureSurface,
     FeatureSurfaceCatalog, FeatureSurfaceKind, FeatureSurfaceLink, FeatureTreeCatalog,
-    FrontendPageDetail, ProductFeature, ProductFeatureLink, SurfaceLinkConfidence,
+    FrontendPageDetail, ImplementationApiRoute, ProductFeature, ProductFeatureLink,
+    SurfaceLinkConfidence,
 };
 pub use error::FeatureTraceError;

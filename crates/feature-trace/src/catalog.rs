@@ -88,11 +88,24 @@ pub struct ApiEndpointDetail {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImplementationApiRoute {
+    #[serde(default)]
+    pub domain: String,
+    pub method: String,
+    #[serde(alias = "path")]
+    pub endpoint: String,
+    #[serde(default, alias = "sourceFiles")]
+    pub source_files: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FeatureTreeCatalog {
     pub capability_groups: Vec<CapabilityGroup>,
     pub features: Vec<ProductFeature>,
     pub frontend_pages: Vec<FrontendPageDetail>,
     pub api_endpoints: Vec<ApiEndpointDetail>,
+    pub nextjs_api_routes: Vec<ImplementationApiRoute>,
+    pub rust_api_routes: Vec<ImplementationApiRoute>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +140,10 @@ struct FeatureSurfaceIndexPayload {
     apis: Vec<ApiEndpointDetail>,
     #[serde(default)]
     contract_apis: Vec<ApiEndpointDetail>,
+    #[serde(default)]
+    nextjs_apis: Vec<ImplementationApiRoute>,
+    #[serde(default)]
+    rust_apis: Vec<ImplementationApiRoute>,
     metadata: Option<FeatureSurfaceIndexMetadata>,
 }
 
@@ -272,6 +289,12 @@ impl FeatureTreeCatalog {
             }
             catalog.api_endpoints =
                 merge_api_endpoint_lists([catalog.api_endpoints, markdown_catalog.api_endpoints]);
+            if catalog.nextjs_api_routes.is_empty() {
+                catalog.nextjs_api_routes = markdown_catalog.nextjs_api_routes;
+            }
+            if catalog.rust_api_routes.is_empty() {
+                catalog.rust_api_routes = markdown_catalog.rust_api_routes;
+            }
         }
 
         if api_contract_path.exists() {
@@ -288,12 +311,15 @@ impl FeatureTreeCatalog {
         let raw = fs::read_to_string(path)?;
         let frontmatter = extract_frontmatter(&raw).ok_or(FeatureTraceError::MissingFrontmatter)?;
         let parsed: FeatureTreeFrontmatter = serde_yaml::from_str(frontmatter)?;
-        let (frontend_pages, api_endpoints) = parse_feature_tree_tables(&raw);
+        let (frontend_pages, api_endpoints, nextjs_api_routes, rust_api_routes) =
+            parse_feature_tree_tables(&raw);
         Ok(Self {
             capability_groups: parsed.feature_metadata.capability_groups,
             features: parsed.feature_metadata.features,
             frontend_pages,
             api_endpoints,
+            nextjs_api_routes,
+            rust_api_routes,
         })
     }
 
@@ -311,6 +337,8 @@ impl FeatureTreeCatalog {
             features: metadata.features,
             frontend_pages: payload.pages,
             api_endpoints,
+            nextjs_api_routes: payload.nextjs_apis,
+            rust_api_routes: payload.rust_apis,
         })
     }
 
@@ -425,9 +453,18 @@ fn extract_frontmatter(raw: &str) -> Option<&str> {
     Some(&trimmed[..end])
 }
 
-fn parse_feature_tree_tables(raw: &str) -> (Vec<FrontendPageDetail>, Vec<ApiEndpointDetail>) {
+fn parse_feature_tree_tables(
+    raw: &str,
+) -> (
+    Vec<FrontendPageDetail>,
+    Vec<ApiEndpointDetail>,
+    Vec<ImplementationApiRoute>,
+    Vec<ImplementationApiRoute>,
+) {
     let mut frontend_pages = Vec::new();
     let mut api_endpoints = Vec::new();
+    let mut nextjs_api_routes = Vec::new();
+    let mut rust_api_routes = Vec::new();
 
     let mut section = TableSection::None;
     let mut active_table = ActiveTable::None;
@@ -499,6 +536,7 @@ fn parse_feature_tree_tables(raw: &str) -> (Vec<FrontendPageDetail>, Vec<ApiEndp
                 }
                 if trimmed == "| Method | Endpoint | Description |"
                     || trimmed == "| Method | Endpoint | Details |"
+                    || trimmed == "| Method | Endpoint | Details | Next.js | Rust |"
                 {
                     active_table = ActiveTable::ApiEndpoints;
                     continue;
@@ -506,6 +544,7 @@ fn parse_feature_tree_tables(raw: &str) -> (Vec<FrontendPageDetail>, Vec<ApiEndp
                 if active_table == ActiveTable::ApiEndpoints {
                     if trimmed == "|--------|----------|-------------|"
                         || trimmed == "|--------|----------|---------|"
+                        || trimmed == "|--------|----------|---------|---------|------|"
                     {
                         continue;
                     }
@@ -521,6 +560,28 @@ fn parse_feature_tree_tables(raw: &str) -> (Vec<FrontendPageDetail>, Vec<ApiEndp
                                 endpoint: strip_inline_code(&cells[1]),
                                 description: cells[2].clone(),
                             });
+                            if cells.len() >= 5 {
+                                let method = cells[0].clone();
+                                let endpoint = strip_inline_code(&cells[1]);
+                                let nextjs_source_files = parse_source_files_cell(&cells[3]);
+                                if !nextjs_source_files.is_empty() {
+                                    nextjs_api_routes.push(ImplementationApiRoute {
+                                        domain: current_api_domain.clone(),
+                                        method: method.clone(),
+                                        endpoint: endpoint.clone(),
+                                        source_files: nextjs_source_files,
+                                    });
+                                }
+                                let rust_source_files = parse_source_files_cell(&cells[4]);
+                                if !rust_source_files.is_empty() {
+                                    rust_api_routes.push(ImplementationApiRoute {
+                                        domain: current_api_domain.clone(),
+                                        method,
+                                        endpoint,
+                                        source_files: rust_source_files,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -529,7 +590,12 @@ fn parse_feature_tree_tables(raw: &str) -> (Vec<FrontendPageDetail>, Vec<ApiEndp
         }
     }
 
-    (frontend_pages, api_endpoints)
+    (
+        frontend_pages,
+        api_endpoints,
+        nextjs_api_routes,
+        rust_api_routes,
+    )
 }
 
 fn parse_markdown_row(line: &str) -> Option<Vec<String>> {
@@ -547,6 +613,16 @@ fn parse_markdown_row(line: &str) -> Option<Vec<String>> {
 
 fn strip_inline_code(value: &str) -> String {
     value.trim().trim_matches('`').to_string()
+}
+
+fn parse_source_files_cell(value: &str) -> Vec<String> {
+    value
+        .split("<br>")
+        .flat_map(|chunk| chunk.split(','))
+        .map(strip_inline_code)
+        .map(|path| path.trim().to_string())
+        .filter(|path| !path.is_empty() && path != "-")
+        .collect()
 }
 
 fn split_declared_api(declaration: &str) -> Option<(&str, &str)> {
@@ -792,6 +868,45 @@ feature_metadata:
     }
 
     #[test]
+    fn parses_feature_tree_contract_table_implementation_columns() {
+        let dir = tempdir().unwrap();
+        let feature_tree = dir.path().join("FEATURE_TREE.md");
+        fs::write(
+            &feature_tree,
+            r#"---
+feature_metadata:
+  features: []
+---
+
+# Product Feature Specification
+
+## API Contract Endpoints
+
+### Spec (1)
+
+| Method | Endpoint | Details | Next.js | Rust |
+|--------|----------|---------|---------|------|
+| GET | `/api/spec/issues` | List local issue specs | `src/app/api/spec/issues/route.ts` | `crates/routa-server/src/api/spec.rs` |
+"#,
+        )
+        .unwrap();
+
+        let catalog = FeatureTreeCatalog::from_feature_tree_markdown(&feature_tree).unwrap();
+
+        assert_eq!(catalog.api_endpoints.len(), 1);
+        assert_eq!(catalog.nextjs_api_routes.len(), 1);
+        assert_eq!(catalog.rust_api_routes.len(), 1);
+        assert_eq!(
+            catalog.nextjs_api_routes[0].source_files,
+            vec!["src/app/api/spec/issues/route.ts"]
+        );
+        assert_eq!(
+            catalog.rust_api_routes[0].source_files,
+            vec!["crates/routa-server/src/api/spec.rs"]
+        );
+    }
+
+    #[test]
     fn loads_surface_index_json_with_metadata_and_contract_apis() {
         let dir = tempdir().unwrap();
         let surface_index = dir.path().join("feature-tree.index.json");
@@ -819,6 +934,22 @@ feature_metadata:
       "method": "GET",
       "path": "/api/spec/issues",
       "summary": "List local issue specs"
+    }
+  ],
+  "nextjsApis": [
+    {
+      "domain": "spec",
+      "method": "GET",
+      "path": "/api/spec/issues",
+      "sourceFiles": ["src/app/api/spec/issues/route.ts"]
+    }
+  ],
+  "rustApis": [
+    {
+      "domain": "spec",
+      "method": "GET",
+      "path": "/api/spec/issues",
+      "sourceFiles": ["crates/routa-server/src/api/spec.rs"]
     }
   ],
   "metadata": {
@@ -859,6 +990,14 @@ feature_metadata:
         assert_eq!(
             catalog.api_endpoints[0].description,
             "List local issue specs"
+        );
+        assert_eq!(
+            catalog.nextjs_api_routes[0].source_files,
+            vec!["src/app/api/spec/issues/route.ts"]
+        );
+        assert_eq!(
+            catalog.rust_api_routes[0].source_files,
+            vec!["crates/routa-server/src/api/spec.rs"]
         );
     }
 
